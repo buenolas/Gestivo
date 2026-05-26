@@ -26,6 +26,8 @@ from app.services.subscription import trial_end_date
 from app.services.platform_admin import PlatformAdminSeedError
 from app.services.platform_admin import create_platform_admin
 
+TEST_PASSWORD = "x" * 12
+
 
 class FakeDb:
     def __init__(
@@ -101,7 +103,7 @@ def test_company_created_with_30_day_trial_and_company_admin() -> None:
             company_name="Empresa Nova",
             name="Admin",
             email="admin@example.com",
-            password="senha-segura",
+            password=TEST_PASSWORD,
         ),
     )
 
@@ -263,7 +265,7 @@ def test_create_platform_admin_uses_platform_company_and_role(monkeypatch: pytes
         db,
         name="Admin Plataforma",
         email="ADMIN@EXAMPLE.COM",
-        password="senha-segura",
+        password=TEST_PASSWORD,
     )
 
     assert user.role == UserRole.platform_admin
@@ -284,7 +286,7 @@ def test_create_platform_admin_rejects_duplicate_email() -> None:
             db,
             name="Admin Plataforma",
             email=existing_user.email,
-            password="senha-segura",
+            password=TEST_PASSWORD,
         )
 
 

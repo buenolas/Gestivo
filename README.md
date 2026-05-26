@@ -110,7 +110,7 @@ docker compose exec backend alembic upgrade head
 Crie um usuario interno `platform_admin`:
 
 ```bash
-docker compose exec backend python -m app.scripts.create_platform_admin --name "Nome Admin" --email admin@exemplo.com --password "senha-segura"
+docker compose exec backend python -m app.scripts.create_platform_admin --name "Nome Admin" --email admin@exemplo.com --password "<senha-do-admin>"
 ```
 
 Servicos locais:
