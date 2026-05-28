@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models.company import Company
 from app.models.user import User
 from app.models.user import UserRole
+from app.services.email_verification import can_access_customer_financial_routes
 from app.services.subscription import get_subscription_status
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -51,6 +52,12 @@ def require_valid_subscription(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Administradores da plataforma não acessam rotas financeiras de empresas.",
+        )
+
+    if not can_access_customer_financial_routes(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Confirme seu e-mail para acessar recursos financeiros.",
         )
 
     company = db.get(Company, current_user.company_id)

@@ -5,6 +5,7 @@ export type User = {
   email: string;
   role: "platform_admin" | "company_admin" | "user";
   is_active: boolean;
+  email_verified_at: string | null;
 };
 
 export type SubscriptionStatus =
@@ -21,6 +22,19 @@ export type Subscription = {
   trial_ends_at: string;
   subscription_valid_until: string | null;
   access_until: string | null;
+};
+
+export type Company = {
+  id: string;
+  name: string;
+  subscription_status: SubscriptionStatus;
+  trial_ends_at: string;
+  subscription_valid_until: string | null;
+  opening_balance: string;
+  opening_balance_date: string | null;
+  is_platform_company: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AdminCompanySubscription = Subscription & {

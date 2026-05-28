@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 import { dateText, money } from "../format";
-import type { Dashboard } from "../types";
+import type { Company, Dashboard } from "../types";
 
 function Metric({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "good" | "bad" }) {
   const toneClass = tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-rose-700" : "text-ink";
@@ -14,10 +15,37 @@ function Metric({ label, value, tone = "neutral" }: { label: string; value: stri
 }
 
 export function DashboardPage() {
+  const queryClient = useQueryClient();
+  const [openingBalance, setOpeningBalance] = useState("0.00");
+  const [openingBalanceDate, setOpeningBalanceDate] = useState("");
   const dashboard = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiFetch<Dashboard>("/reports/dashboard"),
   });
+  const company = useQuery({
+    queryKey: ["company"],
+    queryFn: () => apiFetch<Company>("/companies/me"),
+  });
+  const updateOpeningBalance = useMutation({
+    mutationFn: () =>
+      apiFetch<Company>("/companies/me/opening-balance", {
+        method: "PATCH",
+        body: JSON.stringify({
+          opening_balance: openingBalance || "0.00",
+          opening_balance_date: openingBalanceDate || null,
+        }),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["company"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  useEffect(() => {
+    if (!company.data) return;
+    setOpeningBalance(company.data.opening_balance);
+    setOpeningBalanceDate(company.data.opening_balance_date ?? "");
+  }, [company.data]);
 
   if (dashboard.isLoading) return <div className="screen-state">Carregando dashboard...</div>;
   if (dashboard.isError) return <div className="alert-error">{dashboard.error.message}</div>;
@@ -42,6 +70,47 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <form
+          className="panel"
+          onSubmit={(event) => {
+            event.preventDefault();
+            updateOpeningBalance.mutate();
+          }}
+        >
+          <h3 className="panel-title">Saldo inicial</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="field" htmlFor="opening-balance">
+              Valor
+              <input
+                id="opening-balance"
+                type="number"
+                step="0.01"
+                value={openingBalance}
+                onChange={(event) => setOpeningBalance(event.target.value)}
+              />
+            </label>
+            <label className="field" htmlFor="opening-balance-date">
+              Data
+              <input
+                id="opening-balance-date"
+                type="date"
+                value={openingBalanceDate}
+                onChange={(event) => setOpeningBalanceDate(event.target.value)}
+              />
+            </label>
+          </div>
+          {company.data && (
+            <p className="mt-3 text-sm text-muted">
+              Atual: {money(company.data.opening_balance)} desde {dateText(company.data.opening_balance_date)}
+            </p>
+          )}
+          {updateOpeningBalance.error && (
+            <div className="alert-error mt-3">{updateOpeningBalance.error.message}</div>
+          )}
+          <button className="btn-primary mt-4" disabled={updateOpeningBalance.isPending || company.isLoading}>
+            Salvar saldo inicial
+          </button>
+        </form>
         <div className="panel">
           <h3 className="panel-title">Contas em aberto</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">

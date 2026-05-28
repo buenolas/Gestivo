@@ -38,6 +38,11 @@ O MVP deve evitar nichos que exijam complexidade fiscal, estoque avancado ou emi
 
 ## 4. Escopo do MVP
 
+O MVP final deve estar pronto para deploy e uso real por clientes iniciais. Isso significa que
+o objetivo nao e apenas demonstrar telas em ambiente local, mas entregar um fluxo minimo
+operacional, com cadastro, trial, bloqueio, renovacao manual, dados isolados por empresa,
+dashboard, importacao, exportacao e documentacao de operacao.
+
 O MVP deve permitir que uma empresa:
 
 - crie uma conta self-service;
@@ -54,6 +59,18 @@ O MVP deve permitir que uma empresa:
 - exporte lancamentos em CSV;
 - seja bloqueada nas rotas financeiras quando o trial ou assinatura vencer;
 - seja reativada manualmente por um platform admin apos pagamento confirmado fora da plataforma.
+
+Para ser considerado pronto para clientes, o MVP tambem deve ter:
+
+- configuracao clara para ambiente local e deploy;
+- variaveis de ambiente documentadas;
+- migrations executaveis em ambiente limpo;
+- criacao segura de `platform_admin`;
+- validacao basica de fluxos criticos;
+- mensagens de erro compreensiveis;
+- interface revisada para uso por usuarios nao tecnicos;
+- README e documentacao operacional atualizados;
+- ausencia de segredos reais versionados.
 
 ## 5. Funcionalidades Fora do MVP
 
@@ -145,8 +162,51 @@ Ambiente local:
 Exemplo conceitual:
 
 ```text
-DATABASE_URL=postgresql+psycopg://app_user:app_password@postgres:5432/app_db
+DATABASE_URL=postgresql+psycopg://app_user:<senha_local>@postgres:5432/app_db
 ```
+
+Ambiente de deploy:
+
+- o backend deve rodar com `APP_ENV=production` ou equivalente;
+- `APP_DEBUG` deve ser falso em producao;
+- `JWT_SECRET_KEY`, `DATABASE_URL`, CORS e credenciais do banco devem vir de variaveis de ambiente;
+- o banco PostgreSQL de producao deve ser persistente e ter backup fora do container da aplicacao;
+- migrations Alembic devem ser parte do procedimento operacional de deploy;
+- o frontend deve ser buildado e apontar para a URL publica do backend via `VITE_API_URL`;
+- o deploy inicial nao deve introduzir gateway de pagamento ou integracoes externas.
+
+## 7.1 Estado Atual do Projeto
+
+Estado observado na auditoria de 2026-05-27:
+
+- backend FastAPI implementado;
+- frontend React/Vite implementado;
+- PostgreSQL via Docker Compose configurado;
+- autenticacao JWT implementada;
+- cadastro self-service cria empresa e usuario `company_admin`;
+- trial de 30 dias e renovacao manual por `platform_admin` implementados de forma simplificada;
+- categorias financeiras implementadas;
+- lancamentos financeiros implementados;
+- contas a pagar e receber implementadas como visoes de lancamentos;
+- dashboard inicial implementado;
+- importacao CSV/XLSX implementada com parser proprio;
+- area admin inicial de assinaturas implementada;
+- testes automatizados existem principalmente para assinatura.
+
+Divergencias conhecidas entre documentacao e implementacao:
+
+- existe modulo de contatos no codigo, embora contatos/CRM estejam fora do MVP documentado;
+- `financial_transactions` usa `contact_id`, mas o escopo aprovado recomenda `counterparty_name`;
+- `companies.opening_balance` e `opening_balance_date` ainda nao existem;
+- saldo atual ainda nao considera saldo inicial;
+- `deleted_at` ainda nao existe em lancamentos financeiros;
+- exportacao CSV ainda nao esta implementada;
+- job diario real de expiracao de assinatura ainda nao esta isolado como rotina operacional;
+- importacao XLSX usa parser proprio, nao Pandas/OpenPyXL;
+- algumas strings da interface aparecem com problemas de encoding;
+- frontend ainda nao usa todas as bibliotecas planejadas originalmente, como React Hook Form, Zod, TanStack Table e Recharts;
+- roles usam `user` no codigo, enquanto a modelagem planejada mencionava `company_member`;
+- README e configuracoes ainda precisam ser amadurecidos para deploy de cliente.
 
 ## 8. Regras Criticas de Negocio
 

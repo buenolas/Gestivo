@@ -42,6 +42,7 @@ def create_platform_admin(
         email=normalized_email,
         password_hash=hash_password(password),
         role=UserRole.platform_admin,
+        email_verified_at=datetime.now(UTC),
     )
     db.add(user)
     db.commit()

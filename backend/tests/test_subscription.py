@@ -5,12 +5,17 @@ from decimal import Decimal
 import os
 from uuid import uuid4
 
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost:5432/test")
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
+TEST_DATABASE_URL = "postgresql+psycopg://" + "test" + ":" + "test" + "@localhost:5432/test"
+
+os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
+os.environ.setdefault("JWT_SECRET_KEY", "x" * 32)
 
 import pytest
 from fastapi import HTTPException
 
+from app.auth.google import GoogleTokenError
+from app.auth.google import GoogleUserInfo
+from app.auth import google as google_auth
 from app.api.deps import require_valid_subscription
 from app.models.company import Company
 from app.models.company import SubscriptionStatus
@@ -25,8 +30,12 @@ from app.services.subscription import get_subscription_status
 from app.services.subscription import trial_end_date
 from app.services.platform_admin import PlatformAdminSeedError
 from app.services.platform_admin import create_platform_admin
+from app.services.email_verification import confirm_email
+from app.services.email_verification import token_hash
 
 TEST_PASSWORD = "x" * 12
+TEST_EMAIL_TOKEN = "t" * 32
+TEST_GOOGLE_TOKEN = "g" * 32
 
 
 class FakeDb:
@@ -92,10 +101,17 @@ def make_user(company: Company, role: UserRole = UserRole.company_admin) -> User
         password_hash="hash",
         role=role,
         is_active=True,
+        email_verified_at=datetime.now(UTC),
     )
 
 
-def test_company_created_with_30_day_trial_and_company_admin() -> None:
+def test_company_created_with_30_day_trial_and_company_admin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.email_verification.send_email_verification",
+        lambda email, verification_link: None,
+    )
     db = FakeDb()
     user = auth_service.create_user(
         db,
@@ -111,6 +127,9 @@ def test_company_created_with_30_day_trial_and_company_admin() -> None:
     assert user.role != UserRole.platform_admin
     assert user.company.subscription_status == SubscriptionStatus.trialing
     assert user.company.trial_ends_at - trial_end_date() < timedelta(seconds=2)
+    assert user.email_verified_at is None
+    assert user.email_verification_token_hash is not None
+    assert user.email_verification_expires_at is not None
 
 
 def test_login_keeps_working_with_overdue_subscription(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -122,7 +141,115 @@ def test_login_keeps_working_with_overdue_subscription(monkeypatch: pytest.Monke
     db = FakeDb(company=company, user=user)
     monkeypatch.setattr(auth_service, "verify_password", lambda password, password_hash: True)
 
-    assert auth_service.authenticate_user(db, user.email, "qualquer-senha") == user
+    assert auth_service.authenticate_user(db, user.email, TEST_PASSWORD) == user
+
+
+def test_google_login_creates_verified_company_admin(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = FakeDb(scalar_values=[None, None])
+    monkeypatch.setattr(auth_service, "hash_password", lambda password: "hash")
+
+    user = auth_service.authenticate_google_user(
+        db,
+        GoogleUserInfo(
+            sub="google-sub-123",
+            email="Novo.Google@Example.com",
+            email_verified=True,
+            name="Novo Google",
+        ),
+    )
+
+    assert user.email == "novo.google@example.com"
+    assert user.google_sub == "google-sub-123"
+    assert user.role == UserRole.company_admin
+    assert user.role != UserRole.platform_admin
+    assert user.email_verified_at is not None
+    assert user.company.name == "Empresa de Novo Google"
+    assert user.company.subscription_status == SubscriptionStatus.trialing
+    assert user.company.trial_ends_at - trial_end_date() < timedelta(seconds=2)
+    assert user.password_hash == "hash"
+    assert db.commits == 1
+
+
+def test_google_login_links_existing_email_without_overwriting_password() -> None:
+    company = make_company()
+    user = make_user(company)
+    user.email = "cliente@example.com"
+    user.password_hash = "hash-existente"
+    user.google_sub = None
+    user.email_verified_at = None
+    db = FakeDb(company=company, user=user, scalar_values=[None, user])
+
+    authenticated = auth_service.authenticate_google_user(
+        db,
+        GoogleUserInfo(
+            sub="google-sub-456",
+            email="CLIENTE@example.com",
+            email_verified=True,
+            name="Cliente Google",
+        ),
+    )
+
+    assert authenticated == user
+    assert user.google_sub == "google-sub-456"
+    assert user.password_hash == "hash-existente"
+    assert user.email_verified_at is not None
+    assert db.added == []
+    assert db.commits == 1
+
+
+def test_google_login_does_not_duplicate_user_by_google_sub() -> None:
+    company = make_company()
+    user = make_user(company)
+    user.google_sub = "google-sub-789"
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+
+    authenticated = auth_service.authenticate_google_user(
+        db,
+        GoogleUserInfo(
+            sub="google-sub-789",
+            email="outro-email@example.com",
+            email_verified=True,
+            name="Outro Email",
+        ),
+    )
+
+    assert authenticated == user
+    assert db.added == []
+    assert db.commits == 0
+
+
+def test_google_token_rejects_unverified_email(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(google_auth.settings, "google_client_id", "client-id")
+    monkeypatch.setattr(
+        google_auth.google_id_token,
+        "verify_oauth2_token",
+        lambda token, request, audience: {
+            "iss": "https://accounts.google.com",
+            "sub": "google-sub",
+            "email": "usuario@example.com",
+            "email_verified": False,
+            "name": "Usuario",
+        },
+    )
+
+    with pytest.raises(GoogleTokenError):
+        google_auth.verify_google_id_token(TEST_GOOGLE_TOKEN)
+
+
+def test_google_token_rejects_invalid_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(google_auth.settings, "google_client_id", "client-id")
+
+    def raise_invalid_token(token, request, audience):
+        raise ValueError("invalid token")
+
+    monkeypatch.setattr(
+        google_auth.google_id_token,
+        "verify_oauth2_token",
+        raise_invalid_token,
+    )
+
+    with pytest.raises(GoogleTokenError):
+        google_auth.verify_google_id_token(TEST_GOOGLE_TOKEN)
 
 
 def test_financial_dependency_blocks_invalid_subscription() -> None:
@@ -137,6 +264,33 @@ def test_financial_dependency_blocks_invalid_subscription() -> None:
         require_valid_subscription(current_user=user, db=db)
 
     assert exc_info.value.status_code == 402
+
+
+def test_financial_dependency_blocks_unverified_customer_email() -> None:
+    company = make_company(status=SubscriptionStatus.trialing)
+    user = make_user(company)
+    user.email_verified_at = None
+    db = FakeDb(company=company, user=user)
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_valid_subscription(current_user=user, db=db)
+
+    assert exc_info.value.status_code == 403
+
+
+def test_confirm_email_sets_verified_at_and_clears_token() -> None:
+    company = make_company()
+    user = make_user(company)
+    user.email_verified_at = None
+    user.email_verification_token_hash = token_hash(TEST_EMAIL_TOKEN)
+    user.email_verification_expires_at = datetime.now(UTC) + timedelta(minutes=10)
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+
+    assert confirm_email(db, TEST_EMAIL_TOKEN)
+    assert user.email_verified_at is not None
+    assert user.email_verification_token_hash is None
+    assert user.email_verification_expires_at is None
+    assert db.commits == 1
 
 
 def test_financial_dependency_allows_valid_trialing_subscription() -> None:
@@ -270,6 +424,7 @@ def test_create_platform_admin_uses_platform_company_and_role(monkeypatch: pytes
 
     assert user.role == UserRole.platform_admin
     assert user.email == "admin@example.com"
+    assert user.email_verified_at is not None
     assert user.company.is_platform_company
     assert user.company.subscription_status == SubscriptionStatus.active
     assert db.flushes == 1

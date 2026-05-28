@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.company import Company
 from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
@@ -21,6 +22,7 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
     today = date.today()
     period_start = today.replace(day=1)
     period_end = today.replace(day=monthrange(today.year, today.month)[1])
+    company = db.get(Company, user.company_id)
     transactions = list(
         db.scalars(
             select(FinancialTransaction).where(
@@ -30,7 +32,7 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
         )
     )
 
-    current_balance = ZERO
+    current_balance = company.opening_balance if company is not None else ZERO
     month_income = ZERO
     month_expense = ZERO
     open_payables_total = ZERO
@@ -45,9 +47,12 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
     overdue_receivables_count = 0
 
     for transaction in transactions:
+        if transaction.status == FinancialTransactionStatus.canceled:
+            continue
+
         amount = transaction.amount
 
-        if transaction.status == FinancialTransactionStatus.settled:
+        if _transaction_impacts_current_balance(transaction, company):
             if transaction.type == FinancialTransactionType.income:
                 current_balance += amount
             else:
@@ -116,8 +121,9 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
 def _calculation_criteria() -> dict[str, str]:
     return {
         "current_balance": (
-            "Settled income minus settled expense. Opening balance is not included "
-            "because companies do not have opening_balance yet."
+            "opening_balance plus settled income minus settled expense. If "
+            "opening_balance_date exists, only settled transactions with settled_at on or "
+            "after that date are included. Canceled transactions are ignored."
         ),
         "month_income": "Non-canceled income with competence_date inside the current month.",
         "month_expense": "Non-canceled expense with competence_date inside the current month.",
@@ -131,3 +137,16 @@ def _calculation_criteria() -> dict[str, str]:
             "payables due by month end."
         ),
     }
+
+
+def _transaction_impacts_current_balance(
+    transaction: FinancialTransaction,
+    company: Company | None,
+) -> bool:
+    if transaction.status != FinancialTransactionStatus.settled:
+        return False
+    if company is None or company.opening_balance_date is None:
+        return True
+    if transaction.settled_at is None:
+        return False
+    return transaction.settled_at.date() >= company.opening_balance_date

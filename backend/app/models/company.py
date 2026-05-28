@@ -1,10 +1,14 @@
 import uuid
 import enum
+from datetime import date
 from datetime import datetime
+from decimal import Decimal
 
+from sqlalchemy import Date
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
 from sqlalchemy import Boolean
+from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import UUID
@@ -42,6 +46,12 @@ class Company(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    opening_balance: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+    )
+    opening_balance_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_platform_company: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

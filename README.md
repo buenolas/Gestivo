@@ -89,11 +89,18 @@ Requisitos:
 - Docker Compose;
 - Git.
 
-Copie o arquivo de ambiente, se quiser customizar variaveis:
+Copie o arquivo de ambiente e preencha os valores obrigatorios antes de subir os containers.
+Nao versionar `.env` real.
 
 ```bash
 cp .env.example .env
 ```
+
+Valores obrigatorios para ambiente local:
+
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `JWT_SECRET_KEY`
 
 Suba os containers:
 

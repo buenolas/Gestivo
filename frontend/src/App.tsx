@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownCircle,
@@ -7,9 +7,12 @@ import {
   ContactRound,
   FileSpreadsheet,
   FolderTree,
+  Chrome,
   LayoutDashboard,
   LogOut,
+  MailCheck,
   Menu,
+  RefreshCw,
   ReceiptText,
   ShieldCheck,
   X,
@@ -56,6 +59,33 @@ const financialPages = new Set<PageKey>([
   "imports",
 ]);
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+          }) => void;
+          renderButton: (
+            element: HTMLElement,
+            options: {
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              width?: number;
+              text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+              locale?: string;
+            },
+          ) => void;
+        };
+      };
+    };
+  }
+}
+
 function pageFromHash(): PageKey {
   const hash = window.location.hash.replace("#/", "");
   return pages.some((page) => page.key === hash) ? (hash as PageKey) : "dashboard";
@@ -64,6 +94,7 @@ function pageFromHash(): PageKey {
 function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [googleReady, setGoogleReady] = useState(false);
   const [form, setForm] = useState({
     company_name: "",
     name: "",
@@ -93,7 +124,69 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
     onSuccess: () => login.mutate(),
   });
 
-  const error = login.error?.message ?? register.error?.message;
+  const googleLogin = useMutation({
+    mutationFn: async (idToken: string) =>
+      apiFetch<{ access_token: string }>("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ id_token: idToken }),
+      }),
+    onSuccess: async (data) => {
+      setToken(data.access_token);
+      onAuthenticated(data.access_token);
+      await queryClient.invalidateQueries();
+    },
+  });
+  const submitGoogleLogin = googleLogin.mutate;
+  const handleGoogleCredential = useCallback(
+    (response: { credential?: string }) => {
+      if (response.credential) submitGoogleLogin(response.credential);
+    },
+    [submitGoogleLogin],
+  );
+  const renderGoogleButton = useCallback(
+    (element: HTMLDivElement) => {
+      if (!googleReady || !window.google) return;
+      window.google.accounts.id.renderButton(element, {
+        theme: "outline",
+        size: "large",
+        text: mode === "login" ? "signin_with" : "signup_with",
+        locale: "pt-BR",
+        width: element.clientWidth || 360,
+      });
+    },
+    [googleReady, mode],
+  );
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const scriptId = "google-identity-services";
+    const initializeGoogle = () => {
+      if (!window.google) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+      });
+      setGoogleReady(true);
+    };
+
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) {
+      if (window.google) initializeGoogle();
+      else existingScript.addEventListener("load", initializeGoogle, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", initializeGoogle, { once: true });
+    document.head.appendChild(script);
+  }, [handleGoogleCredential]);
+
+  const error = login.error?.message ?? register.error?.message ?? googleLogin.error?.message;
 
   return (
     <main className="min-h-screen bg-panel px-4 py-10">
@@ -177,6 +270,12 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
           <button className="btn-primary w-full" disabled={login.isPending || register.isPending}>
             {mode === "login" ? "Entrar" : "Criar e entrar"}
           </button>
+          {GOOGLE_CLIENT_ID && (
+            <GoogleSignInButton
+              disabled={!googleReady || googleLogin.isPending}
+              onClickContainer={renderGoogleButton}
+            />
+          )}
           <button
             className="btn-ghost w-full"
             type="button"
@@ -187,6 +286,34 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
         </form>
       </section>
     </main>
+  );
+}
+
+function GoogleSignInButton({
+  disabled,
+  onClickContainer,
+}: {
+  disabled: boolean;
+  onClickContainer: (element: HTMLDivElement) => void;
+}) {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!container || disabled) return;
+    container.innerHTML = "";
+    onClickContainer(container);
+  }, [container, disabled, onClickContainer]);
+
+  return (
+    <div className="min-h-11 w-full">
+      {disabled && (
+        <button className="btn-secondary w-full" disabled type="button">
+          <Chrome className="h-4 w-4" />
+          Google
+        </button>
+      )}
+      <div className={disabled ? "hidden" : ""} ref={setContainer} />
+    </div>
   );
 }
 
@@ -353,6 +480,89 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   );
 }
 
+function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const queryClient = useQueryClient();
+  const [token, setTokenValue] = useState(
+    () => new URLSearchParams(window.location.search).get("email_verification_token") ?? "",
+  );
+
+  const confirm = useMutation({
+    mutationFn: () =>
+      apiFetch<{ message: string }>("/auth/email/confirm", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
+    onSuccess: async () => {
+      window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+
+  const resend = useMutation({
+    mutationFn: () =>
+      apiFetch<{ message: string }>("/auth/email/verification/resend", {
+        method: "POST",
+      }),
+  });
+
+  useEffect(() => {
+    if (token) confirm.mutate();
+  }, []);
+
+  return (
+    <main className="min-h-screen bg-panel px-4 py-10 text-ink">
+      <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-line bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3">
+          <MailCheck className="h-6 w-6 text-brand" />
+          <div>
+            <h1 className="text-xl font-semibold">Confirme seu e-mail</h1>
+            <p className="text-sm text-muted">{user.email}</p>
+          </div>
+        </div>
+
+        <p className="text-sm leading-6 text-muted">
+          O login esta liberado, mas o acesso financeiro fica bloqueado ate a confirmacao do e-mail.
+          Em modo dev, o link aparece nos logs do backend.
+        </p>
+
+        <label className="field" htmlFor="verification-token">
+          Token de verificacao
+          <input
+            id="verification-token"
+            value={token}
+            onChange={(event) => setTokenValue(event.target.value)}
+          />
+        </label>
+
+        {confirm.error && <div className="alert-error">{confirm.error.message}</div>}
+        {resend.error && <div className="alert-error">{resend.error.message}</div>}
+        {resend.data && <div className="alert-warning">{resend.data.message}</div>}
+
+        <div className="flex flex-wrap gap-3">
+          <button className="btn-primary" disabled={!token || confirm.isPending} onClick={() => confirm.mutate()}>
+            <MailCheck className="h-4 w-4" />
+            Confirmar
+          </button>
+          <button className="btn-secondary" disabled={resend.isPending} onClick={() => resend.mutate()}>
+            <RefreshCw className="h-4 w-4" />
+            Reenviar
+          </button>
+          <button
+            className="btn-ghost"
+            onClick={() => {
+              clearToken();
+              queryClient.clear();
+              onLogout();
+            }}
+          >
+            Sair
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function subscriptionStatusText(status: Subscription["status"]) {
   const labels: Record<Subscription["status"], string> = {
     trialing: "Trial",
@@ -418,6 +628,9 @@ export default function App() {
   }
   if (me.data!.role === "platform_admin") {
     return <AdminShell user={me.data!} onLogout={() => setCurrentToken(null)} />;
+  }
+  if (!me.data!.email_verified_at) {
+    return <EmailVerificationScreen user={me.data!} onLogout={() => setCurrentToken(null)} />;
   }
   return <CompanyShell user={me.data!} onLogout={() => setCurrentToken(null)} />;
 }
