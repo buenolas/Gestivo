@@ -10,15 +10,18 @@ import {
   Chrome,
   LayoutDashboard,
   LogOut,
+  Mail,
   MailCheck,
   Menu,
+  MessageCircle,
   RefreshCw,
   ReceiptText,
   ShieldCheck,
+  UsersRound,
   X,
 } from "lucide-react";
 import { apiFetch, clearToken, getToken, setToken } from "./api";
-import type { Subscription, User } from "./types";
+import type { Company, Subscription, User } from "./types";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { ContactsPage } from "./pages/ContactsPage";
@@ -26,11 +29,13 @@ import { TransactionsPage } from "./pages/TransactionsPage";
 import { AccountViewPage } from "./pages/AccountViewPage";
 import { ImportsPage } from "./pages/ImportsPage";
 import { AdminSubscriptionsPage } from "./pages/AdminSubscriptionsPage";
+import { EmployeesPage } from "./pages/EmployeesPage";
 
 type PageKey =
   | "dashboard"
   | "categories"
   | "contacts"
+  | "employees"
   | "transactions"
   | "payables"
   | "receivables"
@@ -44,6 +49,7 @@ const pages: Array<{
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { key: "categories", label: "Categorias", icon: FolderTree },
   { key: "contacts", label: "Contatos", icon: ContactRound },
+  { key: "employees", label: "Funcionarios", icon: UsersRound },
   { key: "transactions", label: "Lançamentos", icon: ReceiptText },
   { key: "payables", label: "A pagar", icon: ArrowDownCircle },
   { key: "receivables", label: "A receber", icon: ArrowUpCircle },
@@ -53,6 +59,7 @@ const pages: Array<{
 const financialPages = new Set<PageKey>([
   "dashboard",
   "categories",
+  "employees",
   "transactions",
   "payables",
   "receivables",
@@ -325,6 +332,10 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     queryKey: ["subscription-status"],
     queryFn: () => apiFetch<Subscription>("/subscription/status"),
   });
+  const company = useQuery({
+    queryKey: ["company"],
+    queryFn: () => apiFetch<Company>("/companies/me"),
+  });
 
   useEffect(() => {
     const onHashChange = () => setActivePage(pageFromHash());
@@ -341,6 +352,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     dashboard: <DashboardPage />,
     categories: <CategoriesPage />,
     contacts: <ContactsPage />,
+    employees: <EmployeesPage />,
     transactions: <TransactionsPage />,
     payables: <AccountViewPage kind="payables" />,
     receivables: <AccountViewPage kind="receivables" />,
@@ -364,7 +376,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   return (
     <div className="min-h-screen bg-panel text-ink">
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-72 border-r border-line bg-white p-4 transition lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 flex w-72 flex-col border-r border-line bg-white p-4 transition lg:translate-x-0 ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -377,7 +389,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
             <X className="h-4 w-4" />
           </button>
         </div>
-        <nav className="space-y-1">
+        <nav className="flex-1 space-y-1">
           {pages.map((page) => {
             const Icon = page.icon;
             return (
@@ -392,6 +404,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
             );
           })}
         </nav>
+        <SidebarContactInfo />
       </aside>
 
       {menuOpen && <button className="fixed inset-0 z-20 bg-black/20 lg:hidden" onClick={() => setMenuOpen(false)} />}
@@ -399,16 +412,23 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
       <div className="lg:pl-72">
         <header className="sticky top-0 z-10 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <button className="icon-btn lg:hidden" onClick={() => setMenuOpen(true)}>
                 <Menu className="h-4 w-4" />
               </button>
-              <div>
+              <h1 className="truncate text-2xl font-semibold leading-tight text-ink md:text-3xl">
+                {company.data?.name ?? activeTitle}
+              </h1>
+              <div className="hidden">
                 <h1 className="text-lg font-semibold">{activeTitle}</h1>
                 <p className="text-xs text-muted">{user.name} · {user.email}</p>
               </div>
             </div>
             {subscription.data && <SubscriptionBadge subscription={subscription.data} />}
+            <div className="hidden shrink-0 text-right sm:block">
+              <p className="text-sm font-medium text-ink">{user.name}</p>
+              <p className="text-xs text-muted">{user.email}</p>
+            </div>
             <button
               className="btn-secondary"
               onClick={() => {
@@ -429,6 +449,35 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
             shellContent
           )}
         </main>
+      </div>
+    </div>
+  );
+}
+
+function SidebarContactInfo() {
+  return (
+    <div className="mt-4 rounded-lg border border-line bg-panel p-3 text-sm">
+      <p className="font-semibold text-ink">Precisa de ajuda?</p>
+      <p className="mt-1 text-xs leading-5 text-muted">
+        Para liberar ou renovar o acesso, entre em contato.
+      </p>
+      <div className="mt-3 space-y-2">
+        <a
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-brand transition hover:bg-white"
+          href="https://wa.me/5562996960340"
+          rel="noreferrer"
+          target="_blank"
+        >
+          <MessageCircle className="h-4 w-4" />
+          (62) 99696-0340
+        </a>
+        <a
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-brand transition hover:bg-white"
+          href="mailto:lucasdealmeidabueno@gmail.com"
+        >
+          <Mail className="h-4 w-4" />
+          lucasdealmeidabueno@gmail.com
+        </a>
       </div>
     </div>
   );
@@ -593,15 +642,11 @@ function SubscriptionBadge({ subscription }: { subscription: Subscription }) {
 function SubscriptionBlocked({ subscription }: { subscription: Subscription }) {
   return (
     <section className="panel max-w-2xl space-y-3">
-      <h2 className="panel-title">Acesso financeiro bloqueado</h2>
+      <h2 className="panel-title">Seu período gratuito terminou.</h2>
       <p className="text-sm leading-6 text-muted">
-        A assinatura da empresa está com status {subscriptionStatusText(subscription.status).toLowerCase()}.
-        O login continua disponível, mas as rotas financeiras ficam bloqueadas até a renovação manual por
-        um administrador da plataforma.
+        Para continuar usando o sistema, realize o pagamento da assinatura.
       </p>
-      <div className="alert-warning">
-        Após a confirmação do pagamento fora da plataforma, peça a renovação manual da assinatura.
-      </div>
+      <p className="text-sm leading-6 text-muted">Entre em contato para liberação.</p>
     </section>
   );
 }

@@ -117,8 +117,10 @@ docker compose exec backend alembic upgrade head
 Crie um usuario interno `platform_admin`:
 
 ```bash
-docker compose exec backend python -m app.scripts.create_platform_admin --name "Nome Admin" --email admin@exemplo.com --password "<senha-do-admin>"
+docker compose exec backend python -m app.scripts.create_platform_admin --name "Nome Admin" --email admin@exemplo.com
 ```
+
+O comando solicita a senha no terminal. Evite passar senha por argumento de linha de comando, porque isso pode ficar salvo no historico do shell.
 
 Servicos locais:
 
@@ -186,6 +188,12 @@ docker compose exec frontend npm run build
 - `AGENTS.md`: instrucoes obrigatorias para agentes de IA que trabalharem neste repositorio.
 
 Antes de propor ou implementar mudancas relevantes, leia esses dois arquivos.
+
+## Notas de seguranca
+
+- Nunca versionar `.env` real, tokens, chaves privadas ou credenciais.
+- Em producao, configurar `APP_DEBUG=false`, `JWT_SECRET_KEY` forte e `BACKEND_CORS_ORIGINS` somente com origens confiaveis.
+- O frontend armazena o JWT em `localStorage` no MVP. Isso simplifica o fluxo inicial, mas aumenta impacto em caso de XSS; antes de uso amplo em producao, revisar CSP, sanitizacao de UI e considerar cookies `HttpOnly` com protecao CSRF.
 
 ## Status atual
 

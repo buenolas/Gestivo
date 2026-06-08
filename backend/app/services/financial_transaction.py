@@ -35,7 +35,8 @@ def list_financial_transactions(
     search: str | None = None,
 ) -> list[FinancialTransaction]:
     query = select(FinancialTransaction).where(
-        FinancialTransaction.company_id == user.company_id
+        FinancialTransaction.company_id == user.company_id,
+        FinancialTransaction.deleted_at.is_(None),
     )
 
     if transaction_type is not None:
@@ -61,7 +62,7 @@ def list_financial_transactions(
         FinancialTransaction.competence_date.desc(),
         FinancialTransaction.created_at.desc(),
     )
-    return list(db.scalars(query))
+    return [transaction for transaction in db.scalars(query) if transaction.deleted_at is None]
 
 
 def get_financial_transaction(
@@ -73,6 +74,7 @@ def get_financial_transaction(
         select(FinancialTransaction).where(
             FinancialTransaction.id == transaction_id,
             FinancialTransaction.company_id == user.company_id,
+            FinancialTransaction.deleted_at.is_(None),
         )
     )
 
@@ -115,6 +117,8 @@ def update_financial_transaction(
     transaction: FinancialTransaction,
     transaction_in: FinancialTransactionUpdate,
 ) -> FinancialTransaction:
+    if transaction.deleted_at is not None:
+        raise FinancialTransactionValidationError("Lancamentos excluidos nao podem ser editados")
     if transaction.status == FinancialTransactionStatus.canceled:
         raise FinancialTransactionValidationError("Lançamentos cancelados não podem ser editados")
 
@@ -167,6 +171,8 @@ def settle_financial_transaction(
     transaction: FinancialTransaction,
     settle_in: FinancialTransactionSettle,
 ) -> FinancialTransaction:
+    if transaction.deleted_at is not None:
+        raise FinancialTransactionValidationError("Lancamentos excluidos nao podem ser liquidados")
     if transaction.status == FinancialTransactionStatus.canceled:
         raise FinancialTransactionValidationError("Lançamentos cancelados não podem ser liquidados")
 
@@ -185,12 +191,28 @@ def cancel_financial_transaction(
     user: User,
     transaction: FinancialTransaction,
 ) -> FinancialTransaction:
+    if transaction.deleted_at is not None:
+        raise FinancialTransactionValidationError("Lancamentos excluidos nao podem ser cancelados")
     transaction.status = FinancialTransactionStatus.canceled
     transaction.canceled_at = datetime.now(UTC)
     transaction.updated_by = user.id
     db.add(transaction)
     db.commit()
     db.refresh(transaction)
+    return transaction
+
+
+def soft_delete_financial_transaction(
+    db: Session,
+    user: User,
+    transaction: FinancialTransaction,
+) -> FinancialTransaction:
+    if transaction.deleted_at is None:
+        transaction.deleted_at = datetime.now(UTC)
+        transaction.updated_by = user.id
+        db.add(transaction)
+        db.commit()
+        db.refresh(transaction)
     return transaction
 
 

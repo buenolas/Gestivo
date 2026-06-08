@@ -2,6 +2,8 @@ from app.models.company import Company
 from app.models.company import SubscriptionStatus
 from app.models.contact import Contact
 from app.models.contact import ContactType
+from app.models.employee import Employee
+from app.models.employee import EmployeeStatus
 from app.models.financial_category import FinancialCategory
 from app.models.financial_category import FinancialCategoryType
 from app.models.financial_transaction import FinancialTransaction
@@ -19,6 +21,8 @@ __all__ = [
     "SubscriptionStatus",
     "Contact",
     "ContactType",
+    "Employee",
+    "EmployeeStatus",
     "FinancialCategory",
     "FinancialCategoryType",
     "FinancialTransaction",

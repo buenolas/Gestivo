@@ -24,6 +24,7 @@ def list_account_view_transactions(
     query = select(FinancialTransaction).where(
         FinancialTransaction.company_id == user.company_id,
         FinancialTransaction.type == transaction_type,
+        FinancialTransaction.deleted_at.is_(None),
     )
 
     if status is not None:
@@ -36,7 +37,7 @@ def list_account_view_transactions(
         FinancialTransaction.due_date.asc().nullslast(),
         FinancialTransaction.created_at.desc(),
     )
-    return list(db.scalars(query))
+    return [transaction for transaction in db.scalars(query) if transaction.deleted_at is None]
 
 
 def get_account_view_transaction(
@@ -50,6 +51,7 @@ def get_account_view_transaction(
             FinancialTransaction.id == transaction_id,
             FinancialTransaction.company_id == user.company_id,
             FinancialTransaction.type == transaction_type,
+            FinancialTransaction.deleted_at.is_(None),
         )
     )
 

@@ -23,6 +23,9 @@ export function statusText(status: string) {
     validated: "Validado",
     failed: "Com erro",
     confirmed: "Confirmado",
+    active: "Ativo",
+    inactive: "Inativo",
+    ended: "Encerrado",
   };
   return labels[status] ?? status;
 }

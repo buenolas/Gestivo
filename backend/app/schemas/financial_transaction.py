@@ -50,15 +50,18 @@ class FinancialTransactionResponse(BaseModel):
     company_id: UUID
     category_id: UUID | None
     contact_id: UUID | None
+    employee_id: UUID | None
     import_batch_id: UUID | None
     description: str
     amount: Decimal
     type: FinancialTransactionType
     status: FinancialTransactionStatus
     competence_date: date
+    reference_month: date | None
     due_date: date | None
     settled_at: datetime | None
     canceled_at: datetime | None
+    deleted_at: datetime | None
     notes: str | None
     source: str
     created_by: UUID

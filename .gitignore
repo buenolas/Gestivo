@@ -5,13 +5,36 @@ __pycache__/
 .ruff_cache/
 
 .env
+.env.*
+!.env.example
 .venv/
 venv/
 
 *.log
+logs/
+*.tmp
+*.bak
+*.swp
+*.swo
 
 postgres_data/
+*.db
+*.sqlite
+*.sqlite3
 
 node_modules/
 dist/
+build/
 .vite/
+
+uploads/
+backend/uploads/
+frontend/dist/
+
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519

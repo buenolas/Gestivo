@@ -2,6 +2,7 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
+from sqlalchemy import or_
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -50,16 +51,29 @@ def get_access_until(company: Company) -> datetime | None:
     return None
 
 
-def refresh_subscription_status(db: Session, company: Company) -> Company:
+def mark_subscription_pending_if_overdue(
+    company: Company,
+    reference_at: datetime | None = None,
+) -> bool:
+    if company.is_platform_company:
+        return False
+
+    checked_at = as_utc(reference_at) or now_utc()
     if company.subscription_status not in {
         SubscriptionStatus.trialing,
         SubscriptionStatus.active,
     }:
-        return company
+        return False
 
     access_until = get_access_until(company)
-    if access_until is not None and access_until < now_utc():
+    if access_until is None or access_until < checked_at:
         company.subscription_status = SubscriptionStatus.pending_payment
+        return True
+    return False
+
+
+def refresh_subscription_status(db: Session, company: Company) -> Company:
+    if mark_subscription_pending_if_overdue(company):
         db.add(company)
         db.commit()
         db.refresh(company)
@@ -100,6 +114,36 @@ def list_admin_company_subscriptions(db: Session) -> list[AdminCompanySubscripti
         )
         for company in companies
     ]
+
+
+def expire_overdue_subscriptions(
+    db: Session,
+    reference_at: datetime | None = None,
+) -> int:
+    checked_at = as_utc(reference_at) or now_utc()
+    companies = db.scalars(
+        select(Company).where(
+            Company.is_platform_company.is_(False),
+            Company.subscription_status.in_(
+                [SubscriptionStatus.trialing, SubscriptionStatus.active]
+            ),
+            or_(
+                Company.trial_ends_at < checked_at,
+                Company.subscription_valid_until.is_(None),
+                Company.subscription_valid_until < checked_at,
+            ),
+        )
+    )
+
+    updated_count = 0
+    for company in companies:
+        if mark_subscription_pending_if_overdue(company, checked_at):
+            db.add(company)
+            updated_count += 1
+
+    if updated_count:
+        db.commit()
+    return updated_count
 
 
 def create_manual_renewal(

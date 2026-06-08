@@ -24,6 +24,7 @@ from app.services.financial_transaction import cancel_financial_transaction
 from app.services.financial_transaction import create_financial_transaction
 from app.services.financial_transaction import get_financial_transaction
 from app.services.financial_transaction import list_financial_transactions
+from app.services.financial_transaction import soft_delete_financial_transaction
 from app.services.financial_transaction import settle_financial_transaction
 from app.services.financial_transaction import update_financial_transaction
 
@@ -140,3 +141,13 @@ def cancel_transaction(
 ) -> FinancialTransaction:
     transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
     return cancel_financial_transaction(db, current_user, transaction)
+
+
+@router.delete("/{transaction_id}", response_model=FinancialTransactionResponse)
+def delete_transaction(
+    transaction_id: UUID,
+    current_user: User = Depends(require_valid_subscription),
+    db: Session = Depends(get_db),
+) -> FinancialTransaction:
+    transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
+    return soft_delete_financial_transaction(db, current_user, transaction)

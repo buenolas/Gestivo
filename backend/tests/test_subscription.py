@@ -26,6 +26,7 @@ from app.schemas.subscription import ManualRenewalCreate
 from app.services import auth as auth_service
 from app.services.subscription import SubscriptionPermissionError
 from app.services.subscription import create_manual_renewal
+from app.services.subscription import expire_overdue_subscriptions
 from app.services.subscription import get_subscription_status
 from app.services.subscription import trial_end_date
 from app.services.platform_admin import PlatformAdminSeedError
@@ -44,10 +45,12 @@ class FakeDb:
         company: Company | None = None,
         user: User | None = None,
         scalar_values: list[object] | None = None,
+        scalar_many: list[object] | None = None,
     ) -> None:
         self.company = company
         self.user = user
         self.scalar_values = scalar_values
+        self.scalar_many = scalar_many
         self.added = []
         self.commits = 0
         self.flushes = 0
@@ -75,6 +78,9 @@ class FakeDb:
         if self.scalar_values is not None:
             return self.scalar_values.pop(0)
         return self.user
+
+    def scalars(self, statement):
+        return self.scalar_many or []
 
 
 def make_company(
@@ -324,6 +330,49 @@ def test_overdue_trial_becomes_pending_payment() -> None:
     assert status.status == SubscriptionStatus.pending_payment
     assert not status.is_valid
     assert company.subscription_status == SubscriptionStatus.pending_payment
+    assert db.commits == 1
+
+
+def test_expire_overdue_subscriptions_is_idempotent() -> None:
+    checked_at = datetime.now(UTC)
+    overdue_trial = make_company(
+        status=SubscriptionStatus.trialing,
+        trial_ends_at=checked_at - timedelta(days=1),
+    )
+    overdue_active = make_company(
+        status=SubscriptionStatus.active,
+        subscription_valid_until=checked_at - timedelta(days=1),
+    )
+    active_without_date = make_company(
+        status=SubscriptionStatus.active,
+        subscription_valid_until=None,
+    )
+    valid_trial = make_company(
+        status=SubscriptionStatus.trialing,
+        trial_ends_at=checked_at + timedelta(days=1),
+    )
+    platform_company = make_company(
+        status=SubscriptionStatus.active,
+        subscription_valid_until=checked_at - timedelta(days=1),
+    )
+    platform_company.is_platform_company = True
+    db = FakeDb(
+        scalar_many=[
+            overdue_trial,
+            overdue_active,
+            active_without_date,
+            valid_trial,
+            platform_company,
+        ],
+    )
+
+    assert expire_overdue_subscriptions(db, checked_at) == 3
+    assert expire_overdue_subscriptions(db, checked_at) == 0
+    assert overdue_trial.subscription_status == SubscriptionStatus.pending_payment
+    assert overdue_active.subscription_status == SubscriptionStatus.pending_payment
+    assert active_without_date.subscription_status == SubscriptionStatus.pending_payment
+    assert valid_trial.subscription_status == SubscriptionStatus.trialing
+    assert platform_company.subscription_status == SubscriptionStatus.active
     assert db.commits == 1
 
 

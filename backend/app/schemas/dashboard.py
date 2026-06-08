@@ -1,10 +1,14 @@
 from datetime import date
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import field_serializer
+
+from app.models.financial_transaction import FinancialTransactionType
 
 
 class DashboardAmountSummary(BaseModel):
@@ -14,6 +18,23 @@ class DashboardAmountSummary(BaseModel):
     @field_serializer("total")
     def serialize_total(self, total: Decimal) -> str:
         return str(total)
+
+
+class DashboardDueAlert(BaseModel):
+    transaction_id: UUID
+    kind: FinancialTransactionType
+    severity: Literal["yellow", "orange", "red"]
+    title: str
+    description: str
+    amount: Decimal
+    due_date: date
+    days_until_due: int
+    contact_name: str | None
+    category_name: str | None
+
+    @field_serializer("amount")
+    def serialize_amount(self, amount: Decimal) -> str:
+        return str(amount)
 
 
 class DashboardResponse(BaseModel):
@@ -28,6 +49,7 @@ class DashboardResponse(BaseModel):
     open_receivables: DashboardAmountSummary
     overdue_payables: DashboardAmountSummary
     overdue_receivables: DashboardAmountSummary
+    due_alerts: list[DashboardDueAlert]
     month_end_balance_forecast: Decimal
     calculation_criteria: dict[str, str]
 

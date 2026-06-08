@@ -5,6 +5,7 @@ from fastapi import Depends
 from fastapi import File
 from fastapi import HTTPException
 from fastapi import UploadFile
+from fastapi import Response
 from fastapi import status
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,8 @@ from app.schemas.import_batch import ImportBatchResponse
 from app.schemas.import_batch import ImportConfirmationResponse
 from app.schemas.import_batch import ImportValidationResponse
 from app.services.import_batch import ImportBatchValidationError
+from app.services.import_batch import CSV_TEMPLATE_FILENAME
+from app.services.import_batch import build_import_template_csv
 from app.services.import_batch import confirm_import_batch
 from app.services.import_batch import create_import_batch
 from app.services.import_batch import get_import_batch
@@ -41,9 +44,23 @@ def _get_user_import_batch_or_404(
     if batch is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lote de importação não encontrado",
+            detail="Lote de importacao nao encontrado",
         )
     return batch
+
+
+@router.get("/template.csv")
+def download_import_template_csv(
+    current_user: User = Depends(require_valid_subscription),
+) -> Response:
+    del current_user
+    return Response(
+        content=build_import_template_csv(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{CSV_TEMPLATE_FILENAME}"',
+        },
+    )
 
 
 @router.post(

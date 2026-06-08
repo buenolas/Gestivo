@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.api.auth import router as auth_router
 from app.api.companies import router as companies_router
 from app.api.contacts import router as contacts_router
+from app.api.employees import router as employees_router
+from app.api.exports import router as exports_router
 from app.api.financial_categories import router as financial_categories_router
 from app.api.financial_transactions import router as financial_transactions_router
 from app.api.import_batches import router as import_batches_router
@@ -30,6 +32,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(companies_router)
 app.include_router(contacts_router)
+app.include_router(employees_router)
+app.include_router(exports_router)
 app.include_router(financial_categories_router)
 app.include_router(financial_transactions_router)
 app.include_router(import_batches_router)

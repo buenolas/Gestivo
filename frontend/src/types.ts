@@ -75,16 +75,41 @@ export type Transaction = {
   id: string;
   category_id: string | null;
   contact_id: string | null;
+  employee_id: string | null;
   import_batch_id: string | null;
   description: string;
   amount: string;
   type: TransactionType;
   status: TransactionStatus;
   competence_date: string;
+  reference_month: string | null;
   due_date: string | null;
   settled_at: string | null;
   notes: string | null;
   source: string;
+};
+
+export type EmployeeStatus = "active" | "inactive" | "ended";
+
+export type Employee = {
+  id: string;
+  company_id: string;
+  name: string;
+  position: string | null;
+  salary_amount: string;
+  contract_start_date: string;
+  contract_end_date: string | null;
+  status: EmployeeStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SalaryExpenseGeneration = {
+  reference_month: string;
+  created_count: number;
+  skipped_count: number;
+  transactions: Transaction[];
 };
 
 export type Dashboard = {
@@ -98,6 +123,18 @@ export type Dashboard = {
   open_receivables: { count: number; total: string };
   overdue_payables: { count: number; total: string };
   overdue_receivables: { count: number; total: string };
+  due_alerts: Array<{
+    transaction_id: string;
+    kind: TransactionType;
+    severity: "yellow" | "orange" | "red";
+    title: string;
+    description: string;
+    amount: string;
+    due_date: string;
+    days_until_due: number;
+    contact_name: string | null;
+    category_name: string | null;
+  }>;
   month_end_balance_forecast: string;
 };
 

@@ -1,6 +1,7 @@
 import csv
 import io
 import re
+import unicodedata
 import uuid
 import zipfile
 from collections import Counter
@@ -12,6 +13,7 @@ from decimal import Decimal
 from decimal import InvalidOperation
 from xml.etree import ElementTree
 
+from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,11 +27,33 @@ from app.models.user import User
 from app.schemas.import_batch import ImportColumnMapping
 
 MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024
+MAX_XLSX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024
 PREVIEW_ROW_LIMIT = 10
+CSV_TEMPLATE_FILENAME = "modelo-importacao-lancamentos.csv"
+CSV_TEMPLATE_HEADERS = [
+    "Data",
+    "Descricao",
+    "Tipo",
+    "Valor",
+    "Vencimento",
+    "Observacoes",
+]
+CSV_TEMPLATE_ROWS = [
+    ["15/05/2026", "Venda de servico", "entrada", "1500,00", "15/05/2026", "Exemplo de receita"],
+    ["20/05/2026", "Aluguel", "saida", "850,00", "20/05/2026", "Exemplo de despesa"],
+]
 
 
 class ImportBatchValidationError(ValueError):
     pass
+
+
+def build_import_template_csv() -> bytes:
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
+    writer.writerow(CSV_TEMPLATE_HEADERS)
+    writer.writerows(CSV_TEMPLATE_ROWS)
+    return f"\ufeff{output.getvalue()}".encode("utf-8")
 
 
 def create_import_batch(
@@ -39,14 +63,18 @@ def create_import_batch(
     content: bytes,
 ) -> ImportBatch:
     if len(content) > MAX_IMPORT_FILE_SIZE_BYTES:
-        raise ImportBatchValidationError("O arquivo excede o limite de 5 MB")
+        raise ImportBatchValidationError("O arquivo excede o limite de 5 MB. Envie uma planilha menor.")
 
     file_type = _get_file_type(filename)
     headers, rows = _parse_file(content, file_type)
     if not headers:
-        raise ImportBatchValidationError("O arquivo deve conter uma linha de cabeçalho")
+        raise ImportBatchValidationError(
+            "A planilha precisa ter uma linha de cabecalho com os nomes das colunas."
+        )
     if not rows:
-        raise ImportBatchValidationError("O arquivo deve conter ao menos uma linha de dados")
+        raise ImportBatchValidationError(
+            "A planilha precisa ter ao menos uma linha de dados abaixo do cabecalho."
+        )
 
     batch = ImportBatch(
         company_id=user.company_id,
@@ -86,7 +114,7 @@ def validate_import_batch(
     mapping: ImportColumnMapping,
 ) -> ImportBatch:
     if batch.status == ImportBatchStatus.confirmed:
-        raise ImportBatchValidationError("Lotes de importação confirmados não podem ser validados novamente")
+        raise ImportBatchValidationError("Esta importacao ja foi confirmada e nao pode ser validada novamente.")
 
     mapping_dict = mapping.model_dump()
     _validate_mapping_columns(batch.headers, mapping)
@@ -115,9 +143,9 @@ def confirm_import_batch(
     batch: ImportBatch,
 ) -> tuple[ImportBatch, list[uuid.UUID]]:
     if batch.status == ImportBatchStatus.confirmed:
-        raise ImportBatchValidationError("O lote de importação já foi confirmado")
+        raise ImportBatchValidationError("Esta importacao ja foi confirmada.")
     if not batch.mapping:
-        raise ImportBatchValidationError("O lote de importação deve ser validado antes da confirmação")
+        raise ImportBatchValidationError("Valide o mapeamento das colunas antes de confirmar a importacao.")
 
     mapping = ImportColumnMapping(**batch.mapping)
     validated_rows, errors, duplicate_warnings, summary = _validate_rows(
@@ -133,16 +161,9 @@ def confirm_import_batch(
         batch.status = ImportBatchStatus.failed
         db.add(batch)
         db.commit()
-        raise ImportBatchValidationError("O lote de importação contém erros de validação")
-    if duplicate_warnings:
-        batch.validation_errors = []
-        batch.duplicate_warnings = duplicate_warnings
-        batch.summary = summary
-        batch.status = ImportBatchStatus.validated
-        db.add(batch)
-        db.commit()
-        raise ImportBatchValidationError("O lote de importação contém possíveis lançamentos duplicados")
-
+        raise ImportBatchValidationError(
+            "Corrija os erros encontrados na planilha antes de confirmar a importacao."
+        )
     transactions = [
         FinancialTransaction(
             company_id=user.company_id,
@@ -163,7 +184,7 @@ def confirm_import_batch(
     db.add_all(transactions)
     batch.status = ImportBatchStatus.confirmed
     batch.validation_errors = []
-    batch.duplicate_warnings = []
+    batch.duplicate_warnings = duplicate_warnings
     batch.summary = summary
     batch.confirmed_by = user.id
     batch.confirmed_at = datetime.now(UTC)
@@ -181,7 +202,7 @@ def _get_file_type(filename: str) -> ImportBatchFileType:
         return ImportBatchFileType.csv
     if lowered.endswith(".xlsx"):
         return ImportBatchFileType.xlsx
-    raise ImportBatchValidationError("Somente arquivos .csv e .xlsx são aceitos")
+    raise ImportBatchValidationError("Somente arquivos .csv e .xlsx sao aceitos.")
 
 
 def _parse_file(
@@ -212,10 +233,13 @@ def _parse_csv(content: bytes) -> tuple[list[str], list[dict[str, str | None]]]:
 def _parse_xlsx(content: bytes) -> tuple[list[str], list[dict[str, str | None]]]:
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as workbook:
+            _validate_xlsx_archive(workbook)
             shared_strings = _read_shared_strings(workbook)
             sheet_xml = workbook.read("xl/worksheets/sheet1.xml")
     except (KeyError, zipfile.BadZipFile) as exc:
-        raise ImportBatchValidationError("Arquivo .xlsx inválido") from exc
+        raise ImportBatchValidationError(
+            "Arquivo .xlsx invalido. Exporte novamente a planilha ou use o modelo CSV."
+        ) from exc
 
     namespace = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
     root = ElementTree.fromstring(sheet_xml)
@@ -238,6 +262,14 @@ def _parse_xlsx(content: bytes) -> tuple[list[str], list[dict[str, str | None]]]
         for data_row in parsed_rows[1:]
     ]
     return headers, _drop_empty_rows(rows)
+
+
+def _validate_xlsx_archive(workbook: zipfile.ZipFile) -> None:
+    total_uncompressed_size = sum(info.file_size for info in workbook.infolist())
+    if total_uncompressed_size > MAX_XLSX_UNCOMPRESSED_BYTES:
+        raise ImportBatchValidationError(
+            "Arquivo .xlsx muito grande apos descompactacao. Envie uma planilha menor."
+        )
 
 
 def _read_shared_strings(workbook: zipfile.ZipFile) -> list[str]:
@@ -306,21 +338,21 @@ def _validate_mapping_columns(headers: list[str], mapping: ImportColumnMapping) 
     selected_columns = [value for value in mapping.model_dump().values() if value is not None]
     missing = sorted(column for column in selected_columns if column not in header_set)
     if missing:
-        raise ImportBatchValidationError(f"Colunas mapeadas não encontradas: {', '.join(missing)}")
+        raise ImportBatchValidationError(f"Colunas mapeadas nao foram encontradas: {', '.join(missing)}.")
 
     has_single_amount = mapping.amount_column is not None
     has_split_amount = mapping.income_amount_column is not None or mapping.expense_amount_column is not None
     if has_single_amount == has_split_amount:
         raise ImportBatchValidationError(
-            "Use a coluna de valor único ou as colunas de entrada/saída, não ambas"
+            "Escolha uma forma de valor: uma coluna unica de Valor ou duas colunas separadas de Entrada e Saida."
         )
     if has_split_amount and not (mapping.income_amount_column and mapping.expense_amount_column):
         raise ImportBatchValidationError(
-            "As colunas de entrada e saída são obrigatórias na importação com valores separados"
+            "Para valores separados, mapeie as duas colunas: Valor entrada e Valor saida."
         )
     if has_single_amount and mapping.type_column is None:
         raise ImportBatchValidationError(
-            "A coluna de tipo é obrigatória quando a importação usa valor único"
+            "Quando usar uma coluna unica de Valor, tambem mapeie a coluna Tipo como entrada ou saida."
         )
 
 
@@ -352,13 +384,20 @@ def _validate_row(
     errors: list[dict[str, object]] = []
     competence_date = _parse_date(_get_cell(row, mapping.date_column))
     if competence_date is None:
-        errors.append(_error(row_number, "date", "Data inválida ou ausente", _get_cell(row, mapping.date_column)))
+        errors.append(
+            _error(
+                row_number,
+                "date",
+                "Informe uma data valida no formato DD/MM/AAAA, AAAA-MM-DD ou data do Excel.",
+                _get_cell(row, mapping.date_column),
+            )
+        )
 
     description = (_get_cell(row, mapping.description_column) or "").strip()
     if len(description) < 2:
-        errors.append(_error(row_number, "description", "A descrição deve ter ao menos 2 caracteres", description))
+        errors.append(_error(row_number, "description", "Informe uma descricao com ao menos 2 caracteres.", description))
     if len(description) > 255:
-        errors.append(_error(row_number, "description", "A descrição deve ter no máximo 255 caracteres", description))
+        errors.append(_error(row_number, "description", "A descricao deve ter no maximo 255 caracteres.", description))
 
     transaction_type: FinancialTransactionType | None = None
     amount: Decimal | None = None
@@ -368,7 +407,14 @@ def _validate_row(
             errors.append(_error(row_number, "amount", amount_error, _get_cell(row, mapping.amount_column)))
         transaction_type = _parse_transaction_type(_get_cell(row, mapping.type_column))
         if transaction_type is None:
-            errors.append(_error(row_number, "type", "Tipo de lançamento inválido ou ausente", _get_cell(row, mapping.type_column)))
+            errors.append(
+                _error(
+                    row_number,
+                    "type",
+                    "Informe o tipo como entrada/receita ou saida/despesa.",
+                    _get_cell(row, mapping.type_column),
+                )
+            )
     else:
         income_amount, income_error = _parse_optional_money(_get_cell(row, mapping.income_amount_column))
         expense_amount, expense_error = _parse_optional_money(_get_cell(row, mapping.expense_amount_column))
@@ -377,7 +423,7 @@ def _validate_row(
         if expense_error:
             errors.append(_error(row_number, "expense_amount", expense_error, _get_cell(row, mapping.expense_amount_column)))
         if income_amount is not None and expense_amount is not None:
-            errors.append(_error(row_number, "amount", "Use valor de entrada ou valor de saída, não ambos", None))
+            errors.append(_error(row_number, "amount", "Preencha apenas entrada ou saida na mesma linha, nao ambos.", None))
         elif income_amount is not None:
             amount = income_amount
             transaction_type = FinancialTransactionType.income
@@ -385,9 +431,21 @@ def _validate_row(
             amount = expense_amount
             transaction_type = FinancialTransactionType.expense
         else:
-            errors.append(_error(row_number, "amount", "Valor de entrada ou saída ausente", None))
+            errors.append(_error(row_number, "amount", "Informe um valor de entrada ou um valor de saida.", None))
 
-    due_date = _parse_date(_get_cell(row, mapping.due_date_column)) if mapping.due_date_column else None
+    due_date = None
+    if mapping.due_date_column:
+        due_date_value = _get_cell(row, mapping.due_date_column)
+        due_date = _parse_date(due_date_value)
+        if due_date_value and due_date is None:
+            errors.append(
+                _error(
+                    row_number,
+                    "due_date",
+                    "Informe o vencimento no formato DD/MM/AAAA, AAAA-MM-DD ou deixe em branco.",
+                    due_date_value,
+                )
+            )
     notes = _get_cell(row, mapping.notes_column) if mapping.notes_column else None
 
     if errors:
@@ -428,7 +486,7 @@ def _parse_date(value: str | None) -> date | None:
 def _parse_money(value: str | None) -> tuple[Decimal | None, str | None]:
     parsed, error = _parse_optional_money(value)
     if parsed is None and error is None:
-        return None, "Valor ausente"
+        return None, "Informe um valor maior que zero."
     return parsed, error
 
 
@@ -439,11 +497,11 @@ def _parse_optional_money(value: str | None) -> tuple[Decimal | None, str | None
     try:
         amount = Decimal(normalized).quantize(Decimal("0.01"))
     except InvalidOperation:
-        return None, "Valor inválido"
+        return None, "Valor invalido. Use exemplos como 1234,56 ou 1234.56."
     if amount <= Decimal("0"):
-        return None, "O valor deve ser maior que zero"
+        return None, "O valor deve ser maior que zero."
     if amount >= Decimal("1000000000000"):
-        return None, "O valor excede o limite aceito"
+        return None, "O valor excede o limite aceito."
     return amount, None
 
 
@@ -464,14 +522,19 @@ def _normalize_money(value: str) -> str:
 def _parse_transaction_type(value: str | None) -> FinancialTransactionType | None:
     if value is None:
         return None
-    normalized = value.strip().lower()
-    income_values = {"income", "entrada", "receita", "recebimento", "credito", "crédito"}
-    expense_values = {"expense", "saida", "saída", "despesa", "pagamento", "debito", "débito"}
+    normalized = _normalize_text(value)
+    income_values = {"income", "entrada", "receita", "recebimento", "credito"}
+    expense_values = {"expense", "saida", "despesa", "pagamento", "debito"}
     if normalized in income_values:
         return FinancialTransactionType.income
     if normalized in expense_values:
         return FinancialTransactionType.expense
     return None
+
+
+def _normalize_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.strip().lower())
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
 def _find_duplicate_warnings(
@@ -496,7 +559,7 @@ def _find_duplicate_warnings(
                 {
                     "row_number": row["row_number"],
                     "scope": "batch",
-                    "message": "Possível linha duplicada neste lote de importação",
+                    "message": "Possivel duplicidade nesta planilha. Revise antes de confirmar.",
                 }
             )
 
@@ -505,10 +568,11 @@ def _find_duplicate_warnings(
             select(FinancialTransaction.id).where(
                 FinancialTransaction.company_id == user.company_id,
                 FinancialTransaction.competence_date == row["competence_date"],
-                FinancialTransaction.description == row["description"],
+                func.lower(FinancialTransaction.description) == row["description"].strip().lower(),
                 FinancialTransaction.amount == row["amount"],
                 FinancialTransaction.type == row["type"],
                 FinancialTransaction.status != FinancialTransactionStatus.canceled,
+                FinancialTransaction.deleted_at.is_(None),
             )
         )
         if exists is not None:
@@ -516,7 +580,7 @@ def _find_duplicate_warnings(
                 {
                     "row_number": row["row_number"],
                     "scope": "company",
-                    "message": "Possível lançamento duplicado já existente para esta empresa",
+                    "message": "Possivel duplicidade com um lancamento ja existente nesta empresa.",
                 }
             )
     return warnings

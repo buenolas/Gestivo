@@ -57,6 +57,12 @@ class FinancialTransaction(Base):
         nullable=True,
         index=True,
     )
+    employee_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("employees.id"),
+        nullable=True,
+        index=True,
+    )
     import_batch_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("import_batches.id"),
@@ -75,9 +81,11 @@ class FinancialTransaction(Base):
         default=FinancialTransactionStatus.pending,
     )
     competence_date: Mapped[date] = mapped_column(Date, nullable=False)
+    reference_month: Mapped[date | None] = mapped_column(Date, nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str] = mapped_column(String(40), nullable=False, default="manual")
     created_by: Mapped[uuid.UUID] = mapped_column(
@@ -105,6 +113,7 @@ class FinancialTransaction(Base):
     company = relationship("Company")
     category = relationship("FinancialCategory")
     contact = relationship("Contact")
+    employee = relationship("Employee")
     import_batch = relationship("ImportBatch")
     creator = relationship("User", foreign_keys=[created_by])
     updater = relationship("User", foreign_keys=[updated_by])

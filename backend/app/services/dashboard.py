@@ -5,6 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
@@ -13,6 +14,7 @@ from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
 from app.schemas.dashboard import DashboardAmountSummary
+from app.schemas.dashboard import DashboardDueAlert
 from app.schemas.dashboard import DashboardResponse
 
 ZERO = Decimal("0.00")
@@ -28,6 +30,10 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
             select(FinancialTransaction).where(
                 FinancialTransaction.company_id == user.company_id,
                 FinancialTransaction.status != FinancialTransactionStatus.canceled,
+                FinancialTransaction.deleted_at.is_(None),
+            ).options(
+                selectinload(FinancialTransaction.category),
+                selectinload(FinancialTransaction.contact),
             )
         )
     )
@@ -41,6 +47,7 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
     overdue_receivables_total = ZERO
     forecast_payables_total = ZERO
     forecast_receivables_total = ZERO
+    due_alerts: list[DashboardDueAlert] = []
     open_payables_count = 0
     open_receivables_count = 0
     overdue_payables_count = 0
@@ -48,6 +55,8 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
 
     for transaction in transactions:
         if transaction.status == FinancialTransactionStatus.canceled:
+            continue
+        if transaction.deleted_at is not None:
             continue
 
         amount = transaction.amount
@@ -66,6 +75,10 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
 
         if transaction.status != FinancialTransactionStatus.pending:
             continue
+
+        due_alert = _build_due_alert(transaction, today)
+        if due_alert is not None:
+            due_alerts.append(due_alert)
 
         if transaction.type == FinancialTransactionType.expense:
             open_payables_total += amount
@@ -88,6 +101,7 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
     month_end_balance_forecast = (
         current_balance + forecast_receivables_total - forecast_payables_total
     )
+    due_alerts.sort(key=lambda alert: (alert.days_until_due, alert.due_date, alert.title))
 
     return DashboardResponse(
         period_start=period_start,
@@ -113,6 +127,7 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
             count=overdue_receivables_count,
             total=overdue_receivables_total,
         ),
+        due_alerts=due_alerts,
         month_end_balance_forecast=month_end_balance_forecast,
         calculation_criteria=_calculation_criteria(),
     )
@@ -123,15 +138,20 @@ def _calculation_criteria() -> dict[str, str]:
         "current_balance": (
             "opening_balance plus settled income minus settled expense. If "
             "opening_balance_date exists, only settled transactions with settled_at on or "
-            "after that date are included. Canceled transactions are ignored."
+            "after that date are included. Canceled and soft-deleted transactions are ignored."
         ),
-        "month_income": "Non-canceled income with competence_date inside the current month.",
-        "month_expense": "Non-canceled expense with competence_date inside the current month.",
+        "month_income": "Non-canceled, non-deleted income with competence_date inside the current month.",
+        "month_expense": "Non-canceled, non-deleted expense with competence_date inside the current month.",
         "month_result": "month_income minus month_expense.",
         "open_payables": "Pending expense transactions.",
         "open_receivables": "Pending income transactions.",
         "overdue_payables": "Pending expense transactions with due_date before today.",
         "overdue_receivables": "Pending income transactions with due_date before today.",
+        "due_alerts": (
+            "Pending income and expense transactions due today, overdue, or due within "
+            "the next 5 days. Severity is red for overdue or due today, orange for up "
+            "to 2 days, and yellow for up to 5 days."
+        ),
         "month_end_balance_forecast": (
             "current_balance plus pending receivables due by month end minus pending "
             "payables due by month end."
@@ -150,3 +170,42 @@ def _transaction_impacts_current_balance(
     if transaction.settled_at is None:
         return False
     return transaction.settled_at.date() >= company.opening_balance_date
+
+
+def _build_due_alert(
+    transaction: FinancialTransaction,
+    today: date,
+) -> DashboardDueAlert | None:
+    if transaction.due_date is None:
+        return None
+
+    days_until_due = (transaction.due_date - today).days
+    if days_until_due > 5:
+        return None
+
+    if days_until_due <= 0:
+        severity = "red"
+    elif days_until_due <= 2:
+        severity = "orange"
+    else:
+        severity = "yellow"
+
+    kind_label = "pagar" if transaction.type == FinancialTransactionType.expense else "receber"
+    return DashboardDueAlert(
+        transaction_id=transaction.id,
+        kind=transaction.type,
+        severity=severity,
+        title=f"Conta a {kind_label}",
+        description=transaction.description,
+        amount=transaction.amount,
+        due_date=transaction.due_date,
+        days_until_due=days_until_due,
+        contact_name=_related_name(transaction.contact),
+        category_name=_related_name(transaction.category),
+    )
+
+
+def _related_name(value) -> str | None:
+    if value is None:
+        return None
+    return getattr(value, "name", None)

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, X } from "lucide-react";
 import { apiFetch } from "../api";
 import { dateText, money } from "../format";
 import type { Company, Dashboard } from "../types";
@@ -14,13 +15,67 @@ function Metric({ label, value, tone = "neutral" }: { label: string; value: stri
   );
 }
 
+function alertText(daysUntilDue: number) {
+  if (daysUntilDue < 0) return `${Math.abs(daysUntilDue)} dia(s) em atraso`;
+  if (daysUntilDue === 0) return "Vence hoje";
+  return `Vence em ${daysUntilDue} dia(s)`;
+}
+
+function DueAlertCard({
+  alert,
+  onDismiss,
+}: {
+  alert: Dashboard["due_alerts"][number];
+  onDismiss: () => void;
+}) {
+  const toneClass = {
+    yellow: "border-amber-300 bg-amber-50 text-amber-950",
+    orange: "border-orange-300 bg-orange-50 text-orange-950",
+    red: "border-rose-300 bg-rose-50 text-rose-950",
+  }[alert.severity];
+  const iconClass = {
+    yellow: "text-amber-600",
+    orange: "text-orange-600",
+    red: "text-rose-600",
+  }[alert.severity];
+
+  return (
+    <div className={`rounded-lg border p-4 shadow-sm ${toneClass}`}>
+      <div className="flex items-start gap-3">
+        <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${iconClass}`} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">
+                {alert.title}: {alert.description}
+              </p>
+              <p className="mt-1 text-xs font-medium">{alertText(alert.days_until_due)}</p>
+            </div>
+            <strong className="text-base font-semibold">{money(alert.amount)}</strong>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+            <span>Data: {dateText(alert.due_date)}</span>
+            <span>Contato: {alert.contact_name ?? "-"}</span>
+            <span>Categoria: {alert.category_name ?? "-"}</span>
+          </div>
+        </div>
+        <button className="icon-btn h-8 w-8 shrink-0" type="button" onClick={onDismiss} aria-label="Retirar alerta">
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const queryClient = useQueryClient();
   const [openingBalance, setOpeningBalance] = useState("0.00");
   const [openingBalanceDate, setOpeningBalanceDate] = useState("");
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
   const dashboard = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiFetch<Dashboard>("/reports/dashboard"),
+    refetchInterval: 60_000,
   });
   const company = useQuery({
     queryKey: ["company"],
@@ -51,6 +106,7 @@ export function DashboardPage() {
   if (dashboard.isError) return <div className="alert-error">{dashboard.error.message}</div>;
 
   const data = dashboard.data!;
+  const visibleAlerts = data.due_alerts.filter((alert) => !dismissedAlertIds.has(alert.transaction_id));
 
   return (
     <section className="space-y-6">
@@ -60,6 +116,24 @@ export function DashboardPage() {
           Período {dateText(data.period_start)} até {dateText(data.period_end)}
         </p>
       </div>
+
+      {visibleAlerts.length > 0 && (
+        <div className="space-y-3">
+          {visibleAlerts.map((alert) => (
+            <DueAlertCard
+              key={alert.transaction_id}
+              alert={alert}
+              onDismiss={() => {
+                setDismissedAlertIds((current) => {
+                  const next = new Set(current);
+                  next.add(alert.transaction_id);
+                  return next;
+                });
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Metric label="Saldo atual" value={money(data.current_balance)} />
