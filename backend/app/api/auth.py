@@ -26,6 +26,8 @@ from app.services.email_verification import EmailVerificationError
 from app.services.email_verification import confirm_email
 from app.services.email_verification import send_user_email_verification
 from app.services.email import EmailDeliveryError
+from app.models.usage_event import UsageEventType
+from app.services.usage_event import record_usage_event
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -60,6 +62,13 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)) -> TokenRespons
             detail="E-mail ou senha inválidos",
         )
 
+    record_usage_event(
+        db,
+        company_id=user.company_id,
+        user_id=user.id,
+        event_type=UsageEventType.login,
+        commit=True,
+    )
     return TokenResponse(access_token=create_access_token(user.id))
 
 
@@ -79,6 +88,13 @@ def google_login(credentials: GoogleLogin, db: Session = Depends(get_db)) -> Tok
             detail=str(exc),
         ) from exc
 
+    record_usage_event(
+        db,
+        company_id=user.company_id,
+        user_id=user.id,
+        event_type=UsageEventType.login,
+        commit=True,
+    )
     return TokenResponse(access_token=create_access_token(user.id))
 
 

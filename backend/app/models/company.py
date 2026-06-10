@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 import enum
 from datetime import date
@@ -47,6 +49,8 @@ class Company(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    blocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     current_plan_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("plans.id"),

@@ -44,6 +44,71 @@ export type AdminCompanySubscription = Subscription & {
   current_plan_name: string | null;
 };
 
+export type AdminMetricCard = {
+  key: string;
+  label: string;
+  value: number | string;
+};
+
+export type AdminChartPoint = {
+  label: string;
+  value: number | string;
+};
+
+export type AdminClientDashboard = {
+  cards: AdminMetricCard[];
+  subscription_status: AdminChartPoint[];
+  new_clients_by_month: AdminChartPoint[];
+  trial_conversions_by_month: AdminChartPoint[];
+  cancellations_by_month: AdminChartPoint[];
+  active_base_by_month: AdminChartPoint[];
+  active_vs_risk: AdminChartPoint[];
+  plan_distribution: AdminChartPoint[];
+  most_active_by_transactions: AdminChartPoint[];
+  highest_financial_volume: AdminChartPoint[];
+};
+
+export type AdminClientListItem = {
+  company_id: string;
+  company_name: string;
+  admin_name: string | null;
+  admin_email: string | null;
+  subscription_status: SubscriptionStatus;
+  plan_id: string | null;
+  plan_name: string | null;
+  plan_price: string | null;
+  created_at: string;
+  trial_started_at: string | null;
+  trial_ends_at: string;
+  subscription_started_at: string | null;
+  subscription_valid_until: string | null;
+  days_remaining: number | null;
+  last_login_at: string | null;
+  users_count: number;
+  financial_transactions_count: number;
+  imports_count: number;
+  usage_status: "ativo" | "pouco uso" | "sem uso recente" | "nunca usou";
+  is_at_risk: boolean;
+};
+
+export type AdminClientList = {
+  items: AdminClientListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+};
+
+export type AdminClientDetail = AdminClientListItem & {
+  blocked_at: string | null;
+  canceled_at: string | null;
+  users: Array<Record<string, string | boolean | null>>;
+  renewal_history: Array<Record<string, string | null>>;
+  payment_history: Array<Record<string, string | null>>;
+  usage_events: Array<Record<string, string | null>>;
+  last_import_at: string | null;
+};
+
 export type ManualPayment = {
   id: string;
   company_id: string;

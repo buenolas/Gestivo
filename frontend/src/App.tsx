@@ -29,7 +29,7 @@ import { ContactsPage } from "./pages/ContactsPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
 import { AccountViewPage } from "./pages/AccountViewPage";
 import { ImportsPage } from "./pages/ImportsPage";
-import { AdminSubscriptionsPage } from "./pages/AdminSubscriptionsPage";
+import { AdminClientsPage } from "./pages/AdminClientsPage";
 import { AdminPlansPage } from "./pages/AdminPlansPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 
@@ -569,7 +569,7 @@ function SidebarContactInfo() {
 
 function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const [activePage, setActivePage] = useState<"subscriptions" | "plans">("subscriptions");
+  const [activePage, setActivePage] = useState<"clients" | "plans">("clients");
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -580,11 +580,11 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
         </div>
         <nav className="space-y-1">
           <button
-            className={`nav-item ${activePage === "subscriptions" ? "nav-item-active" : ""}`}
-            onClick={() => setActivePage("subscriptions")}
+            className={`nav-item ${activePage === "clients" ? "nav-item-active" : ""}`}
+            onClick={() => setActivePage("clients")}
           >
             <ShieldCheck className="h-4 w-4" />
-            Assinaturas
+            Clientes
           </button>
           <button
             className={`nav-item ${activePage === "plans" ? "nav-item-active" : ""}`}
@@ -617,7 +617,7 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6">
-          {activePage === "subscriptions" ? <AdminSubscriptionsPage /> : <AdminPlansPage />}
+          {activePage === "clients" ? <AdminClientsPage /> : <AdminPlansPage />}
         </main>
       </div>
     </div>

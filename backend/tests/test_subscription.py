@@ -39,6 +39,10 @@ from app.services.subscription import create_manual_renewal
 from app.services.subscription import expire_overdue_subscriptions
 from app.services.subscription import get_subscription_status
 from app.services.subscription import trial_end_date
+from app.services.admin_client import block_admin_client
+from app.services.admin_client import cancel_admin_client
+from app.services.admin_client import reactivate_admin_client
+from app.services.admin_client import change_admin_client_plan
 from app.services.platform_admin import PlatformAdminSeedError
 from app.services.platform_admin import create_platform_admin
 from app.services.email_verification import confirm_email
@@ -730,6 +734,36 @@ def test_platform_admin_cannot_access_financial_dependency() -> None:
         require_valid_subscription(current_user=admin, db=db)
 
     assert exc_info.value.status_code == 403
+
+
+def test_admin_client_block_cancel_and_reactivate_actions() -> None:
+    company = make_company(status=SubscriptionStatus.active)
+    admin = make_user(company, role=UserRole.platform_admin)
+    db = FakeDb(company=company, user=admin)
+
+    blocked = block_admin_client(db, admin, company.id)
+    canceled = cancel_admin_client(db, admin, company.id)
+    reactivated = reactivate_admin_client(db, admin, company.id)
+
+    assert blocked.status == SubscriptionStatus.blocked
+    assert company.blocked_at is None
+    assert canceled.status == SubscriptionStatus.canceled
+    assert company.canceled_at is None
+    assert reactivated.status == SubscriptionStatus.pending_payment
+    assert db.commits == 3
+
+
+def test_admin_client_plan_change_uses_existing_active_plan() -> None:
+    company = make_company(status=SubscriptionStatus.active)
+    admin = make_user(company, role=UserRole.platform_admin)
+    plan = make_plan()
+    db = FakeDb(company=company, user=admin, scalar_many=[plan])
+
+    response = change_admin_client_plan(db, admin, company.id, plan.id)
+
+    assert response.status == SubscriptionStatus.active
+    assert company.current_plan_id == plan.id
+    assert db.commits == 1
 
 
 def test_subscription_status_uses_authenticated_users_company() -> None:

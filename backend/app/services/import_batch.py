@@ -24,7 +24,9 @@ from app.models.import_batch import ImportBatch
 from app.models.import_batch import ImportBatchFileType
 from app.models.import_batch import ImportBatchStatus
 from app.models.user import User
+from app.models.usage_event import UsageEventType
 from app.schemas.import_batch import ImportColumnMapping
+from app.services.usage_event import record_usage_event
 
 MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024
 MAX_XLSX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024
@@ -189,6 +191,13 @@ def confirm_import_batch(
     batch.confirmed_by = user.id
     batch.confirmed_at = datetime.now(UTC)
     db.add(batch)
+    record_usage_event(
+        db,
+        company_id=user.company_id,
+        user_id=user.id,
+        event_type=UsageEventType.spreadsheet_import,
+        metadata={"batch_id": str(batch.id), "created_transactions": len(transactions)},
+    )
     db.commit()
     for transaction in transactions:
         db.refresh(transaction)

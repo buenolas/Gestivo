@@ -17,6 +17,8 @@ from app.models.plan import BillingCycle
 from app.models.plan import Plan
 from app.models.user import User
 from app.models.user import UserRole
+from app.models.usage_event import UsageEvent
+from app.models.usage_event import UsageEventType
 
 __all__ = [
     "Company",
@@ -38,4 +40,6 @@ __all__ = [
     "Plan",
     "User",
     "UserRole",
+    "UsageEvent",
+    "UsageEventType",
 ]

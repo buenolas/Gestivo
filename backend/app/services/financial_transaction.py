@@ -15,9 +15,11 @@ from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
+from app.models.usage_event import UsageEventType
 from app.schemas.financial_transaction import FinancialTransactionCreate
 from app.schemas.financial_transaction import FinancialTransactionSettle
 from app.schemas.financial_transaction import FinancialTransactionUpdate
+from app.services.usage_event import record_usage_event
 
 
 class FinancialTransactionValidationError(ValueError):
@@ -106,6 +108,12 @@ def create_financial_transaction(
         updated_by=user.id,
     )
     db.add(transaction)
+    record_usage_event(
+        db,
+        company_id=user.company_id,
+        user_id=user.id,
+        event_type=UsageEventType.financial_entry_created,
+    )
     db.commit()
     db.refresh(transaction)
     return transaction

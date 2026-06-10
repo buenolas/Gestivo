@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.auth import router as auth_router
+from app.api.admin_clients import router as admin_clients_router
 from app.api.companies import router as companies_router
 from app.api.contacts import router as contacts_router
 from app.api.employees import router as employees_router
@@ -31,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(admin_clients_router)
 app.include_router(companies_router)
 app.include_router(contacts_router)
 app.include_router(employees_router)

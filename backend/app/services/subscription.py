@@ -11,12 +11,14 @@ from app.models.company import Company
 from app.models.company import SubscriptionStatus
 from app.models.manual_payment import ManualPayment
 from app.models.plan import Plan
+from app.models.usage_event import UsageEventType
 from app.models.user import User
 from app.models.user import UserRole
 from app.schemas.subscription import AdminCompanySubscriptionResponse
 from app.schemas.subscription import ManualRenewalCreate
 from app.schemas.subscription import SubscriptionStatusResponse
 from app.services.plan import get_plan_by_slug
+from app.services.usage_event import record_usage_event
 
 TRIAL_DAYS = 30
 RENEWAL_DAYS = 30
@@ -205,6 +207,13 @@ def create_manual_renewal(
     )
     db.add(company)
     db.add(payment)
+    record_usage_event(
+        db,
+        company_id=company.id,
+        user_id=admin_user.id,
+        event_type=UsageEventType.subscription_renewed,
+        metadata={"plan_id": str(plan.id) if plan is not None else None},
+    )
     db.commit()
     db.refresh(payment)
     return payment
