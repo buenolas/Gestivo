@@ -3,7 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import DateTime
+from sqlalchemy import Enum
 from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
@@ -13,6 +15,7 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
+from app.models.plan import BillingCycle
 
 
 class ManualPayment(Base):
@@ -29,6 +32,19 @@ class ManualPayment(Base):
         nullable=False,
         index=True,
     )
+    plan_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plans.id"),
+        nullable=True,
+        index=True,
+    )
+    plan_slug: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    billing_cycle: Mapped[BillingCycle | None] = mapped_column(
+        Enum(BillingCycle, name="billing_cycle"),
+        nullable=True,
+    )
+    duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price_at_payment: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -52,4 +68,5 @@ class ManualPayment(Base):
     )
 
     company = relationship("Company", back_populates="manual_payments")
+    plan = relationship("Plan", back_populates="manual_payments")
     creator = relationship("User")

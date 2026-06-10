@@ -19,6 +19,7 @@ class CompanyResponse(BaseModel):
     subscription_valid_until: datetime | None
     opening_balance: Decimal
     opening_balance_date: date | None
+    onboarding_completed_at: datetime | None
     is_platform_company: bool
     created_at: datetime
     updated_at: datetime
@@ -43,3 +44,9 @@ class CompanyUpdate(BaseModel):
 class OpeningBalanceUpdate(BaseModel):
     opening_balance: Decimal = Field(max_digits=14, decimal_places=2)
     opening_balance_date: date | None = None
+
+
+class CompanyOnboardingComplete(BaseModel):
+    company_name: str = Field(min_length=2, max_length=160)
+    user_name: str = Field(min_length=2, max_length=120)
+    opening_balance: Decimal = Field(max_digits=14, decimal_places=2)

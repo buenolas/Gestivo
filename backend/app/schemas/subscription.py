@@ -23,11 +23,14 @@ class SubscriptionStatusResponse(BaseModel):
 
 class AdminCompanySubscriptionResponse(SubscriptionStatusResponse):
     company_name: str
+    current_plan_id: UUID | None = None
+    current_plan_name: str | None = None
 
 
 class ManualRenewalCreate(BaseModel):
     company_id: UUID
-    amount: Decimal = Field(gt=MONEY_GT_ZERO, max_digits=14, decimal_places=2)
+    plan_id: UUID | None = None
+    amount: Decimal | None = Field(default=None, gt=MONEY_GT_ZERO, max_digits=14, decimal_places=2)
     paid_at: datetime | None = None
     notes: str | None = Field(default=None, max_length=500)
 
@@ -35,6 +38,11 @@ class ManualRenewalCreate(BaseModel):
 class ManualPaymentResponse(BaseModel):
     id: UUID
     company_id: UUID
+    plan_id: UUID | None
+    plan_slug: str | None
+    billing_cycle: str | None
+    duration_months: int | None
+    price_at_payment: Decimal | None
     amount: Decimal
     paid_at: datetime
     period_start: datetime
@@ -49,3 +57,9 @@ class ManualPaymentResponse(BaseModel):
     @field_serializer("amount")
     def serialize_amount(self, amount: Decimal) -> str:
         return str(amount)
+
+    @field_serializer("price_at_payment")
+    def serialize_price_at_payment(self, price: Decimal | None) -> str | None:
+        if price is None:
+            return None
+        return str(price)

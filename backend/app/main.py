@@ -13,6 +13,7 @@ from app.api.financial_categories import router as financial_categories_router
 from app.api.financial_transactions import router as financial_transactions_router
 from app.api.import_batches import router as import_batches_router
 from app.api.payables import router as payables_router
+from app.api.plans import router as plans_admin_router
 from app.api.reports import router as reports_router
 from app.api.receivables import router as receivables_router
 from app.api.subscriptions import admin_router as subscription_admin_router
@@ -38,6 +39,7 @@ app.include_router(financial_categories_router)
 app.include_router(financial_transactions_router)
 app.include_router(import_batches_router)
 app.include_router(payables_router)
+app.include_router(plans_admin_router)
 app.include_router(receivables_router)
 app.include_router(reports_router)
 app.include_router(subscription_router)

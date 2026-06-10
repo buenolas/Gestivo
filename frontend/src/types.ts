@@ -32,6 +32,7 @@ export type Company = {
   subscription_valid_until: string | null;
   opening_balance: string;
   opening_balance_date: string | null;
+  onboarding_completed_at: string | null;
   is_platform_company: boolean;
   created_at: string;
   updated_at: string;
@@ -39,17 +40,39 @@ export type Company = {
 
 export type AdminCompanySubscription = Subscription & {
   company_name: string;
+  current_plan_id: string | null;
+  current_plan_name: string | null;
 };
 
 export type ManualPayment = {
   id: string;
   company_id: string;
+  plan_id: string | null;
+  plan_slug: string | null;
+  billing_cycle: BillingCycle | null;
+  duration_months: number | null;
+  price_at_payment: string | null;
   amount: string;
   paid_at: string;
   period_start: string;
   period_end: string;
   notes: string | null;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingCycle = "monthly" | "semiannual" | "annual";
+
+export type Plan = {
+  id: string;
+  name: string;
+  slug: "monthly" | "semiannual" | "annual";
+  billing_cycle: BillingCycle;
+  duration_months: number;
+  price: string;
+  is_active: boolean;
+  description: string | null;
   created_at: string;
   updated_at: string;
 };

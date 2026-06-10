@@ -1,6 +1,7 @@
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from calendar import monthrange
 
 from sqlalchemy import or_
 from sqlalchemy import select
@@ -9,11 +10,13 @@ from sqlalchemy.orm import Session
 from app.models.company import Company
 from app.models.company import SubscriptionStatus
 from app.models.manual_payment import ManualPayment
+from app.models.plan import Plan
 from app.models.user import User
 from app.models.user import UserRole
 from app.schemas.subscription import AdminCompanySubscriptionResponse
 from app.schemas.subscription import ManualRenewalCreate
 from app.schemas.subscription import SubscriptionStatusResponse
+from app.services.plan import get_plan_by_slug
 
 TRIAL_DAYS = 30
 RENEWAL_DAYS = 30
@@ -111,6 +114,8 @@ def list_admin_company_subscriptions(db: Session) -> list[AdminCompanySubscripti
         AdminCompanySubscriptionResponse(
             **get_subscription_status(db, company).model_dump(),
             company_name=company.name,
+            current_plan_id=company.current_plan_id,
+            current_plan_name=company.current_plan.name if company.current_plan else None,
         )
         for company in companies
     ]
@@ -162,20 +167,36 @@ def create_manual_renewal(
 
     company = refresh_subscription_status(db, company)
     paid_at = as_utc(renewal_in.paid_at) or now_utc()
+    plan = _resolve_renewal_plan(db, company, renewal_in)
+    amount = plan.price if plan is not None else renewal_in.amount
+    if amount is None:
+        raise SubscriptionValidationError("Informe um plano ou valor para a renovacao")
+
     current_access_until = get_access_until(company)
     period_start = (
         current_access_until
         if current_access_until is not None and current_access_until >= paid_at
         else paid_at
     )
-    period_end = period_start + timedelta(days=RENEWAL_DAYS)
+    period_end = (
+        add_months(period_start, plan.duration_months)
+        if plan is not None
+        else period_start + timedelta(days=RENEWAL_DAYS)
+    )
 
     company.subscription_status = SubscriptionStatus.active
     company.subscription_valid_until = period_end
+    if plan is not None:
+        company.current_plan_id = plan.id
 
     payment = ManualPayment(
         company_id=company.id,
-        amount=renewal_in.amount,
+        plan_id=plan.id if plan is not None else None,
+        plan_slug=plan.slug if plan is not None else None,
+        billing_cycle=plan.billing_cycle if plan is not None else None,
+        duration_months=plan.duration_months if plan is not None else None,
+        price_at_payment=plan.price if plan is not None else None,
+        amount=amount,
         paid_at=paid_at,
         period_start=period_start,
         period_end=period_end,
@@ -187,6 +208,37 @@ def create_manual_renewal(
     db.commit()
     db.refresh(payment)
     return payment
+
+
+def add_months(value: datetime, months: int) -> datetime:
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return value.replace(year=year, month=month, day=day)
+
+
+def _resolve_renewal_plan(
+    db: Session,
+    company: Company,
+    renewal_in: ManualRenewalCreate,
+) -> Plan | None:
+    if renewal_in.plan_id is not None:
+        plan = db.get(Plan, renewal_in.plan_id)
+        if plan is None:
+            raise SubscriptionValidationError("Plano nao encontrado")
+    elif company.current_plan_id is not None:
+        plan = db.get(Plan, company.current_plan_id)
+        if plan is None:
+            plan = get_plan_by_slug(db, "monthly")
+    else:
+        plan = None
+
+    if plan is None:
+        return None
+    if not plan.is_active:
+        raise SubscriptionValidationError("Plano inativo")
+    return plan
 
 
 def _strip_optional_text(value: str | None) -> str | None:

@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import { apiFetch } from "../api";
 import { dateText, money } from "../format";
-import type { AdminCompanySubscription, ManualPayment, SubscriptionStatus } from "../types";
-
-function normalizeMoneyInput(value: string) {
-  return value.trim().replace(",", ".");
-}
+import type { AdminCompanySubscription, ManualPayment, Plan, SubscriptionStatus } from "../types";
 
 function statusText(status: SubscriptionStatus) {
   const labels: Record<SubscriptionStatus, string> = {
@@ -20,11 +16,20 @@ function statusText(status: SubscriptionStatus) {
   return labels[status];
 }
 
+function cycleText(cycle: Plan["billing_cycle"]) {
+  const labels: Record<Plan["billing_cycle"], string> = {
+    monthly: "Mensal",
+    semiannual: "Semestral",
+    annual: "Anual",
+  };
+  return labels[cycle];
+}
+
 export function AdminSubscriptionsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     company_id: "",
-    amount: "",
+    plan_id: "",
     paid_at: "",
     notes: "",
   });
@@ -32,10 +37,18 @@ export function AdminSubscriptionsPage() {
     queryKey: ["admin-subscription-companies"],
     queryFn: () => apiFetch<AdminCompanySubscription[]>("/admin/subscriptions/companies"),
   });
+  const plans = useQuery({
+    queryKey: ["admin-plans"],
+    queryFn: () => apiFetch<Plan[]>("/admin/plans"),
+  });
 
   const selectedCompany = useMemo(
     () => companies.data?.find((company) => company.company_id === form.company_id),
     [companies.data, form.company_id],
+  );
+  const selectedPlan = useMemo(
+    () => plans.data?.find((plan) => plan.id === form.plan_id),
+    [plans.data, form.plan_id],
   );
 
   const renew = useMutation({
@@ -44,13 +57,13 @@ export function AdminSubscriptionsPage() {
         method: "POST",
         body: JSON.stringify({
           company_id: form.company_id,
-          amount: normalizeMoneyInput(form.amount),
+          plan_id: form.plan_id,
           paid_at: form.paid_at ? `${form.paid_at}T12:00:00Z` : null,
           notes: form.notes || null,
         }),
       }),
     onSuccess: async () => {
-      setForm({ company_id: "", amount: "", paid_at: "", notes: "" });
+      setForm({ company_id: "", plan_id: "", paid_at: "", notes: "" });
       await queryClient.invalidateQueries({ queryKey: ["admin-subscription-companies"] });
     },
   });
@@ -63,7 +76,7 @@ export function AdminSubscriptionsPage() {
   return (
     <section className="space-y-5">
       <form className="panel grid gap-4 lg:grid-cols-4" onSubmit={onSubmit}>
-        <h2 className="panel-title lg:col-span-4">Renovação manual</h2>
+        <h2 className="panel-title lg:col-span-4">Renovacao manual</h2>
         <label className="field lg:col-span-2" htmlFor="renew-company">
           Empresa
           <select
@@ -80,16 +93,21 @@ export function AdminSubscriptionsPage() {
             ))}
           </select>
         </label>
-        <label className="field" htmlFor="renew-amount">
-          Valor pago
-          <input
-            id="renew-amount"
+        <label className="field" htmlFor="renew-plan">
+          Plano
+          <select
+            id="renew-plan"
             required
-            inputMode="decimal"
-            placeholder="99,90"
-            value={form.amount}
-            onChange={(event) => setForm({ ...form, amount: event.target.value })}
-          />
+            value={form.plan_id}
+            onChange={(event) => setForm({ ...form, plan_id: event.target.value })}
+          >
+            <option value="">Selecione um plano</option>
+            {(plans.data ?? []).map((plan) => (
+              <option key={plan.id} value={plan.id} disabled={!plan.is_active}>
+                {plan.name} - {money(plan.price)}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="field" htmlFor="renew-paid-at">
           Data do pagamento
@@ -101,7 +119,7 @@ export function AdminSubscriptionsPage() {
           />
         </label>
         <label className="field lg:col-span-3" htmlFor="renew-notes">
-          Observações
+          Observacoes
           <input
             id="renew-notes"
             value={form.notes}
@@ -109,12 +127,13 @@ export function AdminSubscriptionsPage() {
           />
         </label>
         <div className="flex items-end">
-          <button className="btn-primary w-full" disabled={renew.isPending || !selectedCompany}>
+          <button className="btn-primary w-full" disabled={renew.isPending || !selectedCompany || !selectedPlan}>
             <CheckCircle2 className="h-4 w-4" />
-            Renovar 30 dias
+            Renovar
           </button>
         </div>
         {renew.error && <div className="alert-error lg:col-span-4">{renew.error.message}</div>}
+        {plans.isError && <div className="alert-error lg:col-span-4">{plans.error.message}</div>}
       </form>
 
       <div className="panel">
@@ -129,9 +148,10 @@ export function AdminSubscriptionsPage() {
               <tr>
                 <th>Empresa</th>
                 <th>Status</th>
-                <th>Trial até</th>
-                <th>Assinatura até</th>
-                <th>Acesso até</th>
+                <th>Plano atual</th>
+                <th>Trial ate</th>
+                <th>Assinatura ate</th>
+                <th>Acesso ate</th>
               </tr>
             </thead>
             <tbody>
@@ -139,6 +159,7 @@ export function AdminSubscriptionsPage() {
                 <tr key={company.company_id}>
                   <td>{company.company_name}</td>
                   <td>{statusText(company.status)}</td>
+                  <td>{company.current_plan_name ?? "-"}</td>
                   <td>{dateText(company.trial_ends_at)}</td>
                   <td>{dateText(company.subscription_valid_until)}</td>
                   <td>{dateText(company.access_until)}</td>
@@ -154,10 +175,14 @@ export function AdminSubscriptionsPage() {
           <p>Empresa selecionada</p>
           <strong>{selectedCompany.company_name}</strong>
           <p className="mt-2 text-sm text-muted">
-            Status atual: {statusText(selectedCompany.status)}. A renovação registra o pagamento manual e
-            libera mais 30 dias de acesso financeiro.
+            Status atual: {statusText(selectedCompany.status)}. A renovacao registra o pagamento manual
+            e libera acesso conforme a duracao do plano.
           </p>
-          {form.amount && <p className="mt-2 text-sm text-muted">Valor informado: {money(normalizeMoneyInput(form.amount))}</p>}
+          {selectedPlan && (
+            <p className="mt-2 text-sm text-muted">
+              Plano selecionado: {cycleText(selectedPlan.billing_cycle)}, {selectedPlan.duration_months} mes(es), valor {money(selectedPlan.price)}.
+            </p>
+          )}
         </div>
       )}
     </section>

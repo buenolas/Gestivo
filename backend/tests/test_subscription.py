@@ -12,19 +12,29 @@ os.environ.setdefault("JWT_SECRET_KEY", "x" * 32)
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.auth.google import GoogleTokenError
 from app.auth.google import GoogleUserInfo
+from app.api.deps import require_platform_admin
 from app.auth import google as google_auth
 from app.api.deps import require_valid_subscription
 from app.models.company import Company
 from app.models.company import SubscriptionStatus
+from app.models.plan import BillingCycle
+from app.models.plan import Plan
 from app.models.user import User
 from app.models.user import UserRole
 from app.schemas.auth import UserCreate
+from app.schemas.company import CompanyOnboardingComplete
+from app.schemas.plan import PlanUpdate
 from app.schemas.subscription import ManualRenewalCreate
 from app.services import auth as auth_service
+from app.services.company import complete_company_onboarding
+from app.services.plan import ensure_fixed_plans
+from app.services.plan import update_plan
 from app.services.subscription import SubscriptionPermissionError
+from app.services.subscription import SubscriptionValidationError
 from app.services.subscription import create_manual_renewal
 from app.services.subscription import expire_overdue_subscriptions
 from app.services.subscription import get_subscription_status
@@ -37,6 +47,7 @@ from app.services.email_verification import token_hash
 TEST_PASSWORD = "x" * 12
 TEST_EMAIL_TOKEN = "t" * 32
 TEST_GOOGLE_TOKEN = "g" * 32
+DEFAULT_ONBOARDING_COMPLETED_AT = object()
 
 
 class FakeDb:
@@ -72,6 +83,10 @@ class FakeDb:
             return self.company
         if model is User and self.user is not None and self.user.id == object_id:
             return self.user
+        if model is Plan and self.scalar_many is not None:
+            for item in self.scalar_many:
+                if isinstance(item, Plan) and item.id == object_id:
+                    return item
         return None
 
     def scalar(self, statement):
@@ -83,17 +98,45 @@ class FakeDb:
         return self.scalar_many or []
 
 
+class PlanSeedDb:
+    def __init__(self, plans: list[Plan] | None = None) -> None:
+        self.plans = plans or []
+        self.commits = 0
+        self.added = []
+
+    def add(self, instance):
+        self.added.append(instance)
+        if isinstance(instance, Plan) and instance not in self.plans:
+            self.plans.append(instance)
+
+    def commit(self):
+        self.commits += 1
+
+    def refresh(self, instance):
+        pass
+
+    def scalars(self, statement):
+        return self.plans
+
+
 def make_company(
     status: SubscriptionStatus = SubscriptionStatus.trialing,
     trial_ends_at: datetime | None = None,
     subscription_valid_until: datetime | None = None,
+    onboarding_completed_at: datetime | None | object = DEFAULT_ONBOARDING_COMPLETED_AT,
 ) -> Company:
+    completed_at = (
+        datetime.now(UTC)
+        if onboarding_completed_at is DEFAULT_ONBOARDING_COMPLETED_AT
+        else onboarding_completed_at
+    )
     return Company(
         id=uuid4(),
         name="Empresa Teste",
         subscription_status=status,
         trial_ends_at=trial_ends_at or datetime.now(UTC) + timedelta(days=30),
         subscription_valid_until=subscription_valid_until,
+        onboarding_completed_at=completed_at,
         is_platform_company=False,
     )
 
@@ -122,8 +165,6 @@ def test_company_created_with_30_day_trial_and_company_admin(
     user = auth_service.create_user(
         db,
         UserCreate(
-            company_name="Empresa Nova",
-            name="Admin",
             email="admin@example.com",
             password=TEST_PASSWORD,
         ),
@@ -131,6 +172,9 @@ def test_company_created_with_30_day_trial_and_company_admin(
 
     assert user.role == UserRole.company_admin
     assert user.role != UserRole.platform_admin
+    assert user.name == "admin"
+    assert user.company.name == "Configurar empresa"
+    assert user.company.onboarding_completed_at is None
     assert user.company.subscription_status == SubscriptionStatus.trialing
     assert user.company.trial_ends_at - trial_end_date() < timedelta(seconds=2)
     assert user.email_verified_at is None
@@ -169,7 +213,8 @@ def test_google_login_creates_verified_company_admin(monkeypatch: pytest.MonkeyP
     assert user.role == UserRole.company_admin
     assert user.role != UserRole.platform_admin
     assert user.email_verified_at is not None
-    assert user.company.name == "Empresa de Novo Google"
+    assert user.company.name == "Configurar empresa"
+    assert user.company.onboarding_completed_at is None
     assert user.company.subscription_status == SubscriptionStatus.trialing
     assert user.company.trial_ends_at - trial_end_date() < timedelta(seconds=2)
     assert user.password_hash == "hash"
@@ -284,6 +329,43 @@ def test_financial_dependency_blocks_unverified_customer_email() -> None:
     assert exc_info.value.status_code == 403
 
 
+def test_financial_dependency_blocks_pending_onboarding() -> None:
+    company = make_company(
+        status=SubscriptionStatus.trialing,
+        onboarding_completed_at=None,
+    )
+
+
+def make_plan(
+    slug: str = "monthly",
+    price: Decimal = Decimal("49.90"),
+    duration_months: int = 1,
+    is_active: bool = True,
+) -> Plan:
+    cycle = BillingCycle(slug)
+    return Plan(
+        id=uuid4(),
+        name={
+            "monthly": "Mensal",
+            "semiannual": "Semestral",
+            "annual": "Anual",
+        }[slug],
+        slug=slug,
+        billing_cycle=cycle,
+        duration_months=duration_months,
+        price=price,
+        is_active=is_active,
+        description=None,
+    )
+    user = make_user(company)
+    db = FakeDb(company=company, user=user)
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_valid_subscription(current_user=user, db=db)
+
+    assert exc_info.value.status_code == 403
+
+
 def test_confirm_email_sets_verified_at_and_clears_token() -> None:
     company = make_company()
     user = make_user(company)
@@ -296,6 +378,32 @@ def test_confirm_email_sets_verified_at_and_clears_token() -> None:
     assert user.email_verified_at is not None
     assert user.email_verification_token_hash is None
     assert user.email_verification_expires_at is None
+    assert db.commits == 1
+
+
+def test_complete_company_onboarding_updates_company_user_and_opening_balance() -> None:
+    company = make_company()
+    company.name = "Configurar empresa"
+    company.onboarding_completed_at = None
+    user = make_user(company)
+    db = FakeDb(company=company, user=user)
+
+    updated_company = complete_company_onboarding(
+        db,
+        user,
+        CompanyOnboardingComplete(
+            company_name="Empresa Nova",
+            user_name="Admin Principal",
+            opening_balance=Decimal("1234.56"),
+        ),
+    )
+
+    assert updated_company == company
+    assert company.name == "Empresa Nova"
+    assert company.opening_balance == Decimal("1234.56")
+    assert company.opening_balance_date is not None
+    assert company.onboarding_completed_at is not None
+    assert user.name == "Admin Principal"
     assert db.commits == 1
 
 
@@ -396,6 +504,125 @@ def test_platform_admin_manual_renewal_extends_active_period() -> None:
     assert payment.amount == Decimal("99.90")
     assert payment.company_id == company.id
     assert payment.created_by == admin.id
+
+
+def test_plan_seed_is_idempotent_and_preserves_admin_price() -> None:
+    monthly = make_plan(price=Decimal("59.90"))
+    monthly.name = "Plano antigo"
+    monthly.duration_months = 99
+    db = PlanSeedDb([monthly])
+
+    plans = ensure_fixed_plans(db)
+    plans_again = ensure_fixed_plans(db)
+
+    assert len(plans) == 3
+    assert len(plans_again) == 3
+    assert monthly.name == "Mensal"
+    assert monthly.duration_months == 1
+    assert monthly.price == Decimal("59.90")
+    assert db.commits == 1
+
+
+def test_admin_can_update_plan_price_status_and_description() -> None:
+    plan = make_plan()
+    db = FakeDb(
+        scalar_many=[
+            plan,
+            make_plan(slug="semiannual", duration_months=6),
+            make_plan(slug="annual", duration_months=12),
+        ]
+    )
+
+    updated = update_plan(
+        db,
+        plan.id,
+        PlanUpdate(price=Decimal("59.90"), is_active=False, description=" Novo valor "),
+    )
+
+    assert updated.price == Decimal("59.90")
+    assert not updated.is_active
+    assert updated.description == "Novo valor"
+    assert db.commits == 1
+
+
+def test_plan_update_rejects_negative_price() -> None:
+    with pytest.raises(ValidationError):
+        PlanUpdate(price=Decimal("-0.01"))
+
+
+def test_plan_update_rejects_structural_fields() -> None:
+    with pytest.raises(ValidationError):
+        PlanUpdate.model_validate(
+            {
+                "price": "49.90",
+                "slug": "other",
+                "billing_cycle": "annual",
+                "duration_months": 12,
+            }
+        )
+
+
+def test_common_user_cannot_access_admin_plan_dependency() -> None:
+    company = make_company()
+    user = make_user(company)
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_platform_admin(current_user=user)
+
+    assert exc_info.value.status_code == 403
+
+
+def test_manual_renewal_uses_current_plan_price_and_duration() -> None:
+    paid_at = datetime(2026, 1, 31, 12, tzinfo=UTC)
+    company = make_company(status=SubscriptionStatus.pending_payment)
+    admin = make_user(company, role=UserRole.platform_admin)
+    plan = make_plan(slug="semiannual", price=Decimal("249.90"), duration_months=6)
+    db = FakeDb(company=company, user=admin, scalar_many=[plan])
+
+    payment = create_manual_renewal(
+        db,
+        admin,
+        ManualRenewalCreate(company_id=company.id, plan_id=plan.id, paid_at=paid_at),
+    )
+
+    assert company.subscription_status == SubscriptionStatus.active
+    assert company.current_plan_id == plan.id
+    assert company.subscription_valid_until == datetime(2026, 7, 31, 12, tzinfo=UTC)
+    assert payment.amount == Decimal("249.90")
+    assert payment.price_at_payment == Decimal("249.90")
+    assert payment.plan_slug == "semiannual"
+    assert payment.duration_months == 6
+
+
+def test_manual_renewal_preserves_historical_price_after_plan_change() -> None:
+    company = make_company(status=SubscriptionStatus.pending_payment)
+    admin = make_user(company, role=UserRole.platform_admin)
+    plan = make_plan(price=Decimal("49.90"))
+    db = FakeDb(company=company, user=admin, scalar_many=[plan])
+
+    payment = create_manual_renewal(
+        db,
+        admin,
+        ManualRenewalCreate(company_id=company.id, plan_id=plan.id),
+    )
+    plan.price = Decimal("59.90")
+
+    assert payment.amount == Decimal("49.90")
+    assert payment.price_at_payment == Decimal("49.90")
+
+
+def test_manual_renewal_rejects_inactive_plan() -> None:
+    company = make_company(status=SubscriptionStatus.pending_payment)
+    admin = make_user(company, role=UserRole.platform_admin)
+    plan = make_plan(is_active=False)
+    db = FakeDb(company=company, user=admin, scalar_many=[plan])
+
+    with pytest.raises(SubscriptionValidationError):
+        create_manual_renewal(
+            db,
+            admin,
+            ManualRenewalCreate(company_id=company.id, plan_id=plan.id),
+        )
 
 
 def test_platform_admin_manual_renewal_starts_from_payment_when_overdue() -> None:

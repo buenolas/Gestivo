@@ -8,9 +8,11 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.company import Company
 from app.models.user import User
+from app.schemas.company import CompanyOnboardingComplete
 from app.schemas.company import CompanyResponse
 from app.schemas.company import CompanyUpdate
 from app.schemas.company import OpeningBalanceUpdate
+from app.services.company import complete_company_onboarding
 from app.services.company import get_user_company
 from app.services.company import update_opening_balance
 from app.services.company import update_user_company
@@ -54,6 +56,21 @@ def update_my_opening_balance(
     db: Session = Depends(get_db),
 ) -> Company:
     company = update_opening_balance(db, current_user, balance_in)
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Empresa nao encontrada",
+        )
+    return company
+
+
+@router.post("/me/onboarding", response_model=CompanyResponse)
+def complete_my_company_onboarding(
+    onboarding_in: CompanyOnboardingComplete,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Company:
+    company = complete_company_onboarding(db, current_user, onboarding_in)
     if company is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

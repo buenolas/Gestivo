@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
@@ -29,6 +30,17 @@ class Settings(BaseSettings):
     brevo_api_key_file: str = ""
     brevo_api_url: str = "https://api.brevo.com/v3/smtp/email"
     google_client_id: str = ""
+
+    @field_validator("email_delivery_mode")
+    @classmethod
+    def validate_email_delivery_mode(cls, value: str) -> str:
+        normalized_value = value.strip().lower()
+        allowed_modes = {"mock", "smtp", "brevo_api"}
+        if normalized_value not in allowed_modes:
+            raise ValueError(
+                "EMAIL_DELIVERY_MODE must be one of: mock, smtp, brevo_api"
+            )
+        return normalized_value
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":

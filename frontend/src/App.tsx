@@ -5,6 +5,7 @@ import {
   ArrowUpCircle,
   BarChart3,
   ContactRound,
+  CreditCard,
   FileSpreadsheet,
   FolderTree,
   Chrome,
@@ -29,6 +30,7 @@ import { TransactionsPage } from "./pages/TransactionsPage";
 import { AccountViewPage } from "./pages/AccountViewPage";
 import { ImportsPage } from "./pages/ImportsPage";
 import { AdminSubscriptionsPage } from "./pages/AdminSubscriptionsPage";
+import { AdminPlansPage } from "./pages/AdminPlansPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 
 type PageKey =
@@ -103,8 +105,6 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [googleReady, setGoogleReady] = useState(false);
   const [form, setForm] = useState({
-    company_name: "",
-    name: "",
     email: "",
     password: "",
   });
@@ -126,7 +126,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
     mutationFn: async () =>
       apiFetch<User>("/auth/register", {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({ email: form.email, password: form.password }),
       }),
     onSuccess: () => login.mutate(),
   });
@@ -221,35 +221,12 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
         >
           <div>
             <h2 className="text-xl font-semibold text-ink">
-              {mode === "login" ? "Entrar" : "Criar empresa"}
+              {mode === "login" ? "Entrar" : "Criar conta"}
             </h2>
             <p className="mt-1 text-sm text-muted">
-              {mode === "login" ? "Use seu e-mail e senha." : "O primeiro usuário vira admin."}
+              {mode === "login" ? "Use seu e-mail e senha." : "Informe apenas e-mail e senha."}
             </p>
           </div>
-
-          {mode === "register" && (
-            <>
-              <label className="field" htmlFor="company-name">
-                Empresa
-                <input
-                  id="company-name"
-                  required
-                  value={form.company_name}
-                  onChange={(event) => setForm({ ...form, company_name: event.target.value })}
-                />
-              </label>
-              <label className="field" htmlFor="user-name">
-                Nome
-                <input
-                  id="user-name"
-                  required
-                  value={form.name}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
-                />
-              </label>
-            </>
-          )}
 
           <label className="field" htmlFor="email">
             E-mail
@@ -275,7 +252,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
           {error && <div className="alert-error">{error}</div>}
 
           <button className="btn-primary w-full" disabled={login.isPending || register.isPending}>
-            {mode === "login" ? "Entrar" : "Criar e entrar"}
+            {mode === "login" ? "Entrar" : "Criar conta"}
           </button>
           {GOOGLE_CLIENT_ID && (
             <GoogleSignInButton
@@ -321,6 +298,113 @@ function GoogleSignInButton({
       )}
       <div className={disabled ? "hidden" : ""} ref={setContainer} />
     </div>
+  );
+}
+
+function OnboardingScreen({
+  user,
+  onComplete,
+  onLogout,
+}: {
+  user: User;
+  onComplete: () => void;
+  onLogout: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    company_name: "",
+    user_name: user.name,
+    opening_balance: "0.00",
+  });
+
+  const completeOnboarding = useMutation({
+    mutationFn: () =>
+      apiFetch<Company>("/companies/me/onboarding", {
+        method: "POST",
+        body: JSON.stringify(form),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["company"] });
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      onComplete();
+    },
+  });
+
+  return (
+    <main className="min-h-screen bg-panel px-4 py-10 text-ink">
+      <div className="fixed inset-0 bg-ink/30" aria-hidden="true" />
+      <section
+        className="relative z-10 mx-auto max-w-lg rounded-lg border border-line bg-white p-6 shadow-lg"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div>
+          <h1 className="text-xl font-semibold">Configuracao inicial</h1>
+          <p className="mt-1 text-sm text-muted">
+            Complete estes dados para liberar o acesso financeiro da empresa.
+          </p>
+        </div>
+
+        <form
+          className="mt-5 space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            completeOnboarding.mutate();
+          }}
+        >
+          <label className="field" htmlFor="onboarding-company-name">
+            Nome da empresa
+            <input
+              id="onboarding-company-name"
+              required
+              value={form.company_name}
+              onChange={(event) => setForm({ ...form, company_name: event.target.value })}
+            />
+          </label>
+          <label className="field" htmlFor="onboarding-user-name">
+            Nome completo do usuario
+            <input
+              id="onboarding-user-name"
+              required
+              value={form.user_name}
+              onChange={(event) => setForm({ ...form, user_name: event.target.value })}
+            />
+          </label>
+          <label className="field" htmlFor="onboarding-opening-balance">
+            Saldo inicial da empresa
+            <input
+              id="onboarding-opening-balance"
+              required
+              type="number"
+              step="0.01"
+              value={form.opening_balance}
+              onChange={(event) => setForm({ ...form, opening_balance: event.target.value })}
+            />
+          </label>
+
+          {completeOnboarding.error && (
+            <div className="alert-error">{completeOnboarding.error.message}</div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <button className="btn-primary" disabled={completeOnboarding.isPending}>
+              Salvar e acessar
+            </button>
+            <button
+              className="btn-ghost"
+              type="button"
+              onClick={() => {
+                clearToken();
+                queryClient.clear();
+                onLogout();
+              }}
+            >
+              Sair
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
   );
 }
 
@@ -485,6 +569,7 @@ function SidebarContactInfo() {
 
 function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
+  const [activePage, setActivePage] = useState<"subscriptions" | "plans">("subscriptions");
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -494,10 +579,20 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
           Plataforma
         </div>
         <nav className="space-y-1">
-          <div className="nav-item nav-item-active">
+          <button
+            className={`nav-item ${activePage === "subscriptions" ? "nav-item-active" : ""}`}
+            onClick={() => setActivePage("subscriptions")}
+          >
             <ShieldCheck className="h-4 w-4" />
             Assinaturas
-          </div>
+          </button>
+          <button
+            className={`nav-item ${activePage === "plans" ? "nav-item-active" : ""}`}
+            onClick={() => setActivePage("plans")}
+          >
+            <CreditCard className="h-4 w-4" />
+            Planos
+          </button>
         </nav>
       </aside>
 
@@ -522,7 +617,7 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6">
-          <AdminSubscriptionsPage />
+          {activePage === "subscriptions" ? <AdminSubscriptionsPage /> : <AdminPlansPage />}
         </main>
       </div>
     </div>
@@ -658,6 +753,14 @@ export default function App() {
     queryFn: () => apiFetch<User>("/auth/me"),
     enabled: Boolean(token),
   });
+  const company = useQuery({
+    queryKey: ["company"],
+    queryFn: () => apiFetch<Company>("/companies/me"),
+    enabled:
+      Boolean(token) &&
+      Boolean(me.data?.email_verified_at) &&
+      me.data?.role !== "platform_admin",
+  });
 
   useEffect(() => {
     if (me.isError) {
@@ -676,6 +779,17 @@ export default function App() {
   }
   if (!me.data!.email_verified_at) {
     return <EmailVerificationScreen user={me.data!} onLogout={() => setCurrentToken(null)} />;
+  }
+  if (company.isLoading) return <div className="screen-state">Carregando empresa...</div>;
+  if (company.isError) return <div className="alert-error">{company.error.message}</div>;
+  if (!company.data!.onboarding_completed_at) {
+    return (
+      <OnboardingScreen
+        user={me.data!}
+        onComplete={() => company.refetch()}
+        onLogout={() => setCurrentToken(null)}
+      />
+    );
   }
   return <CompanyShell user={me.data!} onLogout={() => setCurrentToken(null)} />;
 }

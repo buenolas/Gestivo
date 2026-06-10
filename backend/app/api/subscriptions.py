@@ -64,7 +64,12 @@ def renew_subscription_manually(
             detail=str(error),
         ) from error
     except SubscriptionValidationError as error:
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "nÃ£o encontrada" in str(error) or "nao encontrado" in str(error)
+            else status.HTTP_400_BAD_REQUEST
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status_code,
             detail=str(error),
         ) from error

@@ -67,6 +67,12 @@ def require_valid_subscription(
             detail="Empresa não encontrada",
         )
 
+    if company.onboarding_completed_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conclua as configuracoes iniciais para acessar recursos financeiros.",
+        )
+
     subscription = get_subscription_status(db, company)
     if not subscription.is_valid:
         raise HTTPException(

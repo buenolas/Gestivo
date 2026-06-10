@@ -8,6 +8,7 @@ from sqlalchemy import Date
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
 from sqlalchemy import Boolean
+from sqlalchemy import ForeignKey
 from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
@@ -46,12 +47,22 @@ class Company(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    current_plan_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plans.id"),
+        nullable=True,
+        index=True,
+    )
     opening_balance: Mapped[Decimal] = mapped_column(
         Numeric(14, 2),
         nullable=False,
         default=Decimal("0.00"),
     )
     opening_balance_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     is_platform_company: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -67,3 +78,4 @@ class Company(Base):
 
     users = relationship("User", back_populates="company")
     manual_payments = relationship("ManualPayment", back_populates="company")
+    current_plan = relationship("Plan")

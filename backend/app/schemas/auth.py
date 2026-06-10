@@ -10,8 +10,6 @@ from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    company_name: str = Field(min_length=2, max_length=160)
-    name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)
 

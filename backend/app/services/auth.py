@@ -36,14 +36,15 @@ def create_user(db: Session, user_in: UserCreate) -> User:
     normalized_email = normalize_email(user_in.email)
     ensure_email_domain_allowed(normalized_email)
 
+    display_name = normalized_email.split("@", 1)[0]
     company = Company(
-        name=user_in.company_name.strip(),
+        name="Configurar empresa",
         subscription_status=SubscriptionStatus.trialing,
         trial_ends_at=trial_end_date(),
     )
     user = User(
         company=company,
-        name=user_in.name.strip(),
+        name=display_name[:120],
         email=normalized_email,
         password_hash=hash_password(user_in.password),
         role=UserRole.company_admin,
@@ -93,7 +94,7 @@ def authenticate_google_user(db: Session, google_user: GoogleUserInfo) -> User:
 
     display_name = google_user.name.strip() or normalized_email.split("@", 1)[0]
     company = Company(
-        name=f"Empresa de {display_name}",
+        name="Configurar empresa",
         subscription_status=SubscriptionStatus.trialing,
         trial_ends_at=trial_end_date(),
     )
