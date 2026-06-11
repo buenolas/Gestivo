@@ -279,14 +279,17 @@ EMAIL_FROM_NAME=Gestao Financeira Empresarial
 EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES=60
 BREVO_API_KEY=<chave-da-brevo>
 BREVO_API_URL=https://api.brevo.com/v3/smtp/email
-GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_ID=<oauth-web-client-id-do-google>
 ```
 
 Se o Neon fornecer uma URL iniciada por `postgresql://`, troque apenas o esquema para
 `postgresql+psycopg://`. Preserve os demais parametros, incluindo `sslmode=require`.
 
-Nao configure `VITE_GOOGLE_CLIENT_ID` ou `GOOGLE_CLIENT_ID` enquanto o login Google nao
-estiver autorizado e configurado.
+Use o mesmo OAuth Web Client ID em `GOOGLE_CLIENT_ID` e `VITE_GOOGLE_CLIENT_ID`.
+No Google Cloud Console, o cliente OAuth deve ser do tipo Aplicativo da Web e deve
+incluir `https://gestao-financeira-web-bubas-software.vercel.app` em Origens JavaScript
+autorizadas. O fluxo usa Google Identity Services com ID token, portanto nao precisa de
+URI de redirecionamento para o endpoint `/auth/google`.
 
 ### 4. Migrations e administrador
 
@@ -309,7 +312,7 @@ Configure em Production e Preview:
 
 ```text
 VITE_API_URL=<url-publica-da-api-sem-barra-final>
-VITE_GOOGLE_CLIENT_ID=
+VITE_GOOGLE_CLIENT_ID=<mesmo-oauth-web-client-id-do-google>
 ```
 
 Depois de obter a URL definitiva do frontend, atualize `BACKEND_CORS_ORIGINS` e
