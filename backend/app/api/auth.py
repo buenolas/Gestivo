@@ -13,14 +13,17 @@ from app.models.user import User
 from app.schemas.auth import EmailVerificationConfirm
 from app.schemas.auth import GoogleLogin
 from app.schemas.auth import MessageResponse
+from app.schemas.auth import PasswordChange
 from app.schemas.auth import TokenResponse
 from app.schemas.auth import UserCreate
 from app.schemas.auth import UserLogin
 from app.schemas.auth import UserResponse
 from app.services.auth import authenticate_user
 from app.services.auth import authenticate_google_user
+from app.services.auth import change_user_password
 from app.services.auth import create_user
 from app.services.auth import GoogleLoginError
+from app.services.auth import PasswordChangeError
 from app.services.auth import get_user_by_email
 from app.services.email_verification import EmailVerificationError
 from app.services.email_verification import confirm_email
@@ -101,6 +104,26 @@ def google_login(credentials: GoogleLogin, db: Session = Depends(get_db)) -> Tok
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.post("/change-password", response_model=UserResponse)
+def change_password(
+    password_in: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    try:
+        return change_user_password(
+            db,
+            current_user,
+            password_in.current_password,
+            password_in.new_password,
+        )
+    except PasswordChangeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post("/email/confirm", response_model=MessageResponse)

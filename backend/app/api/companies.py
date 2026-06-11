@@ -5,6 +5,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.deps import require_company_admin_account
 from app.db.session import get_db
 from app.models.company import Company
 from app.models.user import User
@@ -37,7 +38,7 @@ def get_my_company(
 @router.patch("/me", response_model=CompanyResponse)
 def update_my_company(
     company_in: CompanyUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_company_admin_account),
     db: Session = Depends(get_db),
 ) -> Company:
     company = update_user_company(db, current_user, company_in)
@@ -52,7 +53,7 @@ def update_my_company(
 @router.patch("/me/opening-balance", response_model=CompanyResponse)
 def update_my_opening_balance(
     balance_in: OpeningBalanceUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_company_admin_account),
     db: Session = Depends(get_db),
 ) -> Company:
     company = update_opening_balance(db, current_user, balance_in)
@@ -67,7 +68,7 @@ def update_my_opening_balance(
 @router.post("/me/onboarding", response_model=CompanyResponse)
 def complete_my_company_onboarding(
     onboarding_in: CompanyOnboardingComplete,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_company_admin_account),
     db: Session = Depends(get_db),
 ) -> Company:
     company = complete_company_onboarding(db, current_user, onboarding_in)

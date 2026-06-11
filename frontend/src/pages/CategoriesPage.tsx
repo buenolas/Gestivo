@@ -5,7 +5,7 @@ import { apiFetch } from "../api";
 import { typeText } from "../format";
 import type { Category } from "../types";
 
-export function CategoriesPage() {
+export function CategoriesPage({ canManage = true }: { canManage?: boolean }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: "", type: "expense" });
   const categories = useQuery({
@@ -77,7 +77,7 @@ export function CategoriesPage() {
                   <td>{typeText(category.type)}</td>
                   <td>{category.is_active ? "Ativa" : "Inativa"}</td>
                   <td className="text-right">
-                    {category.is_active && (
+                    {canManage && category.is_active && (
                       <button className="icon-btn" title="Desativar" onClick={() => remove.mutate(category.id)}>
                         <Trash2 className="h-4 w-4" />
                       </button>

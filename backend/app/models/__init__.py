@@ -13,6 +13,7 @@ from app.models.import_batch import ImportBatch
 from app.models.import_batch import ImportBatchFileType
 from app.models.import_batch import ImportBatchStatus
 from app.models.manual_payment import ManualPayment
+from app.models.manual_payment import PaymentStatus
 from app.models.plan import BillingCycle
 from app.models.plan import Plan
 from app.models.user import User
@@ -36,6 +37,7 @@ __all__ = [
     "ImportBatchFileType",
     "ImportBatchStatus",
     "ManualPayment",
+    "PaymentStatus",
     "BillingCycle",
     "Plan",
     "User",

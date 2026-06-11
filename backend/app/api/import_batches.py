@@ -9,7 +9,7 @@ from fastapi import Response
 from fastapi import status
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.import_batch import ImportBatch
 from app.models.user import User
@@ -51,7 +51,7 @@ def _get_user_import_batch_or_404(
 
 @router.get("/template.csv")
 def download_import_template_csv(
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
 ) -> Response:
     del current_user
     return Response(
@@ -70,7 +70,7 @@ def download_import_template_csv(
 )
 async def upload_import_file(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> ImportBatch:
     content = await file.read()
@@ -88,7 +88,7 @@ async def upload_import_file(
 @router.get("/{batch_id}", response_model=ImportBatchResponse)
 def get_user_import_batch(
     batch_id: UUID,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> ImportBatch:
     return _get_user_import_batch_or_404(db, current_user, batch_id)
@@ -98,7 +98,7 @@ def get_user_import_batch(
 def validate_user_import_batch(
     batch_id: UUID,
     mapping: ImportColumnMapping,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> ImportBatch:
     batch = _get_user_import_batch_or_404(db, current_user, batch_id)
@@ -111,7 +111,7 @@ def validate_user_import_batch(
 @router.post("/{batch_id}/confirm", response_model=ImportConfirmationResponse)
 def confirm_user_import_batch(
     batch_id: UUID,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> ImportConfirmationResponse:
     batch = _get_user_import_batch_or_404(db, current_user, batch_id)

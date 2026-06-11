@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.financial_category import FinancialCategory
 from app.models.user import User
@@ -81,7 +82,7 @@ def get_category(
 def update_category(
     category_id: UUID,
     category_in: FinancialCategoryUpdate,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> FinancialCategory:
     category = _get_user_category_or_404(db, current_user, category_id)
@@ -99,7 +100,7 @@ def update_category(
 @router.delete("/{category_id}", response_model=FinancialCategoryResponse)
 def delete_category(
     category_id: UUID,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> FinancialCategory:
     category = _get_user_category_or_404(db, current_user, category_id)

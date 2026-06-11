@@ -6,7 +6,8 @@ from fastapi import HTTPException
 from fastapi import status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import require_company_admin
+from app.api.deps import require_valid_subscription
 from app.db.session import get_db
 from app.models.contact import Contact
 from app.models.user import User
@@ -38,7 +39,7 @@ def _get_user_contact_or_404(
 
 @router.get("", response_model=list[ContactResponse])
 def list_user_contacts(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_valid_subscription),
     db: Session = Depends(get_db),
 ) -> list[Contact]:
     return list_contacts(db, current_user)
@@ -47,7 +48,7 @@ def list_user_contacts(
 @router.post("", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
 def create_user_contact(
     contact_in: ContactCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_valid_subscription),
     db: Session = Depends(get_db),
 ) -> Contact:
     return create_contact(db, current_user, contact_in)
@@ -56,7 +57,7 @@ def create_user_contact(
 @router.get("/{contact_id}", response_model=ContactResponse)
 def get_user_contact(
     contact_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_valid_subscription),
     db: Session = Depends(get_db),
 ) -> Contact:
     return _get_user_contact_or_404(db, current_user, contact_id)
@@ -66,7 +67,7 @@ def get_user_contact(
 def update_user_contact(
     contact_id: UUID,
     contact_in: ContactUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> Contact:
     contact = _get_user_contact_or_404(db, current_user, contact_id)
@@ -76,7 +77,7 @@ def update_user_contact(
 @router.delete("/{contact_id}", response_model=ContactResponse)
 def delete_user_contact(
     contact_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> Contact:
     contact = _get_user_contact_or_404(db, current_user, contact_id)

@@ -26,9 +26,10 @@ class FakeDb:
         self.transactions = transactions or []
         self.added = []
         self.commits = 0
+        self.statements = []
 
     def scalars(self, statement):
-        del statement
+        self.statements.append(statement)
         return self.transactions
 
     def add(self, instance):
@@ -66,6 +67,12 @@ def make_user(company: Company) -> User:
     )
 
 
+def make_employee_user(company: Company) -> User:
+    user = make_user(company)
+    user.role = UserRole.user
+    return user
+
+
 def make_transaction(
     company: Company,
     deleted_at: datetime | None = None,
@@ -95,6 +102,18 @@ def test_list_financial_transactions_ignores_soft_deleted_items() -> None:
     transactions = list_financial_transactions(db, user)
 
     assert transactions == [visible]
+
+
+def test_employee_transaction_list_is_filtered_by_creator() -> None:
+    company = make_company()
+    user = make_employee_user(company)
+    db = FakeDb()
+
+    list_financial_transactions(db, user)
+
+    sql = str(db.statements[0])
+    assert "financial_transactions.company_id" in sql
+    assert "financial_transactions.created_by" in sql
 
 
 def test_soft_delete_marks_deleted_at_and_preserves_record() -> None:

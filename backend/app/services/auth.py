@@ -23,6 +23,10 @@ class GoogleLoginError(Exception):
     pass
 
 
+class PasswordChangeError(ValueError):
+    pass
+
+
 def get_user_by_email(db: Session, email: str) -> User | None:
     normalized_email = normalize_email(email)
     return db.scalar(select(User).where(User.email == normalized_email))
@@ -63,6 +67,25 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
         return None
     if not verify_password(password, user.password_hash):
         return None
+    return user
+
+
+def change_user_password(
+    db: Session,
+    user: User,
+    current_password: str,
+    new_password: str,
+) -> User:
+    if not verify_password(current_password, user.password_hash):
+        raise PasswordChangeError("A senha atual esta incorreta.")
+    if verify_password(new_password, user.password_hash):
+        raise PasswordChangeError("A nova senha deve ser diferente da senha atual.")
+
+    user.password_hash = hash_password(new_password)
+    user.must_change_password = False
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 

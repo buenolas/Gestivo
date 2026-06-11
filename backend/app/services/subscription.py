@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.company import Company
 from app.models.company import SubscriptionStatus
 from app.models.manual_payment import ManualPayment
+from app.models.manual_payment import PaymentStatus
 from app.models.plan import Plan
 from app.models.usage_event import UsageEventType
 from app.models.user import User
@@ -190,6 +191,12 @@ def create_manual_renewal(
     company.subscription_valid_until = period_end
     if plan is not None:
         company.current_plan_id = plan.id
+        company.subscription_price = plan.price
+        company.subscription_duration_months = plan.duration_months
+    else:
+        company.subscription_price = amount
+        company.subscription_duration_months = 1
+    company.subscription_period_start = period_start
 
     payment = ManualPayment(
         company_id=company.id,
@@ -199,7 +206,10 @@ def create_manual_renewal(
         duration_months=plan.duration_months if plan is not None else None,
         price_at_payment=plan.price if plan is not None else None,
         amount=amount,
+        status=PaymentStatus.paid,
+        payment_method="manual",
         paid_at=paid_at,
+        due_date=paid_at,
         period_start=period_start,
         period_end=period_end,
         notes=_strip_optional_text(renewal_in.notes),

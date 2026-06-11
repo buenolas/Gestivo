@@ -147,7 +147,11 @@ def get_admin_client_detail(db: Session, company_id: UUID) -> AdminClientDetailR
     company = _get_customer_company(db, company_id)
     base = _client_rows(db, [company])[0]
     users = db.scalars(select(User).where(User.company_id == company.id).order_by(User.created_at.asc())).all()
-    payments = db.scalars(select(ManualPayment).where(ManualPayment.company_id == company.id).order_by(ManualPayment.paid_at.desc())).all()
+    payments = db.scalars(
+        select(ManualPayment)
+        .where(ManualPayment.company_id == company.id)
+        .order_by(ManualPayment.paid_at.desc().nullslast(), ManualPayment.created_at.desc())
+    ).all()
     events = db.scalars(select(UsageEvent).where(UsageEvent.company_id == company.id).order_by(UsageEvent.created_at.desc()).limit(30)).all()
     last_import_at = db.scalar(
         select(func.max(ImportBatch.confirmed_at)).where(ImportBatch.company_id == company.id)
@@ -157,7 +161,7 @@ def get_admin_client_detail(db: Session, company_id: UUID) -> AdminClientDetailR
         {
             "id": str(payment.id),
             "amount": str(payment.amount),
-            "paid_at": payment.paid_at.isoformat(),
+            "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
             "period_start": payment.period_start.isoformat(),
             "period_end": payment.period_end.isoformat(),
             "plan_slug": payment.plan_slug,
@@ -211,10 +215,17 @@ def renew_admin_client(db: Session, admin_user: User, company_id: UUID, renewal_
 
 def block_admin_client(db: Session, admin_user: User, company_id: UUID) -> AdminClientActionResponse:
     company = _get_customer_company(db, company_id)
+    lost_mrr = _company_monthly_revenue(company)
     company.subscription_status = SubscriptionStatus.blocked
     company.blocked_at = now_utc()
     db.add(company)
-    record_usage_event(db, company_id=company.id, user_id=admin_user.id, event_type=UsageEventType.subscription_blocked)
+    record_usage_event(
+        db,
+        company_id=company.id,
+        user_id=admin_user.id,
+        event_type=UsageEventType.subscription_blocked,
+        metadata={"monthly_revenue": str(lost_mrr)},
+    )
     db.commit()
     return _action_response(company, "Empresa bloqueada.")
 
@@ -236,10 +247,17 @@ def unblock_admin_client(db: Session, admin_user: User, company_id: UUID) -> Adm
 
 def cancel_admin_client(db: Session, admin_user: User, company_id: UUID) -> AdminClientActionResponse:
     company = _get_customer_company(db, company_id)
+    lost_mrr = _company_monthly_revenue(company)
     company.subscription_status = SubscriptionStatus.canceled
     company.canceled_at = now_utc()
     db.add(company)
-    record_usage_event(db, company_id=company.id, user_id=admin_user.id, event_type=UsageEventType.subscription_canceled)
+    record_usage_event(
+        db,
+        company_id=company.id,
+        user_id=admin_user.id,
+        event_type=UsageEventType.subscription_canceled,
+        metadata={"monthly_revenue": str(lost_mrr)},
+    )
     db.commit()
     return _action_response(company, "Assinatura cancelada.")
 
@@ -271,6 +289,8 @@ def change_admin_client_plan(
     if plan is None or not plan.is_active:
         raise AdminClientValidationError("Plano nao encontrado ou inativo.")
     company.current_plan_id = plan.id
+    company.subscription_price = plan.price
+    company.subscription_duration_months = plan.duration_months
     db.add(company)
     record_usage_event(
         db,
@@ -568,3 +588,14 @@ def _as_utc(value: datetime) -> datetime:
 
 def _action_response(company: Company, message: str) -> AdminClientActionResponse:
     return AdminClientActionResponse(company_id=company.id, status=company.subscription_status, message=message)
+
+
+def _company_monthly_revenue(company: Company) -> Decimal:
+    price = company.subscription_price
+    duration = company.subscription_duration_months
+    if price is None and company.current_plan is not None:
+        price = company.current_plan.price
+        duration = company.current_plan.duration_months
+    if price is None:
+        return Decimal("0.00")
+    return (price / Decimal(duration or 1)).quantize(Decimal("0.01"))

@@ -44,7 +44,10 @@ class ManualPaymentResponse(BaseModel):
     duration_months: int | None
     price_at_payment: Decimal | None
     amount: Decimal
-    paid_at: datetime
+    status: str
+    payment_method: str
+    paid_at: datetime | None
+    due_date: datetime | None
     period_start: datetime
     period_end: datetime
     notes: str | None

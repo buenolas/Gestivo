@@ -60,6 +60,12 @@ def require_valid_subscription(
             detail="Confirme seu e-mail para acessar recursos financeiros.",
         )
 
+    if current_user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Altere sua senha temporaria antes de acessar o sistema.",
+        )
+
     company = db.get(Company, current_user.company_id)
     if company is None:
         raise HTTPException(
@@ -78,6 +84,28 @@ def require_valid_subscription(
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Assinatura inválida. Regularize a assinatura para acessar recursos financeiros.",
+        )
+    return current_user
+
+
+def require_company_admin(
+    current_user: User = Depends(require_valid_subscription),
+) -> User:
+    if current_user.role != UserRole.company_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores da empresa podem acessar este recurso.",
+        )
+    return current_user
+
+
+def require_company_admin_account(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != UserRole.company_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores da empresa podem acessar este recurso.",
         )
     return current_user
 

@@ -15,6 +15,7 @@ from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
+from app.models.user import UserRole
 from app.models.usage_event import UsageEventType
 from app.schemas.financial_transaction import FinancialTransactionCreate
 from app.schemas.financial_transaction import FinancialTransactionSettle
@@ -40,6 +41,8 @@ def list_financial_transactions(
         FinancialTransaction.company_id == user.company_id,
         FinancialTransaction.deleted_at.is_(None),
     )
+    if user.role == UserRole.user:
+        query = query.where(FinancialTransaction.created_by == user.id)
 
     if transaction_type is not None:
         query = query.where(FinancialTransaction.type == transaction_type)
@@ -72,13 +75,14 @@ def get_financial_transaction(
     user: User,
     transaction_id: uuid.UUID,
 ) -> FinancialTransaction | None:
-    return db.scalar(
-        select(FinancialTransaction).where(
-            FinancialTransaction.id == transaction_id,
-            FinancialTransaction.company_id == user.company_id,
-            FinancialTransaction.deleted_at.is_(None),
-        )
+    query = select(FinancialTransaction).where(
+        FinancialTransaction.id == transaction_id,
+        FinancialTransaction.company_id == user.company_id,
+        FinancialTransaction.deleted_at.is_(None),
     )
+    if user.role == UserRole.user:
+        query = query.where(FinancialTransaction.created_by == user.id)
+    return db.scalar(query)
 
 
 def create_financial_transaction(

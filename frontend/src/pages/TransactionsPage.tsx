@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, Download } from "lucide-react";
+import { Ban, CheckCircle2, Download, Pencil, XCircle } from "lucide-react";
 import { apiFetch, apiUrl, getToken } from "../api";
 import { dateText, money, statusText, typeText } from "../format";
 import type { Category, Contact, Transaction } from "../types";
@@ -11,7 +11,7 @@ function normalizeMoneyInput(value: string) {
   return value.trim().replace(",", ".");
 }
 
-export function TransactionsPage() {
+export function TransactionsPage({ canManageAll = true }: { canManageAll?: boolean }) {
   const queryClient = useQueryClient();
   const [exportError, setExportError] = useState("");
   const [filters, setFilters] = useState({
@@ -32,6 +32,7 @@ export function TransactionsPage() {
     contact_id: "",
     notes: "",
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const query = new URLSearchParams();
   if (filters.type) query.set("type", filters.type);
@@ -76,6 +77,28 @@ export function TransactionsPage() {
     },
   });
 
+  const update = useMutation({
+    mutationFn: () =>
+      apiFetch<Transaction>(`/financial-transactions/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          description: form.description,
+          amount: normalizeMoneyInput(form.amount),
+          type: form.type,
+          competence_date: form.competence_date,
+          due_date: form.due_date || null,
+          category_id: form.category_id || null,
+          contact_id: form.contact_id || null,
+          notes: form.notes || null,
+        }),
+      }),
+    onSuccess: async () => {
+      resetForm();
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
   const settle = useMutation({
     mutationFn: (id: string) => apiFetch<Transaction>(`/financial-transactions/${id}/settle`, { method: "POST", body: JSON.stringify({}) }),
     onSuccess: () => queryClient.invalidateQueries(),
@@ -87,7 +110,37 @@ export function TransactionsPage() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    create.mutate();
+    if (editingId) update.mutate();
+    else create.mutate();
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({
+      description: "",
+      amount: "",
+      type: "expense",
+      competence_date: today,
+      due_date: "",
+      category_id: "",
+      contact_id: "",
+      notes: "",
+    });
+  }
+
+  function startEditing(transaction: Transaction) {
+    setEditingId(transaction.id);
+    setForm({
+      description: transaction.description,
+      amount: transaction.amount,
+      type: transaction.type,
+      competence_date: transaction.competence_date,
+      due_date: transaction.due_date ?? "",
+      category_id: transaction.category_id ?? "",
+      contact_id: transaction.contact_id ?? "",
+      notes: transaction.notes ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function exportCsv() {
@@ -115,7 +168,17 @@ export function TransactionsPage() {
   return (
     <section className="space-y-5">
       <form className="panel grid gap-4 lg:grid-cols-4" onSubmit={onSubmit}>
-        <h2 className="panel-title lg:col-span-4">Novo lançamento</h2>
+        <div className="flex items-center justify-between lg:col-span-4">
+          <h2 className="panel-title">
+            {editingId ? "Editar lancamento" : "Novo lancamento"}
+          </h2>
+          {editingId && (
+            <button className="btn-ghost" type="button" onClick={resetForm}>
+              <XCircle className="h-4 w-4" />
+              Cancelar edicao
+            </button>
+          )}
+        </div>
         <label className="field lg:col-span-2" htmlFor="transaction-description">
           Descrição
           <input id="transaction-description" required minLength={2} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
@@ -162,9 +225,15 @@ export function TransactionsPage() {
           <input id="transaction-notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
         </label>
         <div className="flex items-end">
-          <button className="btn-primary w-full" disabled={create.isPending}>Salvar</button>
+          <button className="btn-primary w-full" disabled={create.isPending || update.isPending}>
+            {editingId ? "Salvar alteracoes" : "Salvar"}
+          </button>
         </div>
-        {create.error && <div className="alert-error lg:col-span-4">{create.error.message}</div>}
+        {(create.error || update.error) && (
+          <div className="alert-error lg:col-span-4">
+            {create.error?.message ?? update.error?.message}
+          </div>
+        )}
       </form>
 
       <div className="panel">
@@ -191,10 +260,12 @@ export function TransactionsPage() {
             <input type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
             <input type="date" value={filters.end_date} onChange={(event) => setFilters({ ...filters, end_date: event.target.value })} />
             <input placeholder="Buscar" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
-            <button className="btn-secondary inline-flex items-center justify-center gap-2" type="button" onClick={exportCsv}>
-              <Download className="h-4 w-4" />
-              CSV
-            </button>
+            {canManageAll && (
+              <button className="btn-secondary inline-flex items-center justify-center gap-2" type="button" onClick={exportCsv}>
+                <Download className="h-4 w-4" />
+                CSV
+              </button>
+            )}
           </div>
         </div>
         {transactions.isError && <div className="alert-error">{transactions.error.message}</div>}
@@ -222,16 +293,23 @@ export function TransactionsPage() {
                   <td>{dateText(transaction.due_date)}</td>
                   <td className="text-right">{money(transaction.amount)}</td>
                   <td className="text-right">
-                    {transaction.status === "pending" && (
-                      <div className="inline-flex gap-2">
+                    <div className="inline-flex gap-2">
+                      {transaction.status !== "canceled" && (
+                        <button className="icon-btn" title="Editar" onClick={() => startEditing(transaction)}>
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canManageAll && transaction.status === "pending" && (
+                        <>
                         <button className="icon-btn" title="Liquidar" onClick={() => settle.mutate(transaction.id)}>
                           <CheckCircle2 className="h-4 w-4" />
                         </button>
                         <button className="icon-btn" title="Cancelar" onClick={() => cancel.mutate(transaction.id)}>
                           <Ban className="h-4 w-4" />
                         </button>
-                      </div>
-                    )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

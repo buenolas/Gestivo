@@ -1,4 +1,5 @@
 import uuid
+import enum
 from datetime import datetime
 from decimal import Decimal
 
@@ -16,6 +17,13 @@ from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 from app.models.plan import BillingCycle
+
+
+class PaymentStatus(str, enum.Enum):
+    paid = "paid"
+    pending = "pending"
+    canceled = "canceled"
+    refunded = "refunded"
 
 
 class ManualPayment(Base):
@@ -46,7 +54,18 @@ class ManualPayment(Base):
     duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_at_payment: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[PaymentStatus] = mapped_column(
+        Enum(PaymentStatus, name="payment_status"),
+        nullable=False,
+        default=PaymentStatus.paid,
+    )
+    payment_method: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+        default="manual",
+    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)

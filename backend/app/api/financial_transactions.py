@@ -9,6 +9,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
@@ -118,7 +119,7 @@ def update_transaction(
 def settle_transaction(
     transaction_id: UUID,
     settle_in: FinancialTransactionSettle | None = None,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> FinancialTransaction:
     transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
@@ -136,7 +137,7 @@ def settle_transaction(
 @router.post("/{transaction_id}/cancel", response_model=FinancialTransactionResponse)
 def cancel_transaction(
     transaction_id: UUID,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> FinancialTransaction:
     transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
@@ -146,7 +147,7 @@ def cancel_transaction(
 @router.delete("/{transaction_id}", response_model=FinancialTransactionResponse)
 def delete_transaction(
     transaction_id: UUID,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> FinancialTransaction:
     transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
