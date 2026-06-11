@@ -7,6 +7,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.vercel/
 .venv/
 venv/
 
@@ -38,3 +39,4 @@ secrets/
 *.pfx
 id_rsa
 id_ed25519
+.vercel
