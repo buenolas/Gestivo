@@ -5,7 +5,7 @@ import { apiFetch } from "../api";
 import { typeText } from "../format";
 import type { Contact } from "../types";
 
-export function ContactsPage() {
+export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: "", type: "both" });
   const contacts = useQuery({
@@ -78,7 +78,7 @@ export function ContactsPage() {
                   <td>{typeText(contact.type)}</td>
                   <td>{contact.is_active ? "Ativo" : "Inativo"}</td>
                   <td className="text-right">
-                    {contact.is_active && (
+                    {canManage && contact.is_active && (
                       <button className="icon-btn" title="Desativar" onClick={() => remove.mutate(contact.id)}>
                         <Trash2 className="h-4 w-4" />
                       </button>

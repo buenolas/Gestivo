@@ -6,10 +6,12 @@ import {
   BarChart3,
   ContactRound,
   CreditCard,
+  CircleDollarSign,
   FileSpreadsheet,
   FolderTree,
   Chrome,
   LayoutDashboard,
+  KeyRound,
   LogOut,
   Mail,
   MailCheck,
@@ -31,13 +33,16 @@ import { AccountViewPage } from "./pages/AccountViewPage";
 import { ImportsPage } from "./pages/ImportsPage";
 import { AdminClientsPage } from "./pages/AdminClientsPage";
 import { AdminPlansPage } from "./pages/AdminPlansPage";
+import { AdminFinancialPage } from "./pages/AdminFinancialPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { CompanyUsersPage } from "./pages/CompanyUsersPage";
 
 type PageKey =
   | "dashboard"
   | "categories"
   | "contacts"
   | "employees"
+  | "users"
   | "transactions"
   | "payables"
   | "receivables"
@@ -52,6 +57,7 @@ const pages: Array<{
   { key: "categories", label: "Categorias", icon: FolderTree },
   { key: "contacts", label: "Contatos", icon: ContactRound },
   { key: "employees", label: "Funcionarios", icon: UsersRound },
+  { key: "users", label: "Usuarios", icon: UsersRound },
   { key: "transactions", label: "Lançamentos", icon: ReceiptText },
   { key: "payables", label: "A pagar", icon: ArrowDownCircle },
   { key: "receivables", label: "A receber", icon: ArrowUpCircle },
@@ -62,6 +68,7 @@ const financialPages = new Set<PageKey>([
   "dashboard",
   "categories",
   "employees",
+  "users",
   "transactions",
   "payables",
   "receivables",
@@ -408,10 +415,109 @@ function OnboardingScreen({
   );
 }
 
+function PasswordChangeScreen({
+  user,
+  onComplete,
+  onLogout,
+}: {
+  user: User;
+  onComplete: () => void;
+  onLogout: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ current_password: "", new_password: "" });
+  const changePassword = useMutation({
+    mutationFn: () =>
+      apiFetch<User>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify(form),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      onComplete();
+    },
+  });
+
+  return (
+    <main className="min-h-screen bg-panel px-4 py-10 text-ink">
+      <section className="mx-auto max-w-lg space-y-5 rounded-lg border border-line bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3">
+          <KeyRound className="h-6 w-6 text-brand" />
+          <div>
+            <h1 className="text-xl font-semibold">Defina sua senha</h1>
+            <p className="text-sm text-muted">{user.email}</p>
+          </div>
+        </div>
+        <p className="text-sm leading-6 text-muted">
+          Troque a senha temporaria antes de acessar os dados da empresa.
+        </p>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            changePassword.mutate();
+          }}
+        >
+          <label className="field" htmlFor="current-password">
+            Senha temporaria
+            <input
+              id="current-password"
+              required
+              type="password"
+              value={form.current_password}
+              onChange={(event) => setForm({ ...form, current_password: event.target.value })}
+            />
+          </label>
+          <label className="field" htmlFor="new-password">
+            Nova senha
+            <input
+              id="new-password"
+              required
+              minLength={8}
+              type="password"
+              value={form.new_password}
+              onChange={(event) => setForm({ ...form, new_password: event.target.value })}
+            />
+          </label>
+          {changePassword.error && (
+            <div className="alert-error">{changePassword.error.message}</div>
+          )}
+          <div className="flex gap-3">
+            <button className="btn-primary" disabled={changePassword.isPending}>
+              Salvar nova senha
+            </button>
+            <button
+              className="btn-ghost"
+              type="button"
+              onClick={() => {
+                clearToken();
+                queryClient.clear();
+                onLogout();
+              }}
+            >
+              Sair
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState<PageKey>(pageFromHash);
   const [menuOpen, setMenuOpen] = useState(false);
+  const isAdmin = user.role === "company_admin";
+  const visiblePages = useMemo(
+    () =>
+      isAdmin
+        ? pages
+        : pages.filter((page) =>
+            ["transactions", "categories", "contacts"].includes(page.key),
+          ),
+    [isAdmin],
+  );
   const subscription = useQuery({
     queryKey: ["subscription-status"],
     queryFn: () => apiFetch<Subscription>("/subscription/status"),
@@ -422,10 +528,20 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   });
 
   useEffect(() => {
-    const onHashChange = () => setActivePage(pageFromHash());
+    const syncPage = () => {
+      const nextPage = pageFromHash();
+      if (!visiblePages.some((page) => page.key === nextPage)) {
+        window.location.hash = "/transactions";
+        setActivePage("transactions");
+        return;
+      }
+      setActivePage(nextPage);
+    };
+    syncPage();
+    const onHashChange = () => syncPage();
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+  }, [visiblePages]);
 
   const activeTitle = useMemo(
     () => pages.find((page) => page.key === activePage)?.label ?? "Dashboard",
@@ -434,10 +550,11 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
 
   const content = {
     dashboard: <DashboardPage />,
-    categories: <CategoriesPage />,
-    contacts: <ContactsPage />,
+    categories: <CategoriesPage canManage={isAdmin} />,
+    contacts: <ContactsPage canManage={isAdmin} />,
     employees: <EmployeesPage />,
-    transactions: <TransactionsPage />,
+    users: <CompanyUsersPage />,
+    transactions: <TransactionsPage canManageAll={isAdmin} />,
     payables: <AccountViewPage kind="payables" />,
     receivables: <AccountViewPage kind="receivables" />,
     imports: <ImportsPage />,
@@ -474,7 +591,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
           </button>
         </div>
         <nav className="flex-1 space-y-1">
-          {pages.map((page) => {
+          {visiblePages.map((page) => {
             const Icon = page.icon;
             return (
               <button
@@ -569,7 +686,7 @@ function SidebarContactInfo() {
 
 function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const [activePage, setActivePage] = useState<"clients" | "plans">("clients");
+  const [activePage, setActivePage] = useState<"financial" | "clients" | "plans">("financial");
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -579,6 +696,13 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
           Plataforma
         </div>
         <nav className="space-y-1">
+          <button
+            className={`nav-item ${activePage === "financial" ? "nav-item-active" : ""}`}
+            onClick={() => setActivePage("financial")}
+          >
+            <CircleDollarSign className="h-4 w-4" />
+            Financeiro
+          </button>
           <button
             className={`nav-item ${activePage === "clients" ? "nav-item-active" : ""}`}
             onClick={() => setActivePage("clients")}
@@ -617,7 +741,9 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6">
-          {activePage === "clients" ? <AdminClientsPage /> : <AdminPlansPage />}
+          {activePage === "financial" && <AdminFinancialPage />}
+          {activePage === "clients" && <AdminClientsPage />}
+          {activePage === "plans" && <AdminPlansPage />}
         </main>
       </div>
     </div>
@@ -759,7 +885,8 @@ export default function App() {
     enabled:
       Boolean(token) &&
       Boolean(me.data?.email_verified_at) &&
-      me.data?.role !== "platform_admin",
+      me.data?.role === "company_admin" &&
+      !me.data?.must_change_password,
   });
 
   useEffect(() => {
@@ -780,9 +907,22 @@ export default function App() {
   if (!me.data!.email_verified_at) {
     return <EmailVerificationScreen user={me.data!} onLogout={() => setCurrentToken(null)} />;
   }
-  if (company.isLoading) return <div className="screen-state">Carregando empresa...</div>;
-  if (company.isError) return <div className="alert-error">{company.error.message}</div>;
-  if (!company.data!.onboarding_completed_at) {
+  if (me.data!.must_change_password) {
+    return (
+      <PasswordChangeScreen
+        user={me.data!}
+        onComplete={() => me.refetch()}
+        onLogout={() => setCurrentToken(null)}
+      />
+    );
+  }
+  if (me.data!.role === "company_admin" && company.isLoading) {
+    return <div className="screen-state">Carregando empresa...</div>;
+  }
+  if (me.data!.role === "company_admin" && company.isError) {
+    return <div className="alert-error">{company.error.message}</div>;
+  }
+  if (me.data!.role === "company_admin" && !company.data!.onboarding_completed_at) {
     return (
       <OnboardingScreen
         user={me.data!}

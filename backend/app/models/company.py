@@ -57,6 +57,12 @@ class Company(Base):
         nullable=True,
         index=True,
     )
+    subscription_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    subscription_duration_months: Mapped[int | None] = mapped_column(nullable=True)
+    subscription_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     opening_balance: Mapped[Decimal] = mapped_column(
         Numeric(14, 2),
         nullable=False,

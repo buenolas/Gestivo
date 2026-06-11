@@ -7,7 +7,7 @@ from fastapi import Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.exports.financial_transactions import export_financial_transactions_csv
 from app.models.financial_transaction import FinancialTransactionStatus
@@ -25,7 +25,7 @@ def export_financial_transactions(
     start_date: date | None = None,
     end_date: date | None = None,
     search: str | None = Query(default=None, max_length=120),
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> Response:
     csv_content = export_financial_transactions_csv(

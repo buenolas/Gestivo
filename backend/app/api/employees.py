@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from fastapi import status
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.employee import Employee
 from app.models.financial_transaction import FinancialTransaction
@@ -49,7 +49,7 @@ def _raise_validation_error(error: EmployeeValidationError) -> None:
 
 @router.get("", response_model=list[EmployeeResponse])
 def list_user_employees(
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> list[Employee]:
     return list_employees(db, current_user)
@@ -58,7 +58,7 @@ def list_user_employees(
 @router.post("", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
 def create_user_employee(
     employee_in: EmployeeCreate,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> Employee:
     return create_employee(db, current_user, employee_in)
@@ -67,7 +67,7 @@ def create_user_employee(
 @router.get("/{employee_id}", response_model=EmployeeResponse)
 def get_user_employee(
     employee_id: UUID,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> Employee:
     return _get_user_employee_or_404(db, current_user, employee_id)
@@ -77,7 +77,7 @@ def get_user_employee(
 def update_user_employee(
     employee_id: UUID,
     employee_in: EmployeeUpdate,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> Employee:
     employee = _get_user_employee_or_404(db, current_user, employee_id)
@@ -93,7 +93,7 @@ def update_user_employee(
 )
 def generate_user_salary_expenses(
     generation_in: SalaryExpenseGenerationCreate,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> SalaryExpenseGenerationResponse:
     transactions, skipped_count = generate_monthly_salary_expenses(

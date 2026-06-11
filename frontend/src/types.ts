@@ -5,7 +5,19 @@ export type User = {
   email: string;
   role: "platform_admin" | "company_admin" | "user";
   is_active: boolean;
+  must_change_password: boolean;
   email_verified_at: string | null;
+};
+
+export type CompanyUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "company_admin" | "user";
+  is_active: boolean;
+  must_change_password: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type SubscriptionStatus =
@@ -118,7 +130,10 @@ export type ManualPayment = {
   duration_months: number | null;
   price_at_payment: string | null;
   amount: string;
-  paid_at: string;
+  status: "paid" | "pending" | "canceled" | "refunded";
+  payment_method: string;
+  paid_at: string | null;
+  due_date: string | null;
   period_start: string;
   period_end: string;
   notes: string | null;
@@ -140,6 +155,80 @@ export type Plan = {
   description: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type AdminFinancialMetrics = {
+  mrr: string;
+  arr: string;
+  received_current_month: string;
+  received_last_30_days: string;
+  forecast_current_month: string;
+  forecast_next_30_days: string;
+  pending_revenue: string;
+  overdue_revenue: string;
+  lost_cancellations: string;
+  lost_delinquency: string;
+  average_ticket: string;
+  paying_customers: number;
+  valid_subscriptions: number;
+  received_today: string;
+  received_current_week: string;
+  received_current_month_total: string;
+  renewals_current_month: number;
+  renewals_next_7_days: number;
+  renewals_next_30_days: number;
+  monthly_financial_churn_rate: string;
+  delinquency_rate: string;
+};
+
+export type AdminFinancialSeriesPoint = {
+  month: string;
+  received: string;
+  forecast: string;
+  mrr: string;
+  arr: string;
+  pending: string;
+  churn: string;
+  average_ticket: string;
+  payments_received: number;
+};
+
+export type AdminFinancialDashboard = {
+  generated_at: string;
+  period_start: string;
+  period_end: string;
+  metrics: AdminFinancialMetrics;
+  monthly_series: AdminFinancialSeriesPoint[];
+  revenue_by_plan: AdminChartPoint[];
+  revenue_by_subscription_status: AdminChartPoint[];
+};
+
+export type AdminFinancialTableItem = {
+  company_id: string;
+  company_name: string;
+  plan_id: string | null;
+  plan_name: string | null;
+  plan_value: string;
+  subscription_status: SubscriptionStatus;
+  payment_status: string;
+  payment_date: string | null;
+  next_due_date: string | null;
+  days_overdue: number;
+  payment_method: string | null;
+  received_amount: string;
+  pending_amount: string;
+  renewed_by_admin: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminFinancialTable = {
+  items: AdminFinancialTableItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
 };
 
 export type Category = {
@@ -175,6 +264,8 @@ export type Transaction = {
   settled_at: string | null;
   notes: string | null;
   source: string;
+  created_by: string;
+  updated_by: string;
 };
 
 export type EmployeeStatus = "active" | "inactive" | "ended";

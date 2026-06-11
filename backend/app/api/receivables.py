@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from fastapi import status
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
@@ -53,7 +53,7 @@ def _raise_validation_error(error: FinancialTransactionValidationError) -> None:
 def list_receivables(
     due: DueDateFilter | None = None,
     status: FinancialTransactionStatus | None = None,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> list[FinancialTransaction]:
     return list_account_view_transactions(
@@ -69,7 +69,7 @@ def list_receivables(
 def receive_receivable(
     receivable_id: UUID,
     settle_in: FinancialTransactionSettle | None = None,
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> FinancialTransaction:
     receivable = _get_user_receivable_or_404(db, current_user, receivable_id)

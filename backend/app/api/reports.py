@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_valid_subscription
+from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.dashboard import DashboardResponse
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(
-    current_user: User = Depends(require_valid_subscription),
+    current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> DashboardResponse:
     return get_financial_dashboard(db, current_user)
