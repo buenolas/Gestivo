@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "crons": [
+    {
+      "path": "/internal/cron/expire-subscriptions",
+      "schedule": "15 3 * * *"
+    }
+  ]
+}

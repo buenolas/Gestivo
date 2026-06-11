@@ -1,5 +1,10 @@
+import secrets
+
 from fastapi import Depends
 from fastapi import FastAPI
+from fastapi import Header
+from fastapi import HTTPException
+from fastapi import status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -23,6 +28,7 @@ from app.api.subscriptions import admin_router as subscription_admin_router
 from app.api.subscriptions import router as subscription_router
 from app.core.config import settings
 from app.db.session import get_db
+from app.services.subscription import expire_overdue_subscriptions
 
 app = FastAPI(title=settings.app_name, debug=settings.app_debug)
 app.add_middleware(
@@ -56,3 +62,22 @@ app.include_router(subscription_admin_router)
 def health_check(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(text("SELECT 1"))
     return {"status": "ok", "database": "ok"}
+
+
+@app.get("/internal/cron/expire-subscriptions", include_in_schema=False)
+def expire_subscriptions_cron(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> dict[str, int | str]:
+    expected_authorization = f"Bearer {settings.cron_secret}"
+    if not authorization or not secrets.compare_digest(
+        authorization,
+        expected_authorization,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nao autorizado",
+        )
+
+    updated_count = expire_overdue_subscriptions(db)
+    return {"status": "ok", "updated_count": updated_count}
