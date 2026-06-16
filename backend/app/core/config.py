@@ -7,7 +7,7 @@ from pydantic_settings import SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Gestão Financeira Empresarial"
+    app_name: str = "Gestivo"
     app_env: str = "local"
     app_debug: bool = True
     database_url: str
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     email_delivery_mode: str = "mock"
     email_from: str = "no-reply@example.com"
-    email_from_name: str = "Gestao Financeira Empresarial"
+    email_from_name: str = "Gestivo"
     email_verification_token_expire_minutes: int = 60
     smtp_host: str = ""
     smtp_port: int = 587

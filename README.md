@@ -1,64 +1,371 @@
-# Gestao Financeira Empresarial
+# Gestivo
 
-Sistema de gestao financeira empresarial para pequenas e medias empresas que ainda controlam entradas, saidas, contas a pagar, contas a receber e relatorios em planilhas ou processos manuais.
+Uma plataforma simples, segura e visual para pequenas e medias empresas que querem sair das planilhas e organizar o controle financeiro do dia a dia.
 
-O projeto deve permanecer enxuto no MVP: controle financeiro simples, importacao de planilhas, dashboard basico, trial gratuito e renovacao manual de assinatura. Nao e um ERP completo e nao deve virar CRM no MVP.
+Este documento apresenta o produto como ele deve ser entendido por clientes, operadores e decisores: qual problema resolve, para quem foi criado, como usar, quais fluxos entrega e quais limites foram definidos para manter o MVP enxuto.
 
-## Stack
+---
 
-- Backend: Python 3.12, FastAPI, SQLAlchemy 2.x, Pydantic v2, Alembic, JWT e bcrypt.
-- Frontend: React, Vite, TypeScript, Tailwind CSS e TanStack Query.
-- Banco de dados: PostgreSQL.
-- Ambiente local: Docker Compose com servicos `backend`, `frontend` e `postgres`.
+## 1. Apresentacao do produto
 
-## Funcionalidades do MVP
+O Gestivo e um sistema web para empresas que ainda controlam entradas, saidas, contas a pagar, contas a receber e fluxo de caixa em planilhas, cadernos, mensagens ou processos pouco padronizados.
 
-- Cadastro self-service de empresa e primeiro usuario admin.
-- Trial gratuito de 30 dias.
-- Login com JWT.
-- Bloqueio de funcionalidades financeiras quando a assinatura estiver vencida.
-- Renovacao manual por usuario `platform_admin`.
-- Categorias financeiras.
-- Lancamentos financeiros de entrada e saida.
-- Contas a pagar e contas a receber como visoes filtradas dos lancamentos.
-- Dashboard simples do mes atual.
-- Importacao CSV/XLSX de ate 5 MB.
-- Historico de pagamentos manuais.
+A proposta nao e substituir um ERP completo. O objetivo do MVP e muito mais direto: permitir que uma empresa cadastre seus lancamentos financeiros, acompanhe o mes atual, organize categorias, visualize pendencias, importe uma planilha existente e mantenha seus dados separados com seguranca por empresa.
 
-## Fora do MVP
+Em outras palavras, o produto foi desenhado para responder perguntas simples e importantes:
 
-Nao implementar sem autorizacao explicita:
+- Quanto entrou neste mes?
+- Quanto saiu?
+- Quais contas ainda preciso pagar?
+- Quais recebimentos ainda estao pendentes?
+- Meu caixa esta melhorando ou piorando?
+- Quais categorias concentram mais despesas?
+- Como migrar meu controle atual sem comecar tudo do zero?
+
+## 2. Publico-alvo
+
+O produto foi pensado para pequenas empresas, prestadores de servico e negocios locais que ja possuem alguma rotina financeira, mas ainda dependem de planilhas ou controles manuais.
+
+Exemplos de perfis atendidos:
+
+- pequenas lojas;
+- clinicas;
+- escritorios;
+- prestadores de servico;
+- restaurantes e lanchonetes em fase inicial;
+- negocios familiares;
+- empresas que usam Excel ou Google Sheets para controlar entradas e saidas.
+
+O MVP evita deliberadamente nichos que exigem fiscal complexo, estoque avancado, emissao de nota fiscal, conciliacao bancaria ou integracoes financeiras automaticas.
+
+## 3. Proposta de valor
+
+### Clareza financeira sem complexidade de ERP
+
+A empresa ganha uma visao centralizada do financeiro sem precisar implantar um sistema grande, caro e cheio de modulos que nao fazem parte da rotina inicial.
+
+### Migracao a partir de planilhas
+
+O sistema permite importar arquivos CSV ou XLSX de ate 5 MB, ajudando o cliente a aproveitar dados que ja possui. O fluxo de importacao foi pensado para reduzir atrito: enviar arquivo, revisar, mapear campos, validar e confirmar a criacao dos lancamentos.
+
+### Controle por assinatura simples
+
+Cada empresa inicia com trial gratuito de 30 dias. Quando o trial ou a assinatura vence, o login continua funcionando, mas as rotas financeiras sao bloqueadas ate a renovacao manual por um administrador da plataforma.
+
+### Dados isolados por empresa
+
+Os dados financeiros pertencem sempre a uma empresa. O usuario comum nao informa `company_id`; o backend identifica a empresa a partir da sessao autenticada. Isso reduz risco operacional e preserva isolamento entre clientes.
+
+### Precisao para dinheiro
+
+Valores monetarios sao tratados com `Decimal` no backend e com campos `NUMERIC`/`DECIMAL` no banco de dados. O produto evita calculos financeiros com `float`.
+
+## 4. O que o MVP entrega
+
+O MVP foi definido para provar um ponto muito especifico: uma empresa que controla o financeiro em planilhas consegue migrar para uma experiencia mais organizada, segura e visual.
+
+Funcionalidades principais:
+
+- cadastro self-service de empresa e usuario administrador;
+- trial gratuito de 30 dias;
+- login com e-mail e senha;
+- confirmacao de e-mail;
+- onboarding com dados iniciais da empresa;
+- bloqueio das funcionalidades financeiras quando a assinatura nao esta valida;
+- renovacao manual de acesso por `platform_admin`;
+- categorias financeiras;
+- lancamentos financeiros de entrada e saida;
+- contas a pagar como visao filtrada dos lancamentos;
+- contas a receber como visao filtrada dos lancamentos;
+- dashboard simples do mes atual;
+- saldo atual com base em saldo inicial e lancamentos liquidados;
+- importacao CSV/XLSX de ate 5 MB;
+- exportacao CSV de lancamentos financeiros;
+- area administrativa para acompanhamento de clientes, planos e renovacoes.
+
+## 5. O que nao faz parte do MVP
+
+Para manter o produto focado, os itens abaixo nao fazem parte da proposta inicial e nao devem ser apresentados como promessa comercial:
 
 - ERP completo;
 - CRM;
+- emissao de nota fiscal;
+- integracao bancaria;
+- conciliacao bancaria;
 - gateway de pagamento;
-- Stripe, Mercado Pago, Pix automatizado, boleto ou cartao;
-- nota fiscal;
-- integracao bancaria ou conciliacao bancaria;
+- Stripe, Mercado Pago, Pix automatico, boleto ou cartao de credito;
+- webhook de pagamento;
 - folha de pagamento;
 - estoque avancado;
+- integracao contabil;
 - aplicativo mobile nativo;
-- IA;
-- WhatsApp ou e-mail automatico;
+- inteligencia artificial;
+- WhatsApp automatico;
+- e-mail automatico de cobranca ou comunicacao;
+- recorrencia avancada;
+- permissoes complexas;
 - relatorios avancados;
-- exportacao PDF ou Excel formatado.
+- exportacao PDF;
+- exportacao Excel formatada.
 
-## Regras criticas
+Essas limitacoes sao parte da estrategia: entregar um financeiro operacional, compreensivel e pronto para validacao com clientes iniciais.
 
-### Multiempresa
+---
 
-- Todo dado financeiro deve pertencer a uma empresa via `company_id`.
-- Usuarios comuns nao devem enviar `company_id` como fonte de verdade.
-- O backend deve obter `company_id` a partir do usuario autenticado.
-- Listagens, detalhes, edicoes, exclusoes, relatorios, importacoes e exportacoes devem filtrar por `company_id`.
-- Endpoints `platform_admin` sao a unica excecao controlada.
+## 6. Experiencia do cliente
 
-### Dinheiro
+### Primeiro acesso
 
-- Nunca usar `float` para valores monetarios.
-- Usar `Decimal` no backend, schemas, services, importacao e calculos.
-- Usar `NUMERIC` ou `DECIMAL`, preferencialmente `NUMERIC(14,2)`, no PostgreSQL.
-- Preferir serializar dinheiro como string no JSON.
+O cliente entra no sistema, cria sua conta, confirma o e-mail e conclui a configuracao inicial da empresa. A partir dai, recebe 30 dias de trial gratuito para usar as funcionalidades financeiras.
+
+### Rotina diaria
+
+No uso cotidiano, a empresa registra entradas e saidas, acompanha contas a pagar e a receber, revisa o dashboard do mes e mantem categorias financeiras organizadas.
+
+### Migracao de planilhas
+
+Empresas que ja possuem uma planilha podem importar os dados para reduzir trabalho manual. A importacao cria lancamentos financeiros e respeita as categorias ja cadastradas.
+
+### Renovacao
+
+Ao fim do trial ou da assinatura, o usuario continua conseguindo entrar no sistema, mas o acesso financeiro fica bloqueado. A liberacao acontece manualmente pela area administrativa da plataforma apos confirmacao externa do pagamento.
+
+---
+
+## 7. Tutorial: criar conta e configurar empresa
+
+Este fluxo e destinado ao primeiro usuario da empresa. Ele sera o administrador da conta.
+
+1. Acesse a tela inicial do sistema.
+2. Clique em criar conta.
+3. Informe e-mail e senha.
+4. Confirme o e-mail pelo link ou token de verificacao.
+5. Preencha a configuracao inicial:
+   - nome da empresa;
+   - nome completo do usuario;
+   - saldo inicial da empresa.
+6. Salve para acessar o painel financeiro.
+
+Resultado esperado: a empresa e criada, o usuario se torna `company_admin` e o trial gratuito de 30 dias e iniciado.
+
+## 8. Tutorial: entender o dashboard
+
+O dashboard e a primeira visao gerencial do sistema. Ele resume o mes atual e ajuda o usuario a tomar decisoes rapidas.
+
+Use esta tela para acompanhar:
+
+- entradas do mes;
+- saidas do mes;
+- saldo atual;
+- contas vencendo;
+- recebimentos pendentes;
+- distribuicao por categorias;
+- comportamento geral do caixa.
+
+Boas praticas:
+
+- revise o dashboard no inicio e no fim do dia;
+- mantenha lancamentos liquidados atualizados;
+- use categorias consistentes para facilitar leitura;
+- acompanhe pendencias antes de tomar decisoes de pagamento.
+
+## 9. Tutorial: cadastrar categorias financeiras
+
+Categorias ajudam a organizar receitas e despesas. Elas permitem entender para onde o dinheiro esta indo e quais entradas sustentam o caixa.
+
+Exemplos de categorias:
+
+- vendas;
+- mensalidades;
+- servicos prestados;
+- aluguel;
+- fornecedores;
+- impostos;
+- marketing;
+- energia;
+- internet;
+- manutencao.
+
+Passo a passo:
+
+1. Acesse o menu Categorias.
+2. Crie uma nova categoria.
+3. Informe um nome claro.
+4. Defina se ela sera usada para entrada, saida ou ambos, conforme o modelo disponivel.
+5. Salve.
+
+Recomendacao: comece com poucas categorias. Uma categorizacao simples e consistente costuma ser mais util do que uma lista enorme dificil de manter.
+
+## 10. Tutorial: cadastrar lancamentos
+
+Lancamentos sao o centro do sistema. Cada entrada ou saida relevante deve ser registrada como um lancamento financeiro.
+
+Campos importantes:
+
+- tipo: entrada ou saida;
+- descricao;
+- valor;
+- categoria;
+- data de competencia;
+- data de vencimento;
+- data de liquidacao, quando pago ou recebido;
+- status;
+- contraparte ou observacao relacionada, quando aplicavel.
+
+Passo a passo:
+
+1. Acesse Lancamentos.
+2. Clique para criar um novo lancamento.
+3. Escolha se e entrada ou saida.
+4. Informe descricao, valor e categoria.
+5. Preencha as datas financeiras.
+6. Defina o status correto.
+7. Salve.
+
+Como usar os status:
+
+- pendente: valor previsto, ainda nao pago ou recebido;
+- liquidado: valor ja pago ou recebido;
+- cancelado: valor desconsiderado da rotina financeira.
+
+Boas praticas:
+
+- use `competence_date` para analise gerencial;
+- use `due_date` para previsao de pagamentos e recebimentos;
+- use `settled_at` apenas quando o dinheiro realmente entrou ou saiu;
+- evite apagar historico financeiro; prefira cancelamento quando fizer sentido.
+
+## 11. Tutorial: acompanhar contas a pagar
+
+Contas a pagar sao uma visao filtrada dos lancamentos de saida. Elas ajudam a empresa a saber o que precisa pagar, o que esta vencendo e o que ja foi liquidado.
+
+Passo a passo:
+
+1. Acesse A pagar.
+2. Revise lancamentos pendentes.
+3. Verifique datas de vencimento.
+4. Abra o lancamento quando precisar corrigir informacoes.
+5. Marque como liquidado quando o pagamento for concluido.
+
+Rotina recomendada:
+
+- olhar vencimentos da semana;
+- priorizar contas vencidas ou proximas do vencimento;
+- conferir se pagamentos liquidados aparecem corretamente no saldo;
+- manter despesas recorrentes simples registradas manualmente no MVP.
+
+## 12. Tutorial: acompanhar contas a receber
+
+Contas a receber sao uma visao filtrada dos lancamentos de entrada. Elas mostram valores que a empresa espera receber e ajudam a acompanhar atrasos.
+
+Passo a passo:
+
+1. Acesse A receber.
+2. Revise recebimentos pendentes.
+3. Confira vencimentos.
+4. Atualize o lancamento quando o pagamento for recebido.
+5. Marque como liquidado para refletir o valor no caixa realizado.
+
+Rotina recomendada:
+
+- revisar recebimentos pendentes diariamente;
+- separar o que esta previsto do que ja foi recebido;
+- manter descricoes claras para facilitar busca;
+- registrar o recebimento somente quando o dinheiro estiver confirmado.
+
+## 13. Tutorial: importar planilhas CSV/XLSX
+
+A importacao e o principal caminho para migrar empresas que ja possuem controles em Excel, Google Sheets ou arquivos CSV.
+
+Antes de importar:
+
+- o arquivo deve ter no maximo 5 MB;
+- as categorias usadas na planilha devem existir no sistema;
+- valores monetarios devem estar em formato claro;
+- a planilha deve representar lancamentos financeiros;
+- contatos, clientes ou fornecedores devem ser mapeados como nome da contraparte, nao como cadastro separado.
+
+Fluxo recomendado:
+
+1. Acesse Importacao.
+2. Envie o arquivo CSV ou XLSX.
+3. Revise a pre-visualizacao.
+4. Mapeie colunas da planilha para campos do sistema.
+5. Corrija erros apontados pela validacao.
+6. Confirme a importacao.
+7. Revise os lancamentos criados.
+
+Exemplo de colunas uteis em uma planilha:
+
+```text
+descricao,tipo,valor,categoria,vencimento,competencia,status,contraparte
+Venda balcao,entrada,250.00,Vendas,2026-06-10,2026-06-01,settled,Cliente avulso
+Aluguel,saida,1800.00,Aluguel,2026-06-05,2026-06-01,pending,Imobiliaria
+```
+
+Observacao: a importacao nao cria categorias automaticamente. Isso evita bagunca no plano de categorias e preserva controle da empresa sobre sua organizacao financeira.
+
+## 14. Tutorial: exportar lancamentos em CSV
+
+A exportacao CSV permite retirar os lancamentos do sistema para analise externa, backup operacional ou conferencia.
+
+Passo a passo:
+
+1. Acesse Lancamentos.
+2. Aplique filtros, se necessario.
+3. Use a opcao de exportacao CSV.
+4. Baixe o arquivo `lancamentos-financeiros.csv`.
+5. Abra em uma planilha apenas para conferencia ou analise complementar.
+
+A exportacao deve respeitar os filtros da empresa autenticada e nao deve incluir dados de outras empresas.
+
+## 15. Tutorial: renovar acesso de uma empresa
+
+Este fluxo e exclusivo para `platform_admin`.
+
+Quando uma assinatura vence:
+
+- o cliente continua conseguindo fazer login;
+- o acesso financeiro fica bloqueado;
+- o status pode ir para `pending_payment`;
+- a renovacao acontece manualmente apos pagamento confirmado fora da plataforma.
+
+Passo a passo do administrador:
+
+1. Acesse a area de administracao da plataforma.
+2. Abra a visao de clientes ou assinaturas.
+3. Localize a empresa.
+4. Registre o pagamento manual.
+5. Confirme a renovacao.
+6. Verifique a nova data de acesso.
+
+Regra de negocio:
+
+- se a assinatura ainda estiver ativa, a renovacao soma novo periodo ao vencimento atual;
+- se a assinatura estiver vencida, o novo periodo conta a partir da data de pagamento ou confirmacao;
+- toda renovacao manual deve gerar historico em `manual_payments`.
+
+---
+
+## 16. Perfis de usuario
+
+### Administrador da empresa
+
+O primeiro usuario criado no cadastro self-service se torna administrador da empresa. Ele pode configurar a empresa, cadastrar categorias, gerenciar lancamentos, importar planilhas, acompanhar o dashboard e acessar as visoes financeiras.
+
+### Usuario comum da empresa
+
+Usuario voltado para operacao financeira limitada conforme regras atuais do produto. Ele acessa somente as funcionalidades permitidas para sua rotina, sempre dentro da empresa autenticada.
+
+### Administrador da plataforma
+
+Perfil interno usado para operar planos, clientes, assinaturas e pagamentos manuais. Esse usuario nao e criado por cadastro publico.
+
+## 17. Regras importantes de seguranca e negocio
+
+### Isolamento por empresa
+
+Toda operacao financeira deve usar a empresa da sessao autenticada. O usuario comum nunca e fonte confiavel para informar `company_id`.
 
 ### Assinatura
 
@@ -66,22 +373,101 @@ Status usados no MVP:
 
 - `trialing`: periodo gratuito ativo;
 - `active`: assinatura paga ativa;
-- `pending_payment`: trial ou assinatura vencida aguardando pagamento/liberacao;
+- `pending_payment`: trial ou assinatura vencida aguardando pagamento;
 - `canceled`: cancelamento manual;
-- `blocked`: bloqueio administrativo futuro.
+- `blocked`: bloqueio administrativo.
 
-Nao usar status `expired` no MVP.
+Nao existe status `expired` no MVP.
 
-O usuario deve conseguir fazer login com assinatura vencida, mas rotas financeiras devem exigir assinatura valida.
+### Dinheiro
 
-### Datas financeiras
+Valores monetarios devem usar `Decimal` no backend e `NUMERIC(14,2)` ou `DECIMAL(14,2)` no banco de dados. A API deve preferir dinheiro como string no JSON.
 
-- `competence_date`: relatorios gerenciais.
-- `due_date`: contas a pagar, contas a receber e fluxo previsto.
-- `settled_at`: fluxo realizado e saldo atual.
-- `created_at`: auditoria tecnica.
+### Historico financeiro
 
-## Como rodar localmente
+O produto deve evitar exclusao fisica de lancamentos. Quando houver necessidade de remover impacto financeiro, a preferencia e usar cancelamento ou soft delete, mantendo rastreabilidade.
+
+---
+
+## 18. Roteiro de demonstracao para cliente
+
+Use este roteiro em apresentacoes comerciais ou validacoes com usuarios iniciais.
+
+1. Apresente o problema: planilhas dispersas, pouca visibilidade e dificuldade de acompanhar vencimentos.
+2. Mostre o cadastro self-service e explique o trial de 30 dias.
+3. Conclua o onboarding com nome da empresa e saldo inicial.
+4. Cadastre tres categorias simples: Vendas, Aluguel e Fornecedores.
+5. Crie uma entrada liquidada.
+6. Crie uma saida pendente com vencimento proximo.
+7. Abra o dashboard e mostre o impacto nos indicadores.
+8. Abra A pagar e destaque a conta pendente.
+9. Abra A receber e mostre a visao de entradas previstas.
+10. Importe uma planilha pequena de exemplo.
+11. Exporte os lancamentos em CSV.
+12. Simule o bloqueio por assinatura vencida e explique que o login permanece disponivel.
+13. Mostre a renovacao manual pelo `platform_admin`.
+
+Mensagem central da demonstracao: o produto organiza a rotina financeira essencial sem exigir implantacao pesada.
+
+## 19. Criterios de sucesso do MVP
+
+O MVP sera considerado bem-sucedido se clientes iniciais conseguirem:
+
+- criar conta sem suporte tecnico;
+- entender o painel inicial em poucos minutos;
+- cadastrar categorias e lancamentos sem treinamento longo;
+- acompanhar contas a pagar e receber;
+- importar uma planilha simples com seguranca;
+- exportar seus dados em CSV;
+- perceber mais clareza do caixa em comparacao com a planilha anterior;
+- renovar acesso manualmente com apoio do operador da plataforma.
+
+## 20. Status atual do produto
+
+O projeto ja possui base funcional com:
+
+- backend FastAPI;
+- frontend React/Vite;
+- PostgreSQL via Docker Compose;
+- migrations Alembic;
+- autenticacao JWT;
+- cadastro self-service;
+- confirmacao de e-mail;
+- trial e bloqueio por assinatura;
+- renovacao manual por administrador;
+- categorias;
+- lancamentos;
+- contas a pagar e receber;
+- dashboard;
+- importacao CSV/XLSX;
+- exportacao CSV;
+- area administrativa inicial.
+
+Pontos que ainda merecem revisao antes de uso comercial amplo:
+
+- revisao completa de UX com usuarios nao tecnicos;
+- validacao de fluxos criticos em ambiente de producao;
+- endurecimento de seguranca do frontend;
+- revisao de textos e encoding da interface;
+- acompanhamento de logs sem exposicao de dados sensiveis;
+- politica operacional de backup e restore do banco;
+- revisao final de isolamento multiempresa.
+
+---
+
+## 21. Ambientes de demonstracao
+
+Ambiente publicado para demonstracao e testes:
+
+- Frontend: https://gestao-financeira-web-bubas-software.vercel.app
+- API: https://gestao-financeira-api-six.vercel.app
+- Health check: https://gestao-financeira-api-six.vercel.app/health
+
+Esse ambiente e destinado a demonstracao e validacao inicial. Nao deve receber clientes pagantes ou dados financeiros reais sem revisao operacional, seguranca, backup e monitoramento.
+
+## 22. Anexo operacional para equipe tecnica
+
+Embora este README seja uma apresentacao do produto, os comandos abaixo ajudam a equipe interna a subir o ambiente local.
 
 Requisitos:
 
@@ -89,38 +475,37 @@ Requisitos:
 - Docker Compose;
 - Git.
 
-Copie o arquivo de ambiente e preencha os valores obrigatorios antes de subir os containers.
-Nao versionar `.env` real.
+Preparar ambiente:
 
 ```bash
 cp .env.example .env
 ```
 
-Valores obrigatorios para ambiente local:
+Variaveis locais essenciais:
 
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `JWT_SECRET_KEY`
 
-Suba os containers:
+Subir containers:
 
 ```bash
 docker compose up --build
 ```
 
-Aplique as migrations:
+Aplicar migrations:
 
 ```bash
 docker compose exec backend alembic upgrade head
 ```
 
-Crie um usuario interno `platform_admin`:
+Criar `platform_admin`:
 
 ```bash
 docker compose exec backend python -m app.scripts.create_platform_admin --name "Nome Admin" --email admin@exemplo.com
 ```
 
-O comando solicita a senha no terminal. Evite passar senha por argumento de linha de comando, porque isso pode ficar salvo no historico do shell.
+O comando solicita a senha no terminal. Evite passar senha por argumento de linha de comando.
 
 Servicos locais:
 
@@ -128,223 +513,17 @@ Servicos locais:
 - Backend: http://localhost:8000
 - Health check: http://localhost:8000/health
 
-## Comandos uteis
-
-Rodar testes do backend:
+Verificacoes uteis:
 
 ```bash
 docker compose exec backend pytest
-```
-
-Rodar migrations:
-
-```bash
-docker compose exec backend alembic upgrade head
-```
-
-Criar nova migration manualmente:
-
-```bash
-docker compose exec backend alembic revision -m "descricao_da_migration"
-```
-
-Build do frontend:
-
-```bash
+docker compose exec frontend npm test
 docker compose exec frontend npm run build
 ```
 
-## Estrutura do projeto
-
-```text
-.
-├── backend/
-│   ├── alembic/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── db/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   ├── scripts/
-│   │   └── services/
-│   └── tests/
-├── frontend/
-│   └── src/
-│       ├── pages/
-│       ├── api.ts
-│       ├── App.tsx
-│       └── types.ts
-├── artifacts/
-├── docker-compose.yml
-├── PROJECT_CONTEXT.md
-├── AGENTS.md
-└── README.md
-```
-
-## Documentos importantes
+## 23. Documentos de referencia
 
 - `PROJECT_CONTEXT.md`: fonte de verdade do produto, escopo do MVP, regras de negocio e ordem geral de implementacao.
-- `AGENTS.md`: instrucoes obrigatorias para agentes de IA que trabalharem neste repositorio.
+- `AGENTS.md`: instrucoes obrigatorias para agentes de IA e colaboradores automatizados.
 
-Antes de propor ou implementar mudancas relevantes, leia esses dois arquivos.
-
-## Notas de seguranca
-
-- Nunca versionar `.env` real, tokens, chaves privadas ou credenciais.
-- Em producao, configurar `APP_DEBUG=false`, `JWT_SECRET_KEY` forte e `BACKEND_CORS_ORIGINS` somente com origens confiaveis.
-- O frontend armazena o JWT em `localStorage` no MVP. Isso simplifica o fluxo inicial, mas aumenta impacto em caso de XSS; antes de uso amplo em producao, revisar CSP, sanitizacao de UI e considerar cookies `HttpOnly` com protecao CSRF.
-
-## Status atual
-
-O projeto ja possui uma base funcional com backend FastAPI, frontend React/Vite, PostgreSQL via Docker Compose, migrations Alembic, autenticacao, trial, bloqueio por assinatura, administracao de renovacao manual, categorias, lancamentos, contas a pagar/receber, dashboard e importacao.
-
-Ainda existem pontos de alinhamento com o escopo documentado, especialmente exportacao CSV, saldo inicial, soft delete e revisao do modulo de contatos.
-
-## Deploy de demonstracao na Vercel
-
-O deploy usa dois projetos Vercel criados para o mesmo repositorio:
-
-- `gestao-financeira-api`, com Root Directory `backend`;
-- `gestao-financeira-web`, com Root Directory `frontend`;
-- PostgreSQL Neon persistente, conectado ao projeto da API;
-- Brevo API para os e-mails de verificacao.
-
-Este desenho evita depender do recurso Vercel Services. O ambiente gratuito e destinado
-somente a demonstracao e testes, sem clientes pagantes ou dados financeiros reais.
-
-Ambiente de demonstracao publicado em 11 de junho de 2026:
-
-- Frontend: https://gestao-financeira-web-bubas-software.vercel.app
-- API: https://gestao-financeira-api-six.vercel.app
-- Health check: https://gestao-financeira-api-six.vercel.app/health
-
-Os deploys iniciais foram feitos pela Vercel CLI. Para habilitar deploy automatico por
-push e variaveis Preview para todas as branches, conecte a conta GitHub nas configuracoes
-da conta Vercel e depois conecte os dois projetos ao repositorio.
-
-O SSO Deployment Protection do projeto web deve permanecer desativado para que a
-demonstracao seja acessivel publicamente. O segredo atual do cron e a senha inicial do
-`platform_admin` ficam apenas em `secrets/cron_secret.txt` e
-`secrets/platform_admin_password.txt`, ambos ignorados pelo Git.
-
-### 1. Criar os projetos
-
-Importe o repositorio `buenolas/gestao-financeira` duas vezes na Vercel.
-
-No projeto da API:
-
-- defina Root Directory como `backend`;
-- mantenha o framework FastAPI detectado pela Vercel;
-- use `backend/vercel.json`.
-
-No projeto web:
-
-- defina Root Directory como `frontend`;
-- mantenha o framework Vite detectado pela Vercel;
-- use `frontend/vercel.json`.
-
-Publique primeiro a API. A URL final dela sera usada no build do frontend.
-
-### 2. Provisionar o Neon
-
-No Marketplace da Vercel, instale Neon no projeto `gestao-financeira-api`.
-Crie um banco para demonstracao e copie duas strings de conexao:
-
-- `DATABASE_URL`: conexao pooled, com `-pooler` no hostname;
-- `MIGRATION_DATABASE_URL`: conexao direta, sem `-pooler`.
-
-O runtime FastAPI usa `DATABASE_URL`. Alembic usa `MIGRATION_DATABASE_URL`, com fallback
-para `DATABASE_URL` apenas no ambiente local.
-
-### 3. Variaveis da API
-
-Configure em Production e Preview:
-
-```text
-APP_NAME=Gestao Financeira Empresarial
-APP_ENV=production
-APP_DEBUG=false
-DATABASE_URL=<neon-pooled-url-com-driver-postgresql+psycopg>
-MIGRATION_DATABASE_URL=<neon-direct-url-com-driver-postgresql+psycopg>
-JWT_SECRET_KEY=<segredo-aleatorio-com-ao-menos-32-caracteres>
-CRON_SECRET=<outro-segredo-aleatorio-com-ao-menos-32-caracteres>
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-BACKEND_CORS_ORIGINS=<url-publica-do-frontend>
-FRONTEND_URL=<url-publica-do-frontend>
-EMAIL_DELIVERY_MODE=brevo_api
-EMAIL_FROM=<remetente-validado-na-brevo>
-EMAIL_FROM_NAME=Gestao Financeira Empresarial
-EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES=60
-BREVO_API_KEY=<chave-da-brevo>
-BREVO_API_URL=https://api.brevo.com/v3/smtp/email
-GOOGLE_CLIENT_ID=<oauth-web-client-id-do-google>
-```
-
-Se o Neon fornecer uma URL iniciada por `postgresql://`, troque apenas o esquema para
-`postgresql+psycopg://`. Preserve os demais parametros, incluindo `sslmode=require`.
-
-Use o mesmo OAuth Web Client ID em `GOOGLE_CLIENT_ID` e `VITE_GOOGLE_CLIENT_ID`.
-No Google Cloud Console, o cliente OAuth deve ser do tipo Aplicativo da Web e deve
-incluir `https://gestao-financeira-web-bubas-software.vercel.app` em Origens JavaScript
-autorizadas. O fluxo usa Google Identity Services com ID token, portanto nao precisa de
-URI de redirecionamento para o endpoint `/auth/google`.
-
-### 4. Migrations e administrador
-
-Execute a partir de uma maquina confiavel, sem registrar os segredos no Git:
-
-```bash
-cd backend
-alembic upgrade head
-python -m app.scripts.create_platform_admin \
-  --name "Lucas Almeida Bueno" \
-  --email "lucasdealmeidabueno@gmail.com"
-```
-
-O segundo comando solicita a senha no terminal. Nao use `--password` em historicos de
-shell ou pipelines.
-
-### 5. Variaveis do frontend
-
-Configure em Production e Preview:
-
-```text
-VITE_API_URL=<url-publica-da-api-sem-barra-final>
-VITE_GOOGLE_CLIENT_ID=<mesmo-oauth-web-client-id-do-google>
-```
-
-Depois de obter a URL definitiva do frontend, atualize `BACKEND_CORS_ORIGINS` e
-`FRONTEND_URL` na API e faca um novo deploy da API.
-
-### 6. Cron de assinaturas
-
-`backend/vercel.json` chama diariamente:
-
-```text
-GET /internal/cron/expire-subscriptions
-```
-
-A Vercel envia `Authorization: Bearer <CRON_SECRET>`. Chamadas sem o segredo retornam
-`401`. O endpoint apenas atualiza trials e assinaturas vencidas para `pending_payment`.
-
-### 7. Checklist de publicacao
-
-1. Execute `pytest` em `backend`.
-2. Execute `npm test` e `npm run build` em `frontend`.
-3. Execute `alembic upgrade head` usando a URL direta do Neon.
-4. Publique a API e confirme `GET /health`.
-5. Publique o frontend com `VITE_API_URL` apontando para a API.
-6. Confirme cadastro, e-mail, onboarding, login, lancamentos, dashboard, importacao e exportacao.
-7. Confirme isolamento entre empresas, bloqueio por assinatura e renovacao pelo admin.
-8. Revise os Runtime Logs da Vercel para erros e vazamento de dados sensiveis.
-
-### Rollback
-
-Para codigo, use Instant Rollback no projeto afetado pela Vercel. Para alteracoes de
-schema, nao execute downgrade automatico: restaure o deploy anterior, corrija a migration
-de forma aditiva e aplique uma nova revisao Alembic.
-
-Antes de uso comercial, migre os dois projetos para Vercel Pro, configure retencao/PITR
-adequada no Neon e reavalie a hospedagem do backend Python.
+Antes de qualquer mudanca relevante, consulte esses documentos para preservar foco, seguranca, isolamento por empresa e precisao monetaria.

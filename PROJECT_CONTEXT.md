@@ -1,8 +1,8 @@
-# Project Context - Sistema de Gestao Financeira Empresarial
+# Project Context - Gestivo
 
 ## 1. Visao Geral
 
-Este projeto e um sistema de gestao financeira empresarial para pequenas e medias empresas que ainda controlam o financeiro por planilhas, anotacoes manuais ou processos pouco padronizados.
+Gestivo e um sistema de gestao financeira empresarial para pequenas e medias empresas que ainda controlam o financeiro por planilhas, anotacoes manuais ou processos pouco padronizados.
 
 O produto nao deve comecar como ERP completo nem como CRM. O nucleo inicial e controle financeiro simples, confiavel e orientado a fluxo de caixa.
 

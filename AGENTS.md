@@ -2,7 +2,7 @@
 
 ## 1. Descricao Curta do Produto
 
-Este repositorio contem um sistema de gestao financeira empresarial para pequenas e medias empresas que ainda controlam o financeiro por planilhas ou processos manuais.
+Este repositorio contem o Gestivo, um sistema de gestao financeira empresarial para pequenas e medias empresas que ainda controlam o financeiro por planilhas ou processos manuais.
 
 O produto deve comecar como um sistema simples de controle financeiro, fluxo de caixa, contas a pagar, contas a receber, categorias, importacao de planilhas e relatorios basicos.
 

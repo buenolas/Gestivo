@@ -107,10 +107,10 @@ export function AdminPlansPage() {
               </div>
               <span
                 className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                  plan.is_active ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"
+                  plan.is_active ?"bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"
                 }`}
               >
-                {plan.is_active ? "Ativo" : "Inativo"}
+                {plan.is_active ?"Ativo" : "Inativo"}
               </span>
             </div>
             <div>
@@ -142,7 +142,7 @@ export function AdminPlansPage() {
 
       {editingPlan && (
         <form className="panel grid gap-4 lg:grid-cols-3" onSubmit={onSubmit}>
-          <div className="lg:col-span-3 flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-3 lg:col-span-3">
             <div>
               <h3 className="panel-title">Editar {editingPlan.name}</h3>
               <p className="section-subtitle">
@@ -168,7 +168,7 @@ export function AdminPlansPage() {
             Status
             <select
               id="plan-status"
-              value={form.is_active ? "active" : "inactive"}
+              value={form.is_active ?"active" : "inactive"}
               onChange={(event) => setForm({ ...form, is_active: event.target.value === "active" })}
             >
               <option value="active">Ativo</option>

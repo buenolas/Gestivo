@@ -102,7 +102,7 @@ export function AdminClientsPage() {
         method: "POST",
         body: JSON.stringify({
           plan_id: renewForm.plan_id || null,
-          paid_at: renewForm.paid_at ? `${renewForm.paid_at}T12:00:00Z` : null,
+          paid_at: renewForm.paid_at ?`${renewForm.paid_at}T12:00:00Z` : null,
           notes: renewForm.notes || null,
         }),
       });
@@ -252,7 +252,7 @@ export function AdminClientsPage() {
             </thead>
             <tbody>
               {(list.data?.items ?? []).map((client) => (
-                <tr key={client.company_id} className={client.is_at_risk ? "bg-amber-50/45" : ""}>
+                <tr key={client.company_id} className={client.is_at_risk ?"bg-amber-50/45" : ""}>
                   <td className="font-medium">{client.company_name}</td>
                   <td>
                     <div>{client.admin_name ?? "-"}</div>
@@ -261,7 +261,7 @@ export function AdminClientsPage() {
                   <td><StatusBadge status={client.subscription_status} /></td>
                   <td>
                     <div>{client.plan_name ?? "-"}</div>
-                    <div className="text-xs text-muted">{client.plan_price ? money(client.plan_price) : ""}</div>
+                    <div className="text-xs text-muted">{client.plan_price ?money(client.plan_price) : ""}</div>
                   </td>
                   <td>{dateText(client.created_at)}</td>
                   <td>{dateText(client.trial_ends_at)}</td>
@@ -297,9 +297,9 @@ export function AdminClientsPage() {
           </table>
         </div>
         {list.data && (
-          <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             <span className="text-muted">{list.data.total} cliente(s)</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button className="btn-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
               <span className="flex items-center px-2">Página {list.data.page} de {list.data.pages}</span>
               <button className="btn-secondary" disabled={page >= list.data.pages} onClick={() => setPage(page + 1)}>Próxima</button>
@@ -399,12 +399,12 @@ function Chart({ title, points, moneyValues = false }: { title: string; points: 
         {points.map((point) => {
           const value = Number(point.value) || 0;
           return (
-            <div key={`${title}-${point.label}`} className="grid grid-cols-[120px_1fr_70px] items-center gap-3 text-sm">
+            <div key={`${title}-${point.label}`} className="grid grid-cols-[minmax(72px,0.8fr)_minmax(72px,1fr)_minmax(48px,auto)] items-center gap-2 text-xs sm:grid-cols-[120px_1fr_70px] sm:gap-3 sm:text-sm">
               <span className="truncate text-muted">{point.label}</span>
               <div className="h-3 rounded bg-panel">
-                <div className="h-3 rounded bg-brand" style={{ width: `${Math.max((value / max) * 100, value > 0 ? 4 : 0)}%` }} />
+                <div className="h-3 rounded bg-brand" style={{ width: `${Math.max((value / max) * 100, value > 0 ?4 : 0)}%` }} />
               </div>
-              <span className="text-right font-medium">{moneyValues ? money(value) : value}</span>
+              <span className="text-right font-medium">{moneyValues ?money(value) : value}</span>
             </div>
           );
         })}

@@ -4,7 +4,7 @@ services:
       context: ./backend
     container_name: gestao-financeira-backend
     environment:
-      APP_NAME: ${APP_NAME:-Gestao Financeira Empresarial}
+      APP_NAME: ${APP_NAME:-Gestivo}
       APP_ENV: ${APP_ENV:-local}
       APP_DEBUG: ${APP_DEBUG:-true}
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -17,7 +17,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-mock}
       EMAIL_FROM: ${EMAIL_FROM:-no-reply@example.com}
-      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Gestao Financeira Empresarial}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Gestivo}
       EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: ${EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES:-60}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

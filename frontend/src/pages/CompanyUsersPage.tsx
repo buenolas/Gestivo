@@ -109,17 +109,17 @@ export function CompanyUsersPage() {
                 <tr key={user.id}>
                   <td>{user.name}</td>
                   <td>{user.email}</td>
-                  <td>{user.role === "company_admin" ? "Administrador" : "Funcionario"}</td>
-                  <td>{user.is_active ? "Ativo" : "Bloqueado"}</td>
-                  <td>{user.must_change_password ? "Troca pendente" : "Definida"}</td>
+                  <td>{user.role === "company_admin" ?"Administrador" : "Funcionario"}</td>
+                  <td>{user.is_active ?"Ativo" : "Bloqueado"}</td>
+                  <td>{user.must_change_password ?"Troca pendente" : "Definida"}</td>
                   <td className="text-right">
                     {user.role === "user" && (
                       <div className="inline-flex gap-2">
                         <button className="icon-btn" title="Redefinir senha" onClick={() => setResetUser(user)}>
                           <KeyRound className="h-4 w-4" />
                         </button>
-                        <button className="icon-btn" title={user.is_active ? "Bloquear" : "Reativar"} onClick={() => updateStatus.mutate({ id: user.id, is_active: !user.is_active })}>
-                          {user.is_active ? <Ban className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        <button className="icon-btn" title={user.is_active ?"Bloquear" : "Reativar"} onClick={() => updateStatus.mutate({ id: user.id, is_active: !user.is_active })}>
+                          {user.is_active ?<Ban className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         </button>
                       </div>
                     )}

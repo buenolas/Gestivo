@@ -4,11 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#17202a",
-        muted: "#64748b",
-        line: "#d8dee8",
-        panel: "#f7f9fc",
-        brand: "#0f766e"
+        ink: "#111827",
+        muted: "#64748B",
+        line: "#E2E8F0",
+        panel: "#F8FAFC",
+        brand: "#0F3D4A",
+        accent: "#10B981",
+        highlight: "#A3E635",
+        mint: "#DDF7EC"
       }
     },
   },
