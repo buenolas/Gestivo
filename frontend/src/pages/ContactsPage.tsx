@@ -76,7 +76,7 @@ export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
                 <tr key={contact.id}>
                   <td>{contact.name}</td>
                   <td>{typeText(contact.type)}</td>
-                  <td>{contact.is_active ? "Ativo" : "Inativo"}</td>
+                  <td>{contact.is_active ?"Ativo" : "Inativo"}</td>
                   <td className="text-right">
                     {canManage && contact.is_active && (
                       <button className="icon-btn" title="Desativar" onClick={() => remove.mutate(contact.id)}>

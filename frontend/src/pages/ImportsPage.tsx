@@ -109,7 +109,7 @@ export function ImportsPage() {
     setTemplateError(null);
     const token = getToken();
     const response = await fetch(`${apiUrl}/imports/financial-transactions/template.csv`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: token ?{ Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {
       setTemplateError("Nao foi possivel baixar o modelo CSV.");
@@ -261,7 +261,7 @@ export function ImportsPage() {
                   {batch.validation_errors.map((error, index) => (
                     <li className="alert-error" key={index}>
                       Linha {error.row_number}: {error.message}
-                      {error.value ? ` Valor recebido: ${error.value}` : ""}
+                      {error.value ?` Valor recebido: ${error.value}` : ""}
                     </li>
                   ))}
                   {batch.validation_errors.length === 0 && <li className="text-muted">Nenhum erro.</li>}

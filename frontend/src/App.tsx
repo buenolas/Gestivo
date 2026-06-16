@@ -3,23 +3,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
-  BarChart3,
-  ContactRound,
-  CreditCard,
+  Building2,
+  Chrome,
   CircleDollarSign,
+  CreditCard,
   FileSpreadsheet,
   FolderTree,
-  Chrome,
-  LayoutDashboard,
   KeyRound,
+  LayoutDashboard,
   LogOut,
   Mail,
   MailCheck,
   Menu,
   MessageCircle,
-  RefreshCw,
   ReceiptText,
+  RefreshCw,
   ShieldCheck,
+  Sparkles,
   UsersRound,
   X,
 } from "lucide-react";
@@ -36,6 +36,11 @@ import { AdminPlansPage } from "./pages/AdminPlansPage";
 import { AdminFinancialPage } from "./pages/AdminFinancialPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CompanyUsersPage } from "./pages/CompanyUsersPage";
+import { brandAssets } from "./assets/brand";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 type PageKey =
   | "dashboard"
@@ -51,17 +56,18 @@ type PageKey =
 const pages: Array<{
   key: PageKey;
   label: string;
+  description: string;
   icon: typeof LayoutDashboard;
 }> = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { key: "categories", label: "Categorias", icon: FolderTree },
-  { key: "contacts", label: "Contatos", icon: ContactRound },
-  { key: "employees", label: "Funcionarios", icon: UsersRound },
-  { key: "users", label: "Usuarios", icon: UsersRound },
-  { key: "transactions", label: "Lançamentos", icon: ReceiptText },
-  { key: "payables", label: "A pagar", icon: ArrowDownCircle },
-  { key: "receivables", label: "A receber", icon: ArrowUpCircle },
-  { key: "imports", label: "Importação", icon: FileSpreadsheet },
+  { key: "dashboard", label: "Visão geral", description: "Indicadores do mês", icon: LayoutDashboard },
+  { key: "transactions", label: "Lançamentos", description: "Entradas e saídas", icon: ReceiptText },
+  { key: "payables", label: "A pagar", description: "Compromissos", icon: ArrowDownCircle },
+  { key: "receivables", label: "A receber", description: "Recebimentos", icon: ArrowUpCircle },
+  { key: "categories", label: "Categorias", description: "Plano financeiro", icon: FolderTree },
+  { key: "imports", label: "Importação", description: "CSV e XLSX", icon: FileSpreadsheet },
+  { key: "employees", label: "Funcionários", description: "Despesas salariais", icon: UsersRound },
+  { key: "users", label: "Usuários", description: "Acesso da empresa", icon: UsersRound },
+  { key: "contacts", label: "Contatos", description: "Contrapartes", icon: Building2 },
 ];
 
 const financialPages = new Set<PageKey>([
@@ -104,17 +110,34 @@ declare global {
 
 function pageFromHash(): PageKey {
   const hash = window.location.hash.replace("#/", "");
-  return pages.some((page) => page.key === hash) ? (hash as PageKey) : "dashboard";
+  return pages.some((page) => page.key === hash) ?(hash as PageKey) : "dashboard";
+}
+
+function BrandLogo({ compact = false, variant = "primary" }: { compact?: boolean; variant?: "primary" | "dark" }) {
+  if (compact) {
+    return (
+      <img
+        className="h-10 w-10 object-contain"
+        src={variant === "dark" ?brandAssets.symbolLight : brandAssets.symbolDefault}
+        alt="Gestivo"
+      />
+    );
+  }
+
+  return (
+    <img
+      className="h-11 w-auto object-contain"
+      src={variant === "dark" ?brandAssets.logoDark : brandAssets.logoPrimary}
+      alt="Gestivo"
+    />
+  );
 }
 
 function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [googleReady, setGoogleReady] = useState(false);
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const [form, setForm] = useState({ email: "", password: "" });
 
   const login = useMutation({
     mutationFn: async () =>
@@ -150,6 +173,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
       await queryClient.invalidateQueries();
     },
   });
+
   const submitGoogleLogin = googleLogin.mutate;
   const handleGoogleCredential = useCallback(
     (response: { credential?: string }) => {
@@ -163,7 +187,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
       window.google.accounts.id.renderButton(element, {
         theme: "outline",
         size: "large",
-        text: mode === "login" ? "signin_with" : "signup_with",
+        text: mode === "login" ?"signin_with" : "signup_with",
         locale: "pt-BR",
         width: element.clientWidth || 360,
       });
@@ -203,23 +227,38 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
   const error = login.error?.message ?? register.error?.message ?? googleLogin.error?.message;
 
   return (
-    <main className="min-h-screen bg-panel px-4 py-10">
-      <section className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_420px] lg:items-center">
-        <div className="space-y-5">
-          <p className="text-sm font-semibold uppercase tracking-wide text-brand">
-            Gestão Financeira Empresarial
-          </p>
-          <h1 className="max-w-2xl text-4xl font-semibold text-ink">
-            Controle financeiro simples para sair da planilha.
-          </h1>
-          <p className="max-w-xl text-base leading-7 text-muted">
-            Acesse categorias, lançamentos, contas a pagar, contas a receber e importação de
-            planilhas em um fluxo direto.
-          </p>
+    <main className="min-h-screen bg-panel px-4 py-6 text-ink md:py-10">
+      <section className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl overflow-hidden rounded-lg border border-line bg-white shadow-[0_30px_90px_rgba(15,23,42,0.10)] lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[1.2fr_460px]">
+        <div className="relative flex min-h-[420px] flex-col justify-between overflow-hidden bg-ink p-6 text-white sm:p-8 md:p-12 lg:min-h-[560px]">
+          <div className="relative z-10">
+            <BrandLogo variant="dark" />
+            <Badge className="mt-10 bg-white/10 text-white" variant="outline">
+              SaaS financeiro B2B
+            </Badge>
+            <h1 className="mt-6 max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl">
+              Gestão financeira ativa para negócios em crescimento.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
+              Organize caixa, receitas, despesas e indicadores em uma experiência visual, segura e pronta para sair das planilhas.
+            </p>
+            <div className="mt-10 grid max-w-xl gap-3 sm:grid-cols-3">
+              {[
+                ["30 dias", "Trial gratuito"],
+                ["CSV/XLSX", "Importação"],
+                ["Multiempresa", "Dados isolados"],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-md border border-white/10 bg-white/5 p-4">
+                  <strong className="block text-xl text-highlight">{value}</strong>
+                  <span className="mt-1 block text-xs font-medium text-slate-300">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="relative z-10 mt-10 h-2 w-44 rounded-full bg-highlight" />
         </div>
 
         <form
-          className="space-y-4 rounded-lg border border-line bg-white p-6 shadow-sm"
+          className="flex flex-col justify-center space-y-5 p-6 md:p-10"
           onSubmit={(event) => {
             event.preventDefault();
             if (mode === "login") login.mutate();
@@ -227,53 +266,36 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
           }}
         >
           <div>
-            <h2 className="text-xl font-semibold text-ink">
-              {mode === "login" ? "Entrar" : "Criar conta"}
+            <p className="text-sm font-semibold text-accent">{mode === "login" ?"Acessar plataforma" : "Começar agora"}</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink">
+              {mode === "login" ?"Entre na sua conta" : "Crie sua empresa"}
             </h2>
-            <p className="mt-1 text-sm text-muted">
-              {mode === "login" ? "Use seu e-mail e senha." : "Informe apenas e-mail e senha."}
+            <p className="mt-2 text-sm leading-6 text-muted">
+              {mode === "login" ?"Use seu e-mail e senha para continuar." : "Informe e-mail e senha para iniciar o trial."}
             </p>
           </div>
 
           <label className="field" htmlFor="email">
             E-mail
-            <input
-              id="email"
-              required
-              type="email"
-              value={form.email}
-              onChange={(event) => setForm({ ...form, email: event.target.value })}
-            />
+            <input id="email" required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
           </label>
           <label className="field" htmlFor="password">
             Senha
-            <input
-              id="password"
-              required
-              type="password"
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-            />
+            <input id="password" required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
           </label>
 
           {error && <div className="alert-error">{error}</div>}
 
-          <button className="btn-primary w-full" disabled={login.isPending || register.isPending}>
-            {mode === "login" ? "Entrar" : "Criar conta"}
-          </button>
+          <Button className="w-full" disabled={login.isPending || register.isPending} size="lg" variant="premium">
+            <Sparkles className="h-4 w-4" />
+            {mode === "login" ?"Entrar" : "Criar conta"}
+          </Button>
           {GOOGLE_CLIENT_ID && (
-            <GoogleSignInButton
-              disabled={!googleReady || googleLogin.isPending}
-              onClickContainer={renderGoogleButton}
-            />
+            <GoogleSignInButton disabled={!googleReady || googleLogin.isPending} onClickContainer={renderGoogleButton} />
           )}
-          <button
-            className="btn-ghost w-full"
-            type="button"
-            onClick={() => setMode(mode === "login" ? "register" : "login")}
-          >
-            {mode === "login" ? "Criar uma empresa" : "Já tenho conta"}
-          </button>
+          <Button className="w-full" type="button" variant="ghost" onClick={() => setMode(mode === "login" ?"register" : "login")}>
+            {mode === "login" ?"Criar uma empresa" : "Já tenho conta"}
+          </Button>
         </form>
       </section>
     </main>
@@ -298,31 +320,19 @@ function GoogleSignInButton({
   return (
     <div className="min-h-11 w-full">
       {disabled && (
-        <button className="btn-secondary w-full" disabled type="button">
+        <Button className="w-full" disabled type="button" variant="secondary">
           <Chrome className="h-4 w-4" />
           Google
-        </button>
+        </Button>
       )}
-      <div className={disabled ? "hidden" : ""} ref={setContainer} />
+      <div className={disabled ?"hidden" : ""} ref={setContainer} />
     </div>
   );
 }
 
-function OnboardingScreen({
-  user,
-  onComplete,
-  onLogout,
-}: {
-  user: User;
-  onComplete: () => void;
-  onLogout: () => void;
-}) {
+function OnboardingScreen({ user, onComplete, onLogout }: { user: User; onComplete: () => void; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    company_name: "",
-    user_name: user.name,
-    opening_balance: "0.00",
-  });
+  const [form, setForm] = useState({ company_name: "", user_name: user.name, opening_balance: "0.00" });
 
   const completeOnboarding = useMutation({
     mutationFn: () =>
@@ -339,21 +349,15 @@ function OnboardingScreen({
 
   return (
     <main className="min-h-screen bg-panel px-4 py-10 text-ink">
-      <div className="fixed inset-0 bg-ink/30" aria-hidden="true" />
-      <section
-        className="relative z-10 mx-auto max-w-lg rounded-lg border border-line bg-white p-6 shadow-lg"
-        role="dialog"
-        aria-modal="true"
-      >
+      <section className="mx-auto max-w-xl space-y-6 rounded-lg border border-line bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)]">
+        <BrandLogo />
         <div>
-          <h1 className="text-xl font-semibold">Configuracao inicial</h1>
-          <p className="mt-1 text-sm text-muted">
-            Complete estes dados para liberar o acesso financeiro da empresa.
-          </p>
+          <h1 className="text-2xl font-bold">Configuração inicial</h1>
+          <p className="mt-1 text-sm leading-6 text-muted">Complete estes dados para liberar o acesso financeiro da empresa.</p>
         </div>
 
         <form
-          className="mt-5 space-y-4"
+          className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
             completeOnboarding.mutate();
@@ -361,45 +365,24 @@ function OnboardingScreen({
         >
           <label className="field" htmlFor="onboarding-company-name">
             Nome da empresa
-            <input
-              id="onboarding-company-name"
-              required
-              value={form.company_name}
-              onChange={(event) => setForm({ ...form, company_name: event.target.value })}
-            />
+            <input id="onboarding-company-name" required value={form.company_name} onChange={(event) => setForm({ ...form, company_name: event.target.value })} />
           </label>
           <label className="field" htmlFor="onboarding-user-name">
-            Nome completo do usuario
-            <input
-              id="onboarding-user-name"
-              required
-              value={form.user_name}
-              onChange={(event) => setForm({ ...form, user_name: event.target.value })}
-            />
+            Nome completo do usuário
+            <input id="onboarding-user-name" required value={form.user_name} onChange={(event) => setForm({ ...form, user_name: event.target.value })} />
           </label>
           <label className="field" htmlFor="onboarding-opening-balance">
             Saldo inicial da empresa
-            <input
-              id="onboarding-opening-balance"
-              required
-              type="number"
-              step="0.01"
-              value={form.opening_balance}
-              onChange={(event) => setForm({ ...form, opening_balance: event.target.value })}
-            />
+            <input id="onboarding-opening-balance" required type="number" step="0.01" value={form.opening_balance} onChange={(event) => setForm({ ...form, opening_balance: event.target.value })} />
           </label>
 
-          {completeOnboarding.error && (
-            <div className="alert-error">{completeOnboarding.error.message}</div>
-          )}
+          {completeOnboarding.error && <div className="alert-error">{completeOnboarding.error.message}</div>}
 
           <div className="flex flex-wrap gap-3">
-            <button className="btn-primary" disabled={completeOnboarding.isPending}>
-              Salvar e acessar
-            </button>
-            <button
-              className="btn-ghost"
+            <Button disabled={completeOnboarding.isPending} variant="premium">Salvar e acessar</Button>
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 clearToken();
                 queryClient.clear();
@@ -407,7 +390,7 @@ function OnboardingScreen({
               }}
             >
               Sair
-            </button>
+            </Button>
           </div>
         </form>
       </section>
@@ -415,15 +398,7 @@ function OnboardingScreen({
   );
 }
 
-function PasswordChangeScreen({
-  user,
-  onComplete,
-  onLogout,
-}: {
-  user: User;
-  onComplete: () => void;
-  onLogout: () => void;
-}) {
+function PasswordChangeScreen({ user, onComplete, onLogout }: { user: User; onComplete: () => void; onLogout: () => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ current_password: "", new_password: "" });
   const changePassword = useMutation({
@@ -440,17 +415,17 @@ function PasswordChangeScreen({
 
   return (
     <main className="min-h-screen bg-panel px-4 py-10 text-ink">
-      <section className="mx-auto max-w-lg space-y-5 rounded-lg border border-line bg-white p-6 shadow-sm">
+      <section className="mx-auto max-w-lg space-y-5 rounded-lg border border-line bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)]">
         <div className="flex items-center gap-3">
-          <KeyRound className="h-6 w-6 text-brand" />
+          <div className="rounded-md bg-mint p-3 text-accent">
+            <KeyRound className="h-5 w-5" />
+          </div>
           <div>
-            <h1 className="text-xl font-semibold">Defina sua senha</h1>
+            <h1 className="text-xl font-bold">Defina sua senha</h1>
             <p className="text-sm text-muted">{user.email}</p>
           </div>
         </div>
-        <p className="text-sm leading-6 text-muted">
-          Troque a senha temporaria antes de acessar os dados da empresa.
-        </p>
+        <p className="text-sm leading-6 text-muted">Troque a senha temporária antes de acessar os dados da empresa.</p>
         <form
           className="space-y-4"
           onSubmit={(event) => {
@@ -459,36 +434,19 @@ function PasswordChangeScreen({
           }}
         >
           <label className="field" htmlFor="current-password">
-            Senha temporaria
-            <input
-              id="current-password"
-              required
-              type="password"
-              value={form.current_password}
-              onChange={(event) => setForm({ ...form, current_password: event.target.value })}
-            />
+            Senha temporária
+            <input id="current-password" required type="password" value={form.current_password} onChange={(event) => setForm({ ...form, current_password: event.target.value })} />
           </label>
           <label className="field" htmlFor="new-password">
             Nova senha
-            <input
-              id="new-password"
-              required
-              minLength={8}
-              type="password"
-              value={form.new_password}
-              onChange={(event) => setForm({ ...form, new_password: event.target.value })}
-            />
+            <input id="new-password" required minLength={8} type="password" value={form.new_password} onChange={(event) => setForm({ ...form, new_password: event.target.value })} />
           </label>
-          {changePassword.error && (
-            <div className="alert-error">{changePassword.error.message}</div>
-          )}
+          {changePassword.error && <div className="alert-error">{changePassword.error.message}</div>}
           <div className="flex gap-3">
-            <button className="btn-primary" disabled={changePassword.isPending}>
-              Salvar nova senha
-            </button>
-            <button
-              className="btn-ghost"
+            <Button disabled={changePassword.isPending} variant="premium">Salvar nova senha</Button>
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 clearToken();
                 queryClient.clear();
@@ -496,7 +454,7 @@ function PasswordChangeScreen({
               }}
             >
               Sair
-            </button>
+            </Button>
           </div>
         </form>
       </section>
@@ -510,22 +468,11 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user.role === "company_admin";
   const visiblePages = useMemo(
-    () =>
-      isAdmin
-        ? pages
-        : pages.filter((page) =>
-            ["transactions", "categories", "contacts"].includes(page.key),
-          ),
+    () => (isAdmin ?pages : pages.filter((page) => ["transactions", "categories", "contacts"].includes(page.key))),
     [isAdmin],
   );
-  const subscription = useQuery({
-    queryKey: ["subscription-status"],
-    queryFn: () => apiFetch<Subscription>("/subscription/status"),
-  });
-  const company = useQuery({
-    queryKey: ["company"],
-    queryFn: () => apiFetch<Company>("/companies/me"),
-  });
+  const subscription = useQuery({ queryKey: ["subscription-status"], queryFn: () => apiFetch<Subscription>("/subscription/status") });
+  const company = useQuery({ queryKey: ["company"], queryFn: () => apiFetch<Company>("/companies/me") });
 
   useEffect(() => {
     const syncPage = () => {
@@ -538,16 +485,11 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
       setActivePage(nextPage);
     };
     syncPage();
-    const onHashChange = () => syncPage();
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener("hashchange", syncPage);
+    return () => window.removeEventListener("hashchange", syncPage);
   }, [visiblePages]);
 
-  const activeTitle = useMemo(
-    () => pages.find((page) => page.key === activePage)?.label ?? "Dashboard",
-    [activePage],
-  );
-
+  const activeMeta = useMemo(() => pages.find((page) => page.key === activePage) ?? pages[0], [activePage]);
   const content = {
     dashboard: <DashboardPage />,
     categories: <CategoriesPage canManage={isAdmin} />,
@@ -560,13 +502,8 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     imports: <ImportsPage />,
   }[activePage];
   const isFinancialPage = financialPages.has(activePage);
-  const shouldBlockFinancialPage =
-    isFinancialPage && subscription.data !== undefined && !subscription.data.is_valid;
-  const shellContent = shouldBlockFinancialPage ? (
-    <SubscriptionBlocked subscription={subscription.data!} />
-  ) : (
-    content
-  );
+  const shouldBlockFinancialPage = isFinancialPage && subscription.data !== undefined && !subscription.data.is_valid;
+  const shellContent = shouldBlockFinancialPage ?<SubscriptionBlocked subscription={subscription.data!} /> : content;
 
   function navigate(page: PageKey) {
     window.location.hash = `/${page}`;
@@ -574,64 +511,43 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     setMenuOpen(false);
   }
 
+  const sidebar = <SidebarNavigation pages={visiblePages} activePage={activePage} navigate={navigate} />;
+
   return (
     <div className="min-h-screen bg-panel text-ink">
-      <aside
-        className={`fixed inset-y-0 left-0 z-30 flex w-72 flex-col border-r border-line bg-white p-4 transition lg:translate-x-0 ${
-          menuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold">
-            <BarChart3 className="h-5 w-5 text-brand" />
-            Financeiro
-          </div>
-          <button className="icon-btn lg:hidden" onClick={() => setMenuOpen(false)}>
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <nav className="flex-1 space-y-1">
-          {visiblePages.map((page) => {
-            const Icon = page.icon;
-            return (
-              <button
-                key={page.key}
-                className={`nav-item ${activePage === page.key ? "nav-item-active" : ""}`}
-                onClick={() => navigate(page.key)}
-              >
-                <Icon className="h-4 w-4" />
-                {page.label}
-              </button>
-            );
-          })}
-        </nav>
-        <SidebarContactInfo />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-ink p-4 text-white lg:flex">
+        {sidebar}
       </aside>
 
-      {menuOpen && <button className="fixed inset-0 z-20 bg-black/20 lg:hidden" onClick={() => setMenuOpen(false)} />}
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent>{sidebar}</SheetContent>
+      </Sheet>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-10 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-line bg-white/90 px-4 py-3 backdrop-blur md:px-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <button className="icon-btn lg:hidden" onClick={() => setMenuOpen(true)}>
+              <Button className="shrink-0 lg:hidden" size="icon" variant="secondary" onClick={() => setMenuOpen(true)} aria-label="Abrir navegação">
                 <Menu className="h-4 w-4" />
-              </button>
-              <h1 className="truncate text-2xl font-semibold leading-tight text-ink md:text-3xl">
-                {company.data?.name ?? activeTitle}
-              </h1>
-              <div className="hidden">
-                <h1 className="text-lg font-semibold">{activeTitle}</h1>
-                <p className="text-xs text-muted">{user.name} · {user.email}</p>
+              </Button>
+              <div className="lg:hidden">
+                <BrandLogo compact />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-accent">{activeMeta.description}</p>
+                <h1 className="truncate text-2xl font-bold leading-tight text-ink md:text-3xl">
+                  {company.data?.name ?? activeMeta.label}
+                </h1>
               </div>
             </div>
             {subscription.data && <SubscriptionBadge subscription={subscription.data} />}
             <div className="hidden shrink-0 text-right sm:block">
-              <p className="text-sm font-medium text-ink">{user.name}</p>
+              <p className="text-sm font-semibold text-ink">{user.name}</p>
               <p className="text-xs text-muted">{user.email}</p>
             </div>
-            <button
-              className="btn-secondary"
+            <Button
+              className="shrink-0"
+              variant="secondary"
               onClick={() => {
                 clearToken();
                 queryClient.clear();
@@ -639,43 +555,62 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
               }}
             >
               <LogOut className="h-4 w-4" />
-              Sair
-            </button>
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
           </div>
         </header>
-        <main className="mx-auto max-w-7xl px-4 py-6">
-          {subscription.isLoading && isFinancialPage ? (
-            <div className="screen-state">Verificando assinatura...</div>
-          ) : (
-            shellContent
-          )}
+        <main className="mx-auto max-w-7xl px-3 py-5 sm:px-4 md:px-6">
+          {subscription.isLoading && isFinancialPage ?<div className="screen-state">Verificando assinatura...</div> : shellContent}
         </main>
       </div>
     </div>
   );
 }
 
+function SidebarNavigation({
+  pages: navPages,
+  activePage,
+  navigate,
+}: {
+  pages: typeof pages;
+  activePage: PageKey;
+  navigate: (page: PageKey) => void;
+}) {
+  return (
+    <>
+      <div className="mb-8 flex items-center justify-between">
+        <BrandLogo variant="dark" />
+      </div>
+      <nav className="flex-1 space-y-1">
+        {navPages.map((page) => {
+          const Icon = page.icon;
+          return (
+            <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
+              <Icon className="h-4 w-4" />
+              <span>
+                <span className="block">{page.label}</span>
+                <span className="block text-xs font-medium opacity-70">{page.description}</span>
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+      <SidebarContactInfo />
+    </>
+  );
+}
+
 function SidebarContactInfo() {
   return (
-    <div className="mt-4 rounded-lg border border-line bg-panel p-3 text-sm">
-      <p className="font-semibold text-ink">Precisa de ajuda?</p>
-      <p className="mt-1 text-xs leading-5 text-muted">
-        Para liberar ou renovar o acesso, entre em contato.
-      </p>
+    <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
+      <p className="font-semibold text-white">Precisa de ajuda?</p>
+      <p className="mt-1 text-xs leading-5 text-slate-300">Para liberar ou renovar o acesso, entre em contato.</p>
       <div className="mt-3 space-y-2">
-        <a
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-brand transition hover:bg-white"
-          href="https://wa.me/5562996960340"
-          rel="noreferrer"
-          target="_blank"
-        >
+        <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="https://wa.me/5562996960340" rel="noreferrer" target="_blank">
           <MessageCircle className="h-4 w-4" />
           (62) 99696-0340
         </a>
-        <a
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-brand transition hover:bg-white"
-          href="mailto:lucasdealmeidabueno@gmail.com"
-        >
+        <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="mailto:lucasdealmeidabueno@gmail.com">
           <Mail className="h-4 w-4" />
           lucasdealmeidabueno@gmail.com
         </a>
@@ -687,48 +622,55 @@ function SidebarContactInfo() {
 function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
   const [activePage, setActivePage] = useState<"financial" | "clients" | "plans">("financial");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const adminPages = [
+    { key: "financial" as const, label: "Financeiro", description: "Receita e assinaturas", icon: CircleDollarSign },
+    { key: "clients" as const, label: "Clientes", description: "Base e risco", icon: ShieldCheck },
+    { key: "plans" as const, label: "Planos", description: "Valores e status", icon: CreditCard },
+  ];
+  const activeAdminPage = adminPages.find((page) => page.key === activePage) ?? adminPages[0];
+
+  function navigate(page: "financial" | "clients" | "plans") {
+    setActivePage(page);
+    setMenuOpen(false);
+  }
+
+  const sidebar = <AdminSidebarNavigation pages={adminPages} activePage={activePage} navigate={navigate} />;
 
   return (
     <div className="min-h-screen bg-panel text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-line bg-white p-4 lg:block">
-        <div className="mb-6 flex items-center gap-2 font-semibold">
-          <ShieldCheck className="h-5 w-5 text-brand" />
-          Plataforma
-        </div>
-        <nav className="space-y-1">
-          <button
-            className={`nav-item ${activePage === "financial" ? "nav-item-active" : ""}`}
-            onClick={() => setActivePage("financial")}
-          >
-            <CircleDollarSign className="h-4 w-4" />
-            Financeiro
-          </button>
-          <button
-            className={`nav-item ${activePage === "clients" ? "nav-item-active" : ""}`}
-            onClick={() => setActivePage("clients")}
-          >
-            <ShieldCheck className="h-4 w-4" />
-            Clientes
-          </button>
-          <button
-            className={`nav-item ${activePage === "plans" ? "nav-item-active" : ""}`}
-            onClick={() => setActivePage("plans")}
-          >
-            <CreditCard className="h-4 w-4" />
-            Planos
-          </button>
-        </nav>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-ink p-4 text-white lg:flex">
+        {sidebar}
       </aside>
 
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent>{sidebar}</SheetContent>
+      </Sheet>
+
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-10 border-b border-line bg-white/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-line bg-white/90 px-4 py-3 backdrop-blur md:px-6">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-lg font-semibold">Administração da plataforma</h1>
-              <p className="text-xs text-muted">{user.name} · {user.email}</p>
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <Button className="lg:hidden" size="icon" variant="secondary" onClick={() => setMenuOpen(true)} aria-label="Abrir navegação admin">
+                <Menu className="h-4 w-4" />
+              </Button>
+              <div className="lg:hidden">
+                <BrandLogo compact />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-accent">Gestivo Platform</p>
+                <h1 className="truncate text-xl font-bold md:text-2xl">Administração da plataforma</h1>
+                <p className="truncate text-xs text-muted">{activeAdminPage.description}</p>
+              </div>
             </div>
-            <button
-              className="btn-secondary"
+            <div className="hidden shrink-0 text-right sm:block">
+              <p className="text-sm font-semibold text-ink">{user.name}</p>
+              <p className="text-xs text-muted">{user.email}</p>
+            </div>
+            <Button
+              className="shrink-0"
+              variant="secondary"
               onClick={() => {
                 clearToken();
                 queryClient.clear();
@@ -736,11 +678,11 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
               }}
             >
               <LogOut className="h-4 w-4" />
-              Sair
-            </button>
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
           </div>
         </header>
-        <main className="mx-auto max-w-7xl px-4 py-6">
+        <main className="mx-auto max-w-7xl px-3 py-5 sm:px-4 md:px-6">
           {activePage === "financial" && <AdminFinancialPage />}
           {activePage === "clients" && <AdminClientsPage />}
           {activePage === "plans" && <AdminPlansPage />}
@@ -750,11 +692,47 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   );
 }
 
+function AdminSidebarNavigation({
+  pages: navPages,
+  activePage,
+  navigate,
+}: {
+  pages: Array<{
+    key: "financial" | "clients" | "plans";
+    label: string;
+    description: string;
+    icon: typeof CircleDollarSign;
+  }>;
+  activePage: "financial" | "clients" | "plans";
+  navigate: (page: "financial" | "clients" | "plans") => void;
+}) {
+  return (
+    <>
+      <div className="mb-8">
+        <BrandLogo variant="dark" />
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Administração</p>
+      </div>
+      <nav className="flex-1 space-y-1">
+        {navPages.map((page) => {
+          const Icon = page.icon;
+          return (
+            <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
+              <Icon className="h-4 w-4" />
+              <span>
+                <span className="block">{page.label}</span>
+                <span className="block text-xs font-medium opacity-70">{page.description}</span>
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </>
+  );
+}
+
 function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const [token, setTokenValue] = useState(
-    () => new URLSearchParams(window.location.search).get("email_verification_token") ?? "",
-  );
+  const [token, setTokenValue] = useState(() => new URLSearchParams(window.location.search).get("email_verification_token") ?? "");
 
   const confirm = useMutation({
     mutationFn: () =>
@@ -769,10 +747,7 @@ function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () 
   });
 
   const resend = useMutation({
-    mutationFn: () =>
-      apiFetch<{ message: string }>("/auth/email/verification/resend", {
-        method: "POST",
-      }),
+    mutationFn: () => apiFetch<{ message: string }>("/auth/email/verification/resend", { method: "POST" }),
   });
 
   useEffect(() => {
@@ -781,44 +756,37 @@ function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () 
 
   return (
     <main className="min-h-screen bg-panel px-4 py-10 text-ink">
-      <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-line bg-white p-6 shadow-sm">
+      <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-line bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)]">
         <div className="flex items-center gap-3">
-          <MailCheck className="h-6 w-6 text-brand" />
+          <div className="rounded-md bg-mint p-3 text-accent">
+            <MailCheck className="h-5 w-5" />
+          </div>
           <div>
-            <h1 className="text-xl font-semibold">Confirme seu e-mail</h1>
+            <h1 className="text-xl font-bold">Confirme seu e-mail</h1>
             <p className="text-sm text-muted">{user.email}</p>
           </div>
         </div>
-
         <p className="text-sm leading-6 text-muted">
-          O login esta liberado, mas o acesso financeiro fica bloqueado ate a confirmacao do e-mail.
-          Em modo dev, o link aparece nos logs do backend.
+          O login está liberado, mas o acesso financeiro fica bloqueado até a confirmação do e-mail. Em modo dev, o link aparece nos logs do backend.
         </p>
-
         <label className="field" htmlFor="verification-token">
-          Token de verificacao
-          <input
-            id="verification-token"
-            value={token}
-            onChange={(event) => setTokenValue(event.target.value)}
-          />
+          Token de verificação
+          <input id="verification-token" value={token} onChange={(event) => setTokenValue(event.target.value)} />
         </label>
-
         {confirm.error && <div className="alert-error">{confirm.error.message}</div>}
         {resend.error && <div className="alert-error">{resend.error.message}</div>}
         {resend.data && <div className="alert-warning">{resend.data.message}</div>}
-
         <div className="flex flex-wrap gap-3">
-          <button className="btn-primary" disabled={!token || confirm.isPending} onClick={() => confirm.mutate()}>
+          <Button disabled={!token || confirm.isPending} onClick={() => confirm.mutate()} variant="premium">
             <MailCheck className="h-4 w-4" />
             Confirmar
-          </button>
-          <button className="btn-secondary" disabled={resend.isPending} onClick={() => resend.mutate()}>
+          </Button>
+          <Button disabled={resend.isPending} onClick={() => resend.mutate()} variant="secondary">
             <RefreshCw className="h-4 w-4" />
             Reenviar
-          </button>
-          <button
-            className="btn-ghost"
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => {
               clearToken();
               queryClient.clear();
@@ -826,7 +794,7 @@ function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () 
             }}
           >
             Sair
-          </button>
+          </Button>
         </div>
       </section>
     </main>
@@ -845,28 +813,23 @@ function subscriptionStatusText(status: Subscription["status"]) {
 }
 
 function SubscriptionBadge({ subscription }: { subscription: Subscription }) {
-  const tone = subscription.is_valid
-    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-    : "border-amber-200 bg-amber-50 text-amber-900";
-  const accessDate = subscription.access_until
-    ? new Date(subscription.access_until).toLocaleDateString("pt-BR")
-    : null;
+  const variant = subscription.is_valid ?"success" : "warning";
+  const accessDate = subscription.access_until ?new Date(subscription.access_until).toLocaleDateString("pt-BR") : null;
 
   return (
-    <div className={`hidden rounded-md border px-3 py-2 text-xs font-medium sm:block ${tone}`}>
+    <Badge className="hidden sm:inline-flex" variant={variant}>
       {subscriptionStatusText(subscription.status)}
-      {accessDate ? ` até ${accessDate}` : ""}
-    </div>
+      {accessDate ?` até ${accessDate}` : ""}
+    </Badge>
   );
 }
 
 function SubscriptionBlocked({ subscription }: { subscription: Subscription }) {
   return (
     <section className="panel max-w-2xl space-y-3">
+      <Badge variant="warning">{subscriptionStatusText(subscription.status)}</Badge>
       <h2 className="panel-title">Seu período gratuito terminou.</h2>
-      <p className="text-sm leading-6 text-muted">
-        Para continuar usando o sistema, realize o pagamento da assinatura.
-      </p>
+      <p className="text-sm leading-6 text-muted">Para continuar usando o sistema, realize o pagamento da assinatura.</p>
       <p className="text-sm leading-6 text-muted">Entre em contato para liberação.</p>
     </section>
   );
@@ -874,19 +837,11 @@ function SubscriptionBlocked({ subscription }: { subscription: Subscription }) {
 
 export default function App() {
   const [token, setCurrentToken] = useState(getToken());
-  const me = useQuery({
-    queryKey: ["me", token],
-    queryFn: () => apiFetch<User>("/auth/me"),
-    enabled: Boolean(token),
-  });
+  const me = useQuery({ queryKey: ["me", token], queryFn: () => apiFetch<User>("/auth/me"), enabled: Boolean(token) });
   const company = useQuery({
     queryKey: ["company"],
     queryFn: () => apiFetch<Company>("/companies/me"),
-    enabled:
-      Boolean(token) &&
-      Boolean(me.data?.email_verified_at) &&
-      me.data?.role === "company_admin" &&
-      !me.data?.must_change_password,
+    enabled: Boolean(token) && Boolean(me.data?.email_verified_at) && me.data?.role === "company_admin" && !me.data?.must_change_password,
   });
 
   useEffect(() => {
@@ -896,40 +851,29 @@ export default function App() {
     }
   }, [me.isError]);
 
-  if (!token) return <LoginScreen onAuthenticated={setCurrentToken} />;
-  if (me.isLoading) return <div className="screen-state">Carregando sessão...</div>;
-  if (me.isError) {
-    return <LoginScreen onAuthenticated={setCurrentToken} />;
-  }
-  if (me.data!.role === "platform_admin") {
-    return <AdminShell user={me.data!} onLogout={() => setCurrentToken(null)} />;
-  }
-  if (!me.data!.email_verified_at) {
-    return <EmailVerificationScreen user={me.data!} onLogout={() => setCurrentToken(null)} />;
-  }
-  if (me.data!.must_change_password) {
-    return (
-      <PasswordChangeScreen
-        user={me.data!}
-        onComplete={() => me.refetch()}
-        onLogout={() => setCurrentToken(null)}
-      />
-    );
-  }
-  if (me.data!.role === "company_admin" && company.isLoading) {
-    return <div className="screen-state">Carregando empresa...</div>;
-  }
-  if (me.data!.role === "company_admin" && company.isError) {
-    return <div className="alert-error">{company.error.message}</div>;
-  }
-  if (me.data!.role === "company_admin" && !company.data!.onboarding_completed_at) {
-    return (
-      <OnboardingScreen
-        user={me.data!}
-        onComplete={() => company.refetch()}
-        onLogout={() => setCurrentToken(null)}
-      />
-    );
-  }
-  return <CompanyShell user={me.data!} onLogout={() => setCurrentToken(null)} />;
+  return (
+    <TooltipProvider>
+      {!token ?(
+        <LoginScreen onAuthenticated={setCurrentToken} />
+      ) : me.isLoading ?(
+        <div className="screen-state">Carregando sessão...</div>
+      ) : me.isError ?(
+        <LoginScreen onAuthenticated={setCurrentToken} />
+      ) : me.data!.role === "platform_admin" ?(
+        <AdminShell user={me.data!} onLogout={() => setCurrentToken(null)} />
+      ) : !me.data!.email_verified_at ?(
+        <EmailVerificationScreen user={me.data!} onLogout={() => setCurrentToken(null)} />
+      ) : me.data!.must_change_password ?(
+        <PasswordChangeScreen user={me.data!} onComplete={() => me.refetch()} onLogout={() => setCurrentToken(null)} />
+      ) : me.data!.role === "company_admin" && company.isLoading ?(
+        <div className="screen-state">Carregando empresa...</div>
+      ) : me.data!.role === "company_admin" && company.isError ?(
+        <div className="alert-error">{company.error.message}</div>
+      ) : me.data!.role === "company_admin" && !company.data!.onboarding_completed_at ?(
+        <OnboardingScreen user={me.data!} onComplete={() => company.refetch()} onLogout={() => setCurrentToken(null)} />
+      ) : (
+        <CompanyShell user={me.data!} onLogout={() => setCurrentToken(null)} />
+      )}
+    </TooltipProvider>
+  );
 }

@@ -13,7 +13,7 @@ export function AccountViewPage({ kind }: { kind: "payables" | "receivables" }) 
   });
   const settle = useMutation({
     mutationFn: (id: string) =>
-      apiFetch<Transaction>(`/${kind}/${id}/${isPayable ? "pay" : "receive"}`, {
+      apiFetch<Transaction>(`/${kind}/${id}/${isPayable ?"pay" : "receive"}`, {
         method: "POST",
         body: JSON.stringify({}),
       }),
@@ -24,7 +24,7 @@ export function AccountViewPage({ kind }: { kind: "payables" | "receivables" }) 
     <section className="panel">
       <div className="table-header">
         <div>
-          <h2 className="panel-title">{isPayable ? "Contas a pagar" : "Contas a receber"}</h2>
+          <h2 className="panel-title">{isPayable ?"Contas a pagar" : "Contas a receber"}</h2>
           <p className="section-subtitle">Visão filtrada dos lançamentos financeiros.</p>
         </div>
       </div>
@@ -52,7 +52,7 @@ export function AccountViewPage({ kind }: { kind: "payables" | "receivables" }) 
                 <td className="text-right">{money(item.amount)}</td>
                 <td className="text-right">
                   {item.status === "pending" && (
-                    <button className="icon-btn" title={isPayable ? "Pagar" : "Receber"} onClick={() => settle.mutate(item.id)}>
+                    <button className="icon-btn" title={isPayable ?"Pagar" : "Receber"} onClick={() => settle.mutate(item.id)}>
                       <CheckCircle2 className="h-4 w-4" />
                     </button>
                   )}

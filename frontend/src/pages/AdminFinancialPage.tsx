@@ -93,7 +93,7 @@ export function AdminFinancialPage() {
   const metrics = dashboard.data?.metrics;
   const series = dashboard.data?.monthly_series ?? [];
   const updateFilter = (key: keyof typeof filters, value: string | number) =>
-    setFilters((current) => ({ ...current, [key]: value, page: key === "page" ? Number(value) : 1 }));
+    setFilters((current) => ({ ...current, [key]: value, page: key === "page" ?Number(value) : 1 }));
 
   return (
     <section className="space-y-6">
@@ -136,10 +136,10 @@ export function AdminFinancialPage() {
               const value = metrics[key];
               const warning = ["pending_revenue", "overdue_revenue", "lost_cancellations", "lost_delinquency"].includes(key);
               return (
-                <article key={key} className={`metric ${warning ? "border-amber-200 bg-amber-50/40" : ""}`}>
+                <article key={key} className={`metric ${warning ?"border-amber-200 bg-amber-50/40" : ""}`}>
                   <div className="flex items-center justify-between gap-2">
                     <p>{label}</p>
-                    <Icon className={`h-4 w-4 ${warning ? "text-amber-700" : "text-brand"}`} />
+                    <Icon className={`h-4 w-4 ${warning ?"text-amber-700" : "text-brand"}`} />
                   </div>
                   <strong>{formatMetric(value, format)}</strong>
                 </article>
@@ -235,8 +235,8 @@ export function AdminFinancialPage() {
                       <td><PaymentBadge status={item.payment_status} /></td>
                       <td>{dateText(item.payment_date)}</td>
                       <td>{dateText(item.next_due_date)}</td>
-                      <td>{item.days_overdue ? `${item.days_overdue} dia(s)` : "-"}</td>
-                      <td>{item.payment_method === "manual" ? "Manual" : item.payment_method ?? "-"}</td>
+                      <td>{item.days_overdue ?`${item.days_overdue} dia(s)` : "-"}</td>
+                      <td>{item.payment_method === "manual" ?"Manual" : item.payment_method ?? "-"}</td>
                       <td className="font-medium text-emerald-700">{money(item.received_amount)}</td>
                       <td className="font-medium text-amber-700">{money(item.pending_amount)}</td>
                       <td>{item.renewed_by_admin ?? "-"}</td>
@@ -248,7 +248,7 @@ export function AdminFinancialPage() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <button className="btn-secondary" disabled={filters.page <= 1} onClick={() => updateFilter("page", filters.page - 1)}>Anterior</button>
               <span className="text-sm text-muted">Página {table.data.page} de {table.data.pages}</span>
               <button className="btn-secondary" disabled={filters.page >= table.data.pages} onClick={() => updateFilter("page", filters.page + 1)}>Próxima</button>
@@ -287,15 +287,15 @@ function SeriesChart({
       <h3 className="panel-title">{title}</h3>
       <div className="mt-4 space-y-3">
         {series.map((point) => (
-          <div key={`${title}-${point.month}`} className="grid grid-cols-[70px_1fr_100px] items-center gap-3 text-xs">
+          <div key={`${title}-${point.month}`} className="grid grid-cols-[56px_minmax(72px,1fr)_minmax(72px,auto)] items-center gap-2 text-xs sm:grid-cols-[70px_1fr_100px] sm:gap-3">
             <span className="text-muted">{monthText(point.month)}</span>
             <div className="space-y-1">
               {keys.map((key, index) => {
                 const value = Number(point[key]) || 0;
-                return <div key={key} className={`h-2 rounded ${colors[index]}`} style={{ width: `${Math.max(value / max * 100, value ? 3 : 0)}%` }} />;
+                return <div key={key} className={`h-2 rounded ${colors[index]}`} style={{ width: `${Math.max(value / max * 100, value ?3 : 0)}%` }} />;
               })}
             </div>
-            <span className="text-right font-medium">{moneyValues ? money(String(point[keys[0]])) : Number(point[keys[0]]).toLocaleString("pt-BR")}</span>
+            <span className="text-right font-medium">{moneyValues ?money(String(point[keys[0]])) : Number(point[keys[0]]).toLocaleString("pt-BR")}</span>
           </div>
         ))}
       </div>
@@ -313,9 +313,9 @@ function BreakdownChart({ title, points }: { title: string; points: AdminChartPo
         {points.map((point) => {
           const value = Number(point.value) || 0;
           return (
-            <div key={`${title}-${point.label}`} className="grid grid-cols-[120px_1fr_100px] items-center gap-3 text-sm">
+            <div key={`${title}-${point.label}`} className="grid grid-cols-[minmax(72px,0.8fr)_minmax(72px,1fr)_minmax(72px,auto)] items-center gap-2 text-xs sm:grid-cols-[120px_1fr_100px] sm:gap-3 sm:text-sm">
               <span className="truncate text-muted">{point.label}</span>
-              <div className="h-3 rounded bg-panel"><div className="h-3 rounded bg-brand" style={{ width: `${Math.max(value / max * 100, value ? 4 : 0)}%` }} /></div>
+              <div className="h-3 rounded bg-panel"><div className="h-3 rounded bg-brand" style={{ width: `${Math.max(value / max * 100, value ?4 : 0)}%` }} /></div>
               <span className="text-right font-medium">{money(point.value)}</span>
             </div>
           );
@@ -349,7 +349,7 @@ function StatusBadge({ status }: { status: SubscriptionStatus }) {
 }
 
 function PaymentBadge({ status }: { status: string }) {
-  const tone = status === "paid" ? "bg-emerald-50 text-emerald-700" : status === "overdue" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-800";
+  const tone = status === "paid" ?"bg-emerald-50 text-emerald-700" : status === "overdue" ?"bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-800";
   return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${tone}`}>{paymentLabels[status] ?? status}</span>;
 }
 

@@ -58,7 +58,7 @@ export function AdminSubscriptionsPage() {
         body: JSON.stringify({
           company_id: form.company_id,
           plan_id: form.plan_id,
-          paid_at: form.paid_at ? `${form.paid_at}T12:00:00Z` : null,
+          paid_at: form.paid_at ?`${form.paid_at}T12:00:00Z` : null,
           notes: form.notes || null,
         }),
       }),

@@ -44,7 +44,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
 
   const transactions = useQuery({
     queryKey: ["transactions", filters],
-    queryFn: () => apiFetch<Transaction[]>(`/financial-transactions${query.toString() ? `?${query}` : ""}`),
+    queryFn: () => apiFetch<Transaction[]>(`/financial-transactions${query.toString() ?`?${query}` : ""}`),
   });
   const categories = useQuery({
     queryKey: ["categories"],
@@ -146,8 +146,8 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
   async function exportCsv() {
     setExportError("");
     const token = getToken();
-    const response = await fetch(`${apiUrl}/exports/financial-transactions.csv${query.toString() ? `?${query}` : ""}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    const response = await fetch(`${apiUrl}/exports/financial-transactions.csv${query.toString() ?`?${query}` : ""}`, {
+      headers: token ?{ Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
@@ -168,9 +168,9 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
   return (
     <section className="space-y-5">
       <form className="panel grid gap-4 lg:grid-cols-4" onSubmit={onSubmit}>
-        <div className="flex items-center justify-between lg:col-span-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-4">
           <h2 className="panel-title">
-            {editingId ? "Editar lancamento" : "Novo lancamento"}
+            {editingId ?"Editar lancamento" : "Novo lancamento"}
           </h2>
           {editingId && (
             <button className="btn-ghost" type="button" onClick={resetForm}>
@@ -226,7 +226,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
         </label>
         <div className="flex items-end">
           <button className="btn-primary w-full" disabled={create.isPending || update.isPending}>
-            {editingId ? "Salvar alteracoes" : "Salvar"}
+            {editingId ?"Salvar alteracoes" : "Salvar"}
           </button>
         </div>
         {(create.error || update.error) && (

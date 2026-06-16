@@ -125,7 +125,7 @@ def verification_text(verification_link: str) -> str:
         [
             "Confirme seu e-mail",
             "",
-            "Recebemos um cadastro para o Gestao Financeira Empresarial usando este e-mail.",
+            "Recebemos um cadastro para o Gestivo usando este e-mail.",
             "Para liberar o acesso aos recursos financeiros da sua empresa, confirme seu e-mail no link abaixo:",
             "",
             verification_link,
@@ -138,10 +138,10 @@ def verification_text(verification_link: str) -> str:
 def verification_html(verification_link: str) -> str:
     return f"""
     <html>
-      <body style="font-family: Arial, sans-serif; color: #172033; line-height: 1.5;">
+      <body style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
         <h1 style="font-size: 20px;">Confirme seu e-mail</h1>
         <p>
-          Recebemos um cadastro para o Gestao Financeira Empresarial usando este e-mail.
+          Recebemos um cadastro para o Gestivo usando este e-mail.
         </p>
         <p>
           Para liberar o acesso aos recursos financeiros da sua empresa, confirme seu e-mail.
@@ -149,7 +149,7 @@ def verification_html(verification_link: str) -> str:
         <p style="margin: 24px 0;">
           <a
             href="{verification_link}"
-            style="background: #2563eb; color: #ffffff; padding: 12px 18px; text-decoration: none; border-radius: 6px; display: inline-block;"
+            style="background: #0F3D4A; color: #ffffff; padding: 12px 18px; text-decoration: none; border-radius: 6px; display: inline-block;"
           >
             Confirmar e-mail
           </a>

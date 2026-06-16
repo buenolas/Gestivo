@@ -75,7 +75,7 @@ export function CategoriesPage({ canManage = true }: { canManage?: boolean }) {
                 <tr key={category.id}>
                   <td>{category.name}</td>
                   <td>{typeText(category.type)}</td>
-                  <td>{category.is_active ? "Ativa" : "Inativa"}</td>
+                  <td>{category.is_active ?"Ativa" : "Inativa"}</td>
                   <td className="text-right">
                     {canManage && category.is_active && (
                       <button className="icon-btn" title="Desativar" onClick={() => remove.mutate(category.id)}>

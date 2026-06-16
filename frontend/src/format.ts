@@ -3,7 +3,7 @@ export function money(value: string | number | null | undefined) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(Number.isFinite(parsed) ? parsed : 0);
+  }).format(Number.isFinite(parsed) ?parsed : 0);
 }
 
 export function dateText(value: string | null | undefined) {
