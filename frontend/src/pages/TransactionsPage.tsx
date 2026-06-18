@@ -2,14 +2,10 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CheckCircle2, Download, Pencil, XCircle } from "lucide-react";
 import { apiFetch, apiUrl, getToken } from "../api";
-import { dateText, money, statusText, typeText } from "../format";
+import { currencyInputToDecimal, dateText, formatCurrencyInput, money, statusText, typeText } from "../format";
 import type { Category, Contact, Transaction } from "../types";
 
 const today = new Date().toISOString().slice(0, 10);
-
-function normalizeMoneyInput(value: string) {
-  return value.trim().replace(",", ".");
-}
 
 export function TransactionsPage({ canManageAll = true }: { canManageAll?: boolean }) {
   const queryClient = useQueryClient();
@@ -18,13 +14,14 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     type: "",
     status: "",
     category_id: "",
+    contact_id: "",
     start_date: "",
     end_date: "",
     search: "",
   });
   const [form, setForm] = useState({
     description: "",
-    amount: "",
+    amount: "0,00",
     type: "expense",
     competence_date: today,
     due_date: "",
@@ -34,10 +31,11 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const query = new URLSearchParams();
+  const query = new URLSearchParams({ source: "manual" });
   if (filters.type) query.set("type", filters.type);
   if (filters.status) query.set("status", filters.status);
   if (filters.category_id) query.set("category_id", filters.category_id);
+  if (filters.contact_id) query.set("contact_id", filters.contact_id);
   if (filters.start_date) query.set("start_date", filters.start_date);
   if (filters.end_date) query.set("end_date", filters.end_date);
   if (filters.search) query.set("search", filters.search);
@@ -54,6 +52,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     queryKey: ["contacts"],
     queryFn: () => apiFetch<Contact[]>("/contacts"),
   });
+  const contactById = new Map((contacts.data ?? []).map((contact) => [contact.id, contact.name]));
 
   const create = useMutation({
     mutationFn: () =>
@@ -61,7 +60,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
         method: "POST",
         body: JSON.stringify({
           description: form.description,
-          amount: normalizeMoneyInput(form.amount),
+          amount: currencyInputToDecimal(form.amount),
           type: form.type,
           competence_date: form.competence_date,
           due_date: form.due_date || null,
@@ -71,7 +70,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
         }),
       }),
     onSuccess: async () => {
-      setForm({ description: "", amount: "", type: "expense", competence_date: today, due_date: "", category_id: "", contact_id: "", notes: "" });
+      resetForm();
       await queryClient.invalidateQueries({ queryKey: ["transactions"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -83,7 +82,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
         method: "PATCH",
         body: JSON.stringify({
           description: form.description,
-          amount: normalizeMoneyInput(form.amount),
+          amount: currencyInputToDecimal(form.amount),
           type: form.type,
           competence_date: form.competence_date,
           due_date: form.due_date || null,
@@ -118,7 +117,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     setEditingId(null);
     setForm({
       description: "",
-      amount: "",
+      amount: "0,00",
       type: "expense",
       competence_date: today,
       due_date: "",
@@ -132,7 +131,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     setEditingId(transaction.id);
     setForm({
       description: transaction.description,
-      amount: transaction.amount,
+      amount: formatCurrencyInput(transaction.amount),
       type: transaction.type,
       competence_date: transaction.competence_date,
       due_date: transaction.due_date ?? "",
@@ -185,7 +184,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
         </label>
         <label className="field" htmlFor="transaction-amount">
           Valor
-          <input id="transaction-amount" required inputMode="decimal" placeholder="150,00" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} />
+          <input id="transaction-amount" required inputMode="numeric" value={form.amount} onChange={(event) => setForm({ ...form, amount: formatCurrencyInput(event.target.value) })} />
         </label>
         <label className="field" htmlFor="transaction-type">
           Tipo
@@ -212,9 +211,9 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
           </select>
         </label>
         <label className="field" htmlFor="transaction-contact">
-          Contato
+          Cliente/Fornecedor
           <select id="transaction-contact" value={form.contact_id} onChange={(event) => setForm({ ...form, contact_id: event.target.value })}>
-            <option value="">Sem contato</option>
+            <option value="">Sem cliente/fornecedor</option>
             {(contacts.data ?? []).filter((item) => item.is_active).map((contact) => (
               <option key={contact.id} value={contact.id}>{contact.name}</option>
             ))}
@@ -239,7 +238,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
       <div className="panel">
         <div className="table-header">
           <h2 className="panel-title">Lançamentos</h2>
-          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-7">
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-8">
             <select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
               <option value="">Todos os tipos</option>
               <option value="income">Entradas</option>
@@ -255,6 +254,12 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
               <option value="">Todas categorias</option>
               {(categories.data ?? []).map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+            <select value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
+              <option value="">Clientes/fornecedores</option>
+              {(contacts.data ?? []).map((contact) => (
+                <option key={contact.id} value={contact.id}>{contact.name}</option>
               ))}
             </select>
             <input type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
@@ -275,6 +280,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
             <thead>
               <tr>
                 <th>Descrição</th>
+                <th>Cliente/Fornecedor</th>
                 <th>Tipo</th>
                 <th>Status</th>
                 <th>Competência</th>
@@ -287,6 +293,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
               {(transactions.data ?? []).map((transaction) => (
                 <tr key={transaction.id}>
                   <td>{transaction.description}</td>
+                  <td>{transaction.contact_id ? contactById.get(transaction.contact_id) ?? "-" : "-"}</td>
                   <td>{typeText(transaction.type)}</td>
                   <td>{statusText(transaction.status)}</td>
                   <td>{dateText(transaction.competence_date)}</td>

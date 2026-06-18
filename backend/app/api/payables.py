@@ -53,6 +53,7 @@ def _raise_validation_error(error: FinancialTransactionValidationError) -> None:
 def list_payables(
     due: DueDateFilter | None = None,
     status: FinancialTransactionStatus | None = None,
+    contact_id: UUID | None = None,
     current_user: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
 ) -> list[FinancialTransaction]:
@@ -62,6 +63,7 @@ def list_payables(
         transaction_type=FinancialTransactionType.expense,
         status=status,
         due=due,
+        contact_id=contact_id,
     )
 
 

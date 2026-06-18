@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.auth import router as auth_router
 from app.api.admin_clients import router as admin_clients_router
 from app.api.admin_financial import router as admin_financial_router
+from app.api.cash_flow import router as cash_flow_router
 from app.api.companies import router as companies_router
 from app.api.company_users import router as company_users_router
 from app.api.contacts import router as contacts_router
@@ -22,6 +23,7 @@ from app.api.financial_transactions import router as financial_transactions_rout
 from app.api.import_batches import router as import_batches_router
 from app.api.payables import router as payables_router
 from app.api.plans import router as plans_admin_router
+from app.api.product_outputs import router as product_outputs_router
 from app.api.reports import router as reports_router
 from app.api.receivables import router as receivables_router
 from app.api.subscriptions import admin_router as subscription_admin_router
@@ -42,6 +44,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(admin_clients_router)
 app.include_router(admin_financial_router)
+app.include_router(cash_flow_router)
 app.include_router(companies_router)
 app.include_router(company_users_router)
 app.include_router(contacts_router)
@@ -52,6 +55,7 @@ app.include_router(financial_transactions_router)
 app.include_router(import_batches_router)
 app.include_router(payables_router)
 app.include_router(plans_admin_router)
+app.include_router(product_outputs_router)
 app.include_router(receivables_router)
 app.include_router(reports_router)
 app.include_router(subscription_router)

@@ -18,6 +18,7 @@ import {
   MessageCircle,
   ReceiptText,
   RefreshCw,
+  PackagePlus,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -26,6 +27,8 @@ import {
 import { apiFetch, clearToken, getToken, setToken } from "./api";
 import type { Company, Subscription, User } from "./types";
 import { DashboardPage } from "./pages/DashboardPage";
+import { CashFlowPage } from "./pages/CashFlowPage";
+import { ProductOutputsPage } from "./pages/ProductOutputsPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
@@ -44,6 +47,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 type PageKey =
   | "dashboard"
+  | "cashflow"
+  | "productOutputs"
   | "categories"
   | "contacts"
   | "employees"
@@ -60,6 +65,8 @@ const pages: Array<{
   icon: typeof LayoutDashboard;
 }> = [
   { key: "dashboard", label: "Visão geral", description: "Indicadores do mês", icon: LayoutDashboard },
+  { key: "cashflow", label: "Fluxo de caixa", description: "Caixa realizado", icon: CircleDollarSign },
+  { key: "productOutputs", label: "Saída de produtos", description: "Valores a receber", icon: PackagePlus },
   { key: "transactions", label: "Lançamentos", description: "Entradas e saídas", icon: ReceiptText },
   { key: "payables", label: "A pagar", description: "Compromissos", icon: ArrowDownCircle },
   { key: "receivables", label: "A receber", description: "Recebimentos", icon: ArrowUpCircle },
@@ -70,8 +77,20 @@ const pages: Array<{
   { key: "contacts", label: "Contatos", description: "Contrapartes", icon: Building2 },
 ];
 
+const sidebarSections: Array<{
+  label: string;
+  pageKeys: PageKey[];
+}> = [
+  { label: "Principal", pageKeys: ["dashboard", "cashflow"] },
+  { label: "Financeiro", pageKeys: ["transactions", "payables", "receivables", "categories"] },
+  { label: "Operação", pageKeys: ["productOutputs", "imports"] },
+  { label: "Administração", pageKeys: ["employees", "users", "contacts"] },
+];
+
 const financialPages = new Set<PageKey>([
   "dashboard",
+  "cashflow",
+  "productOutputs",
   "categories",
   "employees",
   "users",
@@ -492,6 +511,8 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   const activeMeta = useMemo(() => pages.find((page) => page.key === activePage) ?? pages[0], [activePage]);
   const content = {
     dashboard: <DashboardPage />,
+    cashflow: <CashFlowPage />,
+    productOutputs: <ProductOutputsPage />,
     categories: <CategoriesPage canManage={isAdmin} />,
     contacts: <ContactsPage canManage={isAdmin} />,
     employees: <EmployeesPage />,
@@ -515,7 +536,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
 
   return (
     <div className="min-h-screen bg-panel text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-ink p-4 text-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col overflow-hidden bg-ink p-4 text-white lg:flex">
         {sidebar}
       </aside>
 
@@ -576,33 +597,51 @@ function SidebarNavigation({
   activePage: PageKey;
   navigate: (page: PageKey) => void;
 }) {
+  const visibleSections = sidebarSections
+    .map((section) => ({
+      ...section,
+      pages: section.pageKeys
+        .map((pageKey) => navPages.find((page) => page.key === pageKey))
+        .filter((page): page is (typeof pages)[number] => Boolean(page)),
+    }))
+    .filter((section) => section.pages.length > 0);
+
   return (
-    <>
-      <div className="mb-8 flex items-center justify-between">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 pb-6">
         <BrandLogo variant="dark" />
       </div>
-      <nav className="flex-1 space-y-1">
-        {navPages.map((page) => {
-          const Icon = page.icon;
-          return (
-            <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
-              <Icon className="h-4 w-4" />
-              <span>
-                <span className="block">{page.label}</span>
-                <span className="block text-xs font-medium opacity-70">{page.description}</span>
-              </span>
-            </button>
-          );
-        })}
+      <nav className="sidebar-scroll min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+        {visibleSections.map((section) => (
+          <section key={section.label} className="space-y-1.5">
+            <p className="px-3 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">{section.label}</p>
+            <div className="space-y-1">
+              {section.pages.map((page) => {
+                const Icon = page.icon;
+                return (
+                  <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block truncate">{page.label}</span>
+                      <span className="block truncate text-xs font-medium opacity-70">{page.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </nav>
-      <SidebarContactInfo />
-    </>
+      <div className="shrink-0 pt-4">
+        <SidebarContactInfo />
+      </div>
+    </div>
   );
 }
 
 function SidebarContactInfo() {
   return (
-    <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
+    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
       <p className="font-semibold text-white">Precisa de ajuda?</p>
       <p className="mt-1 text-xs leading-5 text-slate-300">Para liberar ou renovar o acesso, entre em contato.</p>
       <div className="mt-3 space-y-2">
@@ -640,7 +679,7 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   return (
     <div className="min-h-screen bg-panel text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col bg-ink p-4 text-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col overflow-hidden bg-ink p-4 text-white lg:flex">
         {sidebar}
       </aside>
 
@@ -707,26 +746,31 @@ function AdminSidebarNavigation({
   navigate: (page: "financial" | "clients" | "plans") => void;
 }) {
   return (
-    <>
-      <div className="mb-8">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 pb-6">
         <BrandLogo variant="dark" />
         <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Administração</p>
       </div>
-      <nav className="flex-1 space-y-1">
-        {navPages.map((page) => {
-          const Icon = page.icon;
-          return (
-            <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
-              <Icon className="h-4 w-4" />
-              <span>
-                <span className="block">{page.label}</span>
-                <span className="block text-xs font-medium opacity-70">{page.description}</span>
-              </span>
-            </button>
-          );
-        })}
+      <nav className="sidebar-scroll min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+        <section className="space-y-1.5">
+          <p className="px-3 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">Plataforma</p>
+          <div className="space-y-1">
+            {navPages.map((page) => {
+              const Icon = page.icon;
+              return (
+                <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate">{page.label}</span>
+                    <span className="block truncate text-xs font-medium opacity-70">{page.description}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </nav>
-    </>
+    </div>
   );
 }
 

@@ -2,12 +2,8 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Pencil, X } from "lucide-react";
 import { apiFetch } from "../api";
-import { dateText, money } from "../format";
+import { currencyInputToDecimal, dateText, formatCurrencyInput, money } from "../format";
 import type { Plan } from "../types";
-
-function normalizeMoneyInput(value: string) {
-  return value.trim().replace(/\./g, "").replace(",", ".");
-}
 
 function cycleText(cycle: Plan["billing_cycle"]) {
   const labels: Record<Plan["billing_cycle"], string> = {
@@ -45,7 +41,7 @@ export function AdminPlansPage() {
       return apiFetch<Plan>(`/admin/plans/${editingPlan.id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          price: normalizeMoneyInput(form.price),
+          price: currencyInputToDecimal(form.price),
           is_active: form.is_active,
           description: form.description || null,
         }),
@@ -62,10 +58,7 @@ export function AdminPlansPage() {
     setSuccessMessage("");
     setEditingPlan(plan);
     setForm({
-      price: Number(plan.price).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+      price: formatCurrencyInput(plan.price),
       is_active: plan.is_active,
       description: plan.description ?? "",
     });
@@ -158,10 +151,9 @@ export function AdminPlansPage() {
             <input
               id="plan-price"
               required
-              inputMode="decimal"
-              placeholder="49,90"
+              inputMode="numeric"
               value={form.price}
-              onChange={(event) => setForm({ ...form, price: event.target.value })}
+              onChange={(event) => setForm({ ...form, price: formatCurrencyInput(event.target.value) })}
             />
           </label>
           <label className="field" htmlFor="plan-status">

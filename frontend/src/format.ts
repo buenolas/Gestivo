@@ -6,6 +6,20 @@ export function money(value: string | number | null | undefined) {
   }).format(Number.isFinite(parsed) ?parsed : 0);
 }
 
+export function formatCurrencyInput(value: string | number | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "").replace(/^0+(?=\d)/, "") || "0";
+  const padded = digits.padStart(3, "0");
+  const cents = padded.slice(-2);
+  const integer = padded.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${integer},${cents}`;
+}
+
+export function currencyInputToDecimal(value: string) {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "") || "0";
+  const padded = digits.padStart(3, "0");
+  return `${padded.slice(0, -2)}.${padded.slice(-2)}`;
+}
+
 export function dateText(value: string | null | undefined) {
   if (!value) return "-";
   const [datePart] = value.split("T");
