@@ -288,6 +288,12 @@ export type Employee = {
   updated_at: string;
 };
 
+export type EmployeeOption = {
+  id: string;
+  name: string;
+  status: EmployeeStatus;
+};
+
 export type SalaryExpenseGeneration = {
   reference_month: string;
   created_count: number;

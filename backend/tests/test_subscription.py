@@ -26,10 +26,12 @@ from app.models.plan import Plan
 from app.models.user import User
 from app.models.user import UserRole
 from app.schemas.auth import UserCreate
+from app.schemas.auth import PasswordResetConfirm
 from app.schemas.company import CompanyOnboardingComplete
 from app.schemas.plan import PlanUpdate
 from app.schemas.subscription import ManualRenewalCreate
 from app.services import auth as auth_service
+from app.services import password_reset as password_reset_service
 from app.services.company import complete_company_onboarding
 from app.services.plan import ensure_fixed_plans
 from app.services.plan import update_plan
@@ -383,6 +385,145 @@ def test_confirm_email_sets_verified_at_and_clears_token() -> None:
     assert user.email_verification_token_hash is None
     assert user.email_verification_expires_at is None
     assert db.commits == 1
+
+
+def test_password_reset_request_existing_user_generates_hash_and_sends_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    company = make_company()
+    user = make_user(company)
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+    sent_codes: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        password_reset_service,
+        "send_password_reset_code",
+        lambda email, code: sent_codes.append((email, code)),
+    )
+
+    password_reset_service.request_password_reset(db, user.email.upper())
+
+    assert user.password_reset_code_hash is not None
+    assert user.password_reset_expires_at is not None
+    assert user.password_reset_requested_at is not None
+    assert sent_codes == [(user.email, sent_codes[0][1])]
+    assert len(sent_codes[0][1]) == 6
+    assert sent_codes[0][1].isdigit()
+    assert db.commits == 1
+
+
+def test_password_reset_request_missing_user_returns_generic_without_send(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = FakeDb(scalar_values=[None])
+    sent_codes: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        password_reset_service,
+        "send_password_reset_code",
+        lambda email, code: sent_codes.append((email, code)),
+    )
+
+    password_reset_service.request_password_reset(db, "missing@example.com")
+
+    assert sent_codes == []
+    assert db.commits == 0
+
+
+def test_password_reset_request_before_resend_interval_keeps_existing_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    company = make_company()
+    user = make_user(company)
+    user.password_reset_code_hash = "existing-hash"
+    user.password_reset_requested_at = datetime.now(UTC)
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+    sent_codes: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        password_reset_service,
+        "send_password_reset_code",
+        lambda email, code: sent_codes.append((email, code)),
+    )
+
+    password_reset_service.request_password_reset(db, user.email)
+
+    assert user.password_reset_code_hash == "existing-hash"
+    assert sent_codes == []
+    assert db.commits == 0
+
+
+def test_password_reset_confirm_updates_password_and_clears_reset_fields() -> None:
+    company = make_company()
+    user = make_user(company)
+    old_password = "SenhaAntiga123"
+    new_password = "SenhaNova123"
+    user.password_hash = auth_service.hash_password(old_password)
+    user.must_change_password = True
+    user.password_reset_code_hash = token_hash("123456")
+    user.password_reset_expires_at = datetime.now(UTC) + timedelta(minutes=10)
+    user.password_reset_requested_at = datetime.now(UTC)
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+
+    updated = password_reset_service.confirm_password_reset(
+        db,
+        user.email,
+        "123456",
+        new_password,
+    )
+
+    assert updated == user
+    db.scalar_values = [user]
+    assert not auth_service.authenticate_user(db, user.email, old_password)
+    db.scalar_values = [user]
+    assert auth_service.authenticate_user(db, user.email, new_password) == user
+    assert user.must_change_password is False
+    assert user.password_reset_code_hash is None
+    assert user.password_reset_expires_at is None
+    assert user.password_reset_requested_at is None
+    assert db.commits == 1
+
+
+def test_password_reset_confirm_rejects_expired_code() -> None:
+    company = make_company()
+    user = make_user(company)
+    user.password_reset_code_hash = token_hash("123456")
+    user.password_reset_expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+
+    with pytest.raises(password_reset_service.PasswordResetError):
+        password_reset_service.confirm_password_reset(
+            db,
+            user.email,
+            "123456",
+            "SenhaNova123",
+        )
+
+    assert db.commits == 0
+
+
+def test_password_reset_confirm_rejects_wrong_code() -> None:
+    company = make_company()
+    user = make_user(company)
+    user.password_reset_code_hash = token_hash("123456")
+    user.password_reset_expires_at = datetime.now(UTC) + timedelta(minutes=10)
+    db = FakeDb(company=company, user=user, scalar_values=[user])
+
+    with pytest.raises(password_reset_service.PasswordResetError):
+        password_reset_service.confirm_password_reset(
+            db,
+            user.email,
+            "654321",
+            "SenhaNova123",
+        )
+
+    assert db.commits == 0
+
+
+def test_password_reset_schema_rejects_short_password() -> None:
+    with pytest.raises(ValidationError):
+        PasswordResetConfirm(
+            email="usuario@example.com",
+            code="123456",
+            new_password="curta",
+        )
 
 
 def test_complete_company_onboarding_updates_company_user_and_opening_balance() -> None:

@@ -20,5 +20,25 @@ class ProductOutputCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=1000)
 
 
+class ProductOutputUpdate(BaseModel):
+    employee_id: UUID | None = None
+    product_name: str | None = Field(default=None, min_length=2, max_length=160)
+    unit_price: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=2,
+    )
+    quantity: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=3,
+    )
+    unit: str | None = Field(default=None, max_length=20)
+    competence_date: date | None = None
+    notes: str | None = Field(default=None, max_length=1000)
+
+
 class ProductOutputResponse(FinancialTransactionResponse):
     pass

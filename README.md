@@ -70,6 +70,7 @@ Funcionalidades principais:
 - trial gratuito de 30 dias;
 - login com e-mail e senha;
 - confirmacao de e-mail;
+- recuperacao de senha por codigo enviado por e-mail;
 - onboarding com dados iniciais da empresa;
 - bloqueio das funcionalidades financeiras quando a assinatura nao esta valida;
 - renovacao manual de acesso por `platform_admin`;
@@ -117,6 +118,10 @@ Essas limitacoes sao parte da estrategia: entregar um financeiro operacional, co
 ### Primeiro acesso
 
 O cliente entra no sistema, cria sua conta, confirma o e-mail e conclui a configuracao inicial da empresa. A partir dai, recebe 30 dias de trial gratuito para usar as funcionalidades financeiras.
+
+### Recuperacao de senha
+
+Na tela de login, o usuario pode solicitar um codigo de verificacao por e-mail para redefinir a senha. O envio usa o mesmo `EMAIL_DELIVERY_MODE` configurado para confirmacao de e-mail (`mock`, SMTP ou Brevo) e nao revela se o e-mail informado existe.
 
 ### Rotina diaria
 

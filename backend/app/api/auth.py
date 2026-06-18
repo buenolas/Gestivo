@@ -14,6 +14,8 @@ from app.schemas.auth import EmailVerificationConfirm
 from app.schemas.auth import GoogleLogin
 from app.schemas.auth import MessageResponse
 from app.schemas.auth import PasswordChange
+from app.schemas.auth import PasswordResetConfirm
+from app.schemas.auth import PasswordResetRequest
 from app.schemas.auth import TokenResponse
 from app.schemas.auth import UserCreate
 from app.schemas.auth import UserLogin
@@ -29,6 +31,10 @@ from app.services.email_verification import EmailVerificationError
 from app.services.email_verification import confirm_email
 from app.services.email_verification import send_user_email_verification
 from app.services.email import EmailDeliveryError
+from app.services.password_reset import PASSWORD_RESET_GENERIC_MESSAGE
+from app.services.password_reset import PasswordResetError
+from app.services.password_reset import confirm_password_reset
+from app.services.password_reset import request_password_reset
 from app.models.usage_event import UsageEventType
 from app.services.usage_event import record_usage_event
 
@@ -124,6 +130,41 @@ def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post("/password/forgot", response_model=MessageResponse)
+def forgot_password(
+    reset_in: PasswordResetRequest,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    try:
+        request_password_reset(db, reset_in.email)
+    except EmailDeliveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Nao foi possivel enviar o codigo de recuperacao.",
+        ) from exc
+    return MessageResponse(message=PASSWORD_RESET_GENERIC_MESSAGE)
+
+
+@router.post("/password/reset", response_model=MessageResponse)
+def reset_password(
+    reset_in: PasswordResetConfirm,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    try:
+        confirm_password_reset(
+            db,
+            reset_in.email,
+            reset_in.code,
+            reset_in.new_password,
+        )
+    except PasswordResetError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    return MessageResponse(message="Senha redefinida. Entre com sua nova senha.")
 
 
 @router.post("/email/confirm", response_model=MessageResponse)

@@ -14,7 +14,9 @@ from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
+from app.models.user import UserRole
 from app.schemas.cash_flow import CashFlowEntryCreate
+from app.schemas.cash_flow import CashFlowEntryUpdate
 from app.schemas.cash_flow import CashFlowResponse
 from app.schemas.cash_flow import CashFlowSummary
 
@@ -23,6 +25,10 @@ ZERO = Decimal("0.00")
 
 
 class CashFlowValidationError(ValueError):
+    pass
+
+
+class CashFlowPermissionError(PermissionError):
     pass
 
 
@@ -108,6 +114,76 @@ def create_cash_flow_entry(
     db.commit()
     db.refresh(transaction)
     return transaction
+
+
+def get_cash_flow_entry(
+    db: Session,
+    user: User,
+    transaction_id: UUID,
+) -> FinancialTransaction | None:
+    return db.scalar(
+        select(FinancialTransaction).where(
+            FinancialTransaction.id == transaction_id,
+            FinancialTransaction.company_id == user.company_id,
+            FinancialTransaction.source == CASH_FLOW_SOURCE,
+            FinancialTransaction.deleted_at.is_(None),
+        )
+    )
+
+
+def update_cash_flow_entry(
+    db: Session,
+    user: User,
+    transaction: FinancialTransaction,
+    entry_in: CashFlowEntryUpdate,
+) -> FinancialTransaction:
+    _ensure_can_update_cash_flow(user, transaction)
+
+    next_contact_id = (
+        entry_in.contact_id
+        if "contact_id" in entry_in.model_fields_set
+        else transaction.contact_id
+    )
+    next_employee_id = (
+        entry_in.employee_id
+        if "employee_id" in entry_in.model_fields_set
+        else transaction.employee_id
+    )
+    _validate_links(db, user, next_contact_id, next_employee_id)
+
+    if entry_in.description is not None:
+        transaction.description = entry_in.description.strip()
+    if entry_in.amount is not None:
+        transaction.amount = entry_in.amount
+    if entry_in.type is not None:
+        transaction.type = entry_in.type
+    if entry_in.competence_date is not None:
+        transaction.competence_date = entry_in.competence_date
+    if "contact_id" in entry_in.model_fields_set:
+        transaction.contact_id = entry_in.contact_id
+    if "employee_id" in entry_in.model_fields_set:
+        transaction.employee_id = entry_in.employee_id
+    if "notes" in entry_in.model_fields_set:
+        transaction.notes = _strip_optional_text(entry_in.notes)
+
+    transaction.updated_by = user.id
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+def _ensure_can_update_cash_flow(user: User, transaction: FinancialTransaction) -> None:
+    if transaction.company_id != user.company_id:
+        raise CashFlowPermissionError("Movimentacao de caixa nao encontrada")
+    if transaction.source != CASH_FLOW_SOURCE:
+        raise CashFlowValidationError("Este lancamento nao pertence ao fluxo de caixa")
+    if transaction.deleted_at is not None:
+        raise CashFlowValidationError("Movimentacoes excluidas nao podem ser editadas")
+    if transaction.status == FinancialTransactionStatus.canceled:
+        raise CashFlowValidationError("Movimentacoes canceladas nao podem ser editadas")
+    if user.role == UserRole.user and transaction.created_by != user.id:
+        raise CashFlowPermissionError("Voce so pode editar movimentacoes criadas por voce")
 
 
 def _validate_links(

@@ -1,9 +1,9 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Pencil, TrendingUp, XCircle } from "lucide-react";
 import { apiFetch } from "../api";
 import { currencyInputToDecimal, dateText, formatCurrencyInput, money, typeText } from "../format";
-import type { CashFlow, Contact, Employee, TransactionType } from "../types";
+import type { CashFlow, Contact, EmployeeOption, Transaction, TransactionType, User } from "../types";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -40,8 +40,9 @@ function Metric({
   );
 }
 
-export function CashFlowPage() {
+export function CashFlowPage({ user }: { user: User }) {
   const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     description: "",
     amount: "0,00",
@@ -77,8 +78,8 @@ export function CashFlowPage() {
     queryFn: () => apiFetch<Contact[]>("/contacts"),
   });
   const employees = useQuery({
-    queryKey: ["employees"],
-    queryFn: () => apiFetch<Employee[]>("/employees"),
+    queryKey: ["employee-options"],
+    queryFn: () => apiFetch<EmployeeOption[]>("/employees/options"),
   });
   const contactById = new Map((contacts.data ?? []).map((contact) => [contact.id, contact.name]));
   const employeeById = new Map((employees.data ?? []).map((employee) => [employee.id, employee.name]));
@@ -96,17 +97,30 @@ export function CashFlowPage() {
           employee_id: form.employee_id || null,
           notes: form.notes || null,
         }),
+    }),
+    onSuccess: async () => {
+      resetForm();
+      await queryClient.invalidateQueries({ queryKey: ["cash-flow"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: () =>
+      apiFetch(`/cash-flow/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          description: form.description,
+          amount: currencyInputToDecimal(form.amount),
+          type: form.type,
+          competence_date: form.competence_date,
+          contact_id: form.contact_id || null,
+          employee_id: form.employee_id || null,
+          notes: form.notes || null,
+        }),
       }),
     onSuccess: async () => {
-      setForm({
-        description: "",
-        amount: "0,00",
-        type: "expense",
-        competence_date: today,
-        contact_id: "",
-        employee_id: "",
-        notes: "",
-      });
+      resetForm();
       await queryClient.invalidateQueries({ queryKey: ["cash-flow"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -114,7 +128,39 @@ export function CashFlowPage() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    create.mutate();
+    if (editingId) update.mutate();
+    else create.mutate();
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({
+      description: "",
+      amount: "0,00",
+      type: "expense",
+      competence_date: today,
+      contact_id: "",
+      employee_id: "",
+      notes: "",
+    });
+  }
+
+  function startEditing(item: Transaction) {
+    setEditingId(item.id);
+    setForm({
+      description: item.description,
+      amount: formatCurrencyInput(item.amount),
+      type: item.type,
+      competence_date: item.competence_date,
+      contact_id: item.contact_id ?? "",
+      employee_id: item.employee_id ?? "",
+      notes: item.notes ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function canEdit(item: Transaction) {
+    return user.role === "company_admin" || item.created_by === user.id;
   }
 
   const summary = cashFlow.data?.summary ?? {
@@ -128,7 +174,17 @@ export function CashFlowPage() {
       <form className="panel grid gap-4 lg:grid-cols-4" onSubmit={onSubmit}>
         <div className="lg:col-span-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">Dinheiro físico</p>
-          <h2 className="panel-title">Nova movimentação de caixa</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="panel-title">
+              {editingId ? "Editar movimentação de caixa" : "Nova movimentação de caixa"}
+            </h2>
+            {editingId && (
+              <button className="btn-ghost" type="button" onClick={resetForm}>
+                <XCircle className="h-4 w-4" />
+                Cancelar edição
+              </button>
+            )}
+          </div>
         </div>
         <label className="field lg:col-span-2" htmlFor="cash-description">
           Descrição
@@ -172,9 +228,15 @@ export function CashFlowPage() {
           <input id="cash-notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
         </label>
         <div className="flex items-end">
-          <button className="btn-primary w-full" disabled={create.isPending}>Salvar no caixa</button>
+          <button className="btn-primary w-full" disabled={create.isPending || update.isPending}>
+            {editingId ? "Salvar alterações" : "Salvar no caixa"}
+          </button>
         </div>
-        {create.error && <div className="alert-error lg:col-span-4">{create.error.message}</div>}
+        {(create.error || update.error) && (
+          <div className="alert-error lg:col-span-4">
+            {create.error?.message ?? update.error?.message}
+          </div>
+        )}
       </form>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -220,6 +282,7 @@ export function CashFlowPage() {
                 <th>Funcionário</th>
                 <th>Tipo</th>
                 <th className="text-right">Valor</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -231,6 +294,13 @@ export function CashFlowPage() {
                   <td>{item.employee_id ? employeeById.get(item.employee_id) ?? "-" : "-"}</td>
                   <td>{typeText(item.type)}</td>
                   <td className="text-right">{money(item.amount)}</td>
+                  <td className="text-right">
+                    {canEdit(item) && (
+                      <button className="icon-btn" title="Editar" onClick={() => startEditing(item)}>
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -154,9 +154,12 @@ function BrandLogo({ compact = false, variant = "primary" }: { compact?: boolean
 
 function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot-password">("login");
+  const [resetStep, setResetStep] = useState<"request" | "confirm">("request");
+  const [resetMessage, setResetMessage] = useState("");
   const [googleReady, setGoogleReady] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  const [passwordResetForm, setPasswordResetForm] = useState({ code: "", new_password: "" });
 
   const login = useMutation({
     mutationFn: async () =>
@@ -190,6 +193,37 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
       setToken(data.access_token);
       onAuthenticated(data.access_token);
       await queryClient.invalidateQueries();
+    },
+  });
+
+  const requestPasswordReset = useMutation({
+    mutationFn: async () =>
+      apiFetch<{ message: string }>("/auth/password/forgot", {
+        method: "POST",
+        body: JSON.stringify({ email: form.email }),
+      }),
+    onSuccess: (data) => {
+      setResetMessage(data.message);
+      setResetStep("confirm");
+    },
+  });
+
+  const confirmPasswordReset = useMutation({
+    mutationFn: async () =>
+      apiFetch<{ message: string }>("/auth/password/reset", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          code: passwordResetForm.code,
+          new_password: passwordResetForm.new_password,
+        }),
+      }),
+    onSuccess: (data) => {
+      setMode("login");
+      setResetStep("request");
+      setResetMessage(data.message);
+      setPasswordResetForm({ code: "", new_password: "" });
+      setForm((currentForm) => ({ ...currentForm, password: "" }));
     },
   });
 
@@ -243,7 +277,21 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
     document.head.appendChild(script);
   }, [handleGoogleCredential]);
 
-  const error = login.error?.message ?? register.error?.message ?? googleLogin.error?.message;
+  const error =
+    login.error?.message ??
+    register.error?.message ??
+    googleLogin.error?.message ??
+    requestPasswordReset.error?.message ??
+    confirmPasswordReset.error?.message;
+  const isSubmitting = login.isPending || register.isPending || requestPasswordReset.isPending || confirmPasswordReset.isPending;
+  const isAuthMode = mode === "login" || mode === "register";
+
+  function switchMode(nextMode: "login" | "register" | "forgot-password") {
+    setMode(nextMode);
+    setResetStep("request");
+    setResetMessage("");
+    setPasswordResetForm({ code: "", new_password: "" });
+  }
 
   return (
     <main className="min-h-screen bg-panel px-4 py-6 text-ink md:py-10">
@@ -281,16 +329,26 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
           onSubmit={(event) => {
             event.preventDefault();
             if (mode === "login") login.mutate();
-            else register.mutate();
+            else if (mode === "register") register.mutate();
+            else if (resetStep === "request") requestPasswordReset.mutate();
+            else confirmPasswordReset.mutate();
           }}
         >
           <div>
-            <p className="text-sm font-semibold text-accent">{mode === "login" ?"Acessar plataforma" : "Começar agora"}</p>
+            <p className="text-sm font-semibold text-accent">
+              {mode === "login" ?"Acessar plataforma" : mode === "register" ?"Começar agora" : "Recuperar acesso"}
+            </p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink">
-              {mode === "login" ?"Entre na sua conta" : "Crie sua empresa"}
+              {mode === "login" ?"Entre na sua conta" : mode === "register" ?"Crie sua empresa" : "Redefina sua senha"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted">
-              {mode === "login" ?"Use seu e-mail e senha para continuar." : "Informe e-mail e senha para iniciar o trial."}
+              {mode === "login"
+                ?"Use seu e-mail e senha para continuar."
+                : mode === "register"
+                  ?"Informe e-mail e senha para iniciar o trial."
+                  : resetStep === "request"
+                    ?"Informe seu e-mail para receber um código de verificação."
+                    :"Digite o código recebido e escolha uma nova senha."}
             </p>
           </div>
 
@@ -298,21 +356,63 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
             E-mail
             <input id="email" required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
           </label>
-          <label className="field" htmlFor="password">
-            Senha
-            <input id="password" required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
-          </label>
+          {isAuthMode && (
+            <label className="field" htmlFor="password">
+              Senha
+              <input id="password" required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+            </label>
+          )}
+          {mode === "forgot-password" && resetStep === "confirm" && (
+            <>
+              <label className="field" htmlFor="password-reset-code">
+                Código de verificação
+                <input
+                  id="password-reset-code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  minLength={6}
+                  pattern="\d{6}"
+                  required
+                  value={passwordResetForm.code}
+                  onChange={(event) => setPasswordResetForm({ ...passwordResetForm, code: event.target.value.replace(/\D/g, "").slice(0, 6) })}
+                />
+              </label>
+              <label className="field" htmlFor="new-password">
+                Nova senha
+                <input
+                  id="new-password"
+                  minLength={8}
+                  required
+                  type="password"
+                  value={passwordResetForm.new_password}
+                  onChange={(event) => setPasswordResetForm({ ...passwordResetForm, new_password: event.target.value })}
+                />
+              </label>
+            </>
+          )}
 
           {error && <div className="alert-error">{error}</div>}
+          {resetMessage && <div className="alert-warning">{resetMessage}</div>}
 
-          <Button className="w-full" disabled={login.isPending || register.isPending} size="lg" variant="premium">
-            <Sparkles className="h-4 w-4" />
-            {mode === "login" ?"Entrar" : "Criar conta"}
+          <Button className="w-full" disabled={isSubmitting} size="lg" variant="premium">
+            {mode === "forgot-password" ?<KeyRound className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+            {mode === "login"
+              ?"Entrar"
+              : mode === "register"
+                ?"Criar conta"
+                : resetStep === "request"
+                  ?"Enviar código"
+                  :"Redefinir senha"}
           </Button>
-          {GOOGLE_CLIENT_ID && (
+          {mode === "login" && (
+            <Button className="w-full" type="button" variant="ghost" onClick={() => switchMode("forgot-password")}>
+              Esqueci minha senha
+            </Button>
+          )}
+          {isAuthMode && GOOGLE_CLIENT_ID && (
             <GoogleSignInButton disabled={!googleReady || googleLogin.isPending} onClickContainer={renderGoogleButton} />
           )}
-          <Button className="w-full" type="button" variant="ghost" onClick={() => setMode(mode === "login" ?"register" : "login")}>
+          <Button className="w-full" type="button" variant="ghost" onClick={() => switchMode(mode === "login" ?"register" : "login")}>
             {mode === "login" ?"Criar uma empresa" : "Já tenho conta"}
           </Button>
         </form>
@@ -487,7 +587,14 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user.role === "company_admin";
   const visiblePages = useMemo(
-    () => (isAdmin ?pages : pages.filter((page) => ["transactions", "categories", "contacts"].includes(page.key))),
+    () =>
+      isAdmin
+        ? pages
+        : pages.filter((page) =>
+            ["cashflow", "productOutputs", "transactions", "categories", "contacts"].includes(
+              page.key,
+            ),
+          ),
     [isAdmin],
   );
   const subscription = useQuery({ queryKey: ["subscription-status"], queryFn: () => apiFetch<Subscription>("/subscription/status") });
@@ -511,8 +618,8 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   const activeMeta = useMemo(() => pages.find((page) => page.key === activePage) ?? pages[0], [activePage]);
   const content = {
     dashboard: <DashboardPage />,
-    cashflow: <CashFlowPage />,
-    productOutputs: <ProductOutputsPage />,
+    cashflow: <CashFlowPage user={user} />,
+    productOutputs: <ProductOutputsPage user={user} />,
     categories: <CategoriesPage canManage={isAdmin} />,
     contacts: <ContactsPage canManage={isAdmin} />,
     employees: <EmployeesPage />,
