@@ -2,22 +2,18 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CheckCircle2, PlayCircle } from "lucide-react";
 import { apiFetch } from "../api";
-import { dateText, money, statusText } from "../format";
+import { currencyInputToDecimal, dateText, formatCurrencyInput, money, statusText } from "../format";
 import type { Employee, EmployeeStatus, SalaryExpenseGeneration } from "../types";
 
 const today = new Date().toISOString().slice(0, 10);
 const currentMonth = today.slice(0, 7);
-
-function normalizeMoneyInput(value: string) {
-  return value.trim().replace(",", ".");
-}
 
 export function EmployeesPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: "",
     position: "",
-    salary_amount: "",
+    salary_amount: "0,00",
     contract_start_date: today,
     contract_end_date: "",
     status: "active" as EmployeeStatus,
@@ -37,7 +33,7 @@ export function EmployeesPage() {
         body: JSON.stringify({
           name: form.name,
           position: form.position || null,
-          salary_amount: normalizeMoneyInput(form.salary_amount),
+          salary_amount: currencyInputToDecimal(form.salary_amount),
           contract_start_date: form.contract_start_date,
           contract_end_date: form.contract_end_date || null,
           status: form.status,
@@ -48,7 +44,7 @@ export function EmployeesPage() {
       setForm({
         name: "",
         position: "",
-        salary_amount: "",
+        salary_amount: "0,00",
         contract_start_date: today,
         contract_end_date: "",
         status: "active",
@@ -113,10 +109,9 @@ export function EmployeesPage() {
           <input
             id="employee-salary"
             required
-            inputMode="decimal"
-            placeholder="2500,00"
+            inputMode="numeric"
             value={form.salary_amount}
-            onChange={(event) => setForm({ ...form, salary_amount: event.target.value })}
+            onChange={(event) => setForm({ ...form, salary_amount: formatCurrencyInput(event.target.value) })}
           />
         </label>
         <label className="field" htmlFor="employee-start">

@@ -12,7 +12,7 @@ export function SheetContent({ className, children, ...props }: React.ComponentP
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-ink/45 backdrop-blur-sm" />
       <DialogPrimitive.Content
-        className={cn("fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col overflow-y-auto border-r border-white/10 bg-ink p-4 text-white shadow-2xl", className)}
+        className={cn("fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col overflow-hidden border-r border-white/10 bg-ink p-4 text-white shadow-2xl", className)}
         {...props}
       >
         {children}

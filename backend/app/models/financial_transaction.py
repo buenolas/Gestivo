@@ -87,6 +87,10 @@ class FinancialTransaction(Base):
     canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    product_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    product_unit_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    product_quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 3), nullable=True)
+    product_unit: Mapped[str | None] = mapped_column(String(20), nullable=True)
     source: Mapped[str] = mapped_column(String(40), nullable=False, default="manual")
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

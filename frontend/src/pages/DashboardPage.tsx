@@ -150,10 +150,10 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Metric icon={Wallet} label="Saldo atual" value={money(data.current_balance)} detail="Caixa realizado" />
-        <Metric icon={ArrowUpRight} label="Entradas" value={money(data.month_income)} detail="Receitas do mês" tone="good" />
-        <Metric icon={ArrowDownRight} label="Saídas" value={money(data.month_expense)} detail="Despesas do mês" tone="bad" />
-        <Metric icon={TrendingUp} label="Resultado" value={money(data.month_result)} detail="Entradas menos saídas" />
+        <Metric icon={Wallet} label="Caixa realizado" value={money(data.current_balance)} detail="Saldo com liquidados" />
+        <Metric icon={ArrowUpRight} label="Entradas realizadas" value={money(data.month_income)} detail="Liquidadas no mês" tone="good" />
+        <Metric icon={ArrowDownRight} label="Saídas realizadas" value={money(data.month_expense)} detail="Liquidadas no mês" tone="bad" />
+        <Metric icon={TrendingUp} label="Resultado realizado" value={money(data.month_result)} detail="Entradas menos saídas" />
         <Metric icon={Wallet} label="Previsão" value={money(data.month_end_balance_forecast)} detail="Fim do mês" />
       </div>
 

@@ -20,6 +20,7 @@ def list_account_view_transactions(
     transaction_type: FinancialTransactionType,
     status: FinancialTransactionStatus | None = None,
     due: DueDateFilter | None = None,
+    contact_id: uuid.UUID | None = None,
 ) -> list[FinancialTransaction]:
     query = select(FinancialTransaction).where(
         FinancialTransaction.company_id == user.company_id,
@@ -29,6 +30,9 @@ def list_account_view_transactions(
 
     if status is not None:
         query = query.where(FinancialTransaction.status == status)
+
+    if contact_id is not None:
+        query = query.where(FinancialTransaction.contact_id == contact_id)
 
     if due is not None:
         query = _apply_due_date_filter(query, due)

@@ -263,6 +263,10 @@ export type Transaction = {
   due_date: string | null;
   settled_at: string | null;
   notes: string | null;
+  product_name: string | null;
+  product_unit_price: string | null;
+  product_quantity: string | null;
+  product_unit: string | null;
   source: string;
   created_by: string;
   updated_by: string;
@@ -315,6 +319,16 @@ export type Dashboard = {
     category_name: string | null;
   }>;
   month_end_balance_forecast: string;
+};
+
+export type CashFlow = {
+  generated_at: string;
+  summary: {
+    income_total: string;
+    expense_total: string;
+    result: string;
+  };
+  items: Transaction[];
 };
 
 export type ImportBatch = {

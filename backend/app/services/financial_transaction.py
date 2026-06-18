@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.contact import Contact
 from app.models.contact import ContactType
+from app.models.employee import Employee
 from app.models.financial_category import FinancialCategory
 from app.models.financial_category import FinancialCategoryType
 from app.models.financial_transaction import FinancialTransaction
@@ -33,6 +34,9 @@ def list_financial_transactions(
     transaction_type: FinancialTransactionType | None = None,
     status: FinancialTransactionStatus | None = None,
     category_id: uuid.UUID | None = None,
+    contact_id: uuid.UUID | None = None,
+    employee_id: uuid.UUID | None = None,
+    source: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     search: str | None = None,
@@ -50,6 +54,12 @@ def list_financial_transactions(
         query = query.where(FinancialTransaction.status == status)
     if category_id is not None:
         query = query.where(FinancialTransaction.category_id == category_id)
+    if contact_id is not None:
+        query = query.where(FinancialTransaction.contact_id == contact_id)
+    if employee_id is not None:
+        query = query.where(FinancialTransaction.employee_id == employee_id)
+    if source is not None:
+        query = query.where(FinancialTransaction.source == source)
     if start_date is not None:
         query = query.where(FinancialTransaction.competence_date >= start_date)
     if end_date is not None:
@@ -90,17 +100,19 @@ def create_financial_transaction(
     user: User,
     transaction_in: FinancialTransactionCreate,
 ) -> FinancialTransaction:
-    _validate_category_and_contact(
+    _validate_transaction_links(
         db=db,
         user=user,
         transaction_type=transaction_in.type,
         category_id=transaction_in.category_id,
         contact_id=transaction_in.contact_id,
+        employee_id=transaction_in.employee_id,
     )
     transaction = FinancialTransaction(
         company_id=user.company_id,
         category_id=transaction_in.category_id,
         contact_id=transaction_in.contact_id,
+        employee_id=transaction_in.employee_id,
         description=transaction_in.description.strip(),
         amount=transaction_in.amount,
         type=transaction_in.type,
@@ -108,6 +120,10 @@ def create_financial_transaction(
         competence_date=transaction_in.competence_date,
         due_date=transaction_in.due_date,
         notes=_strip_optional_text(transaction_in.notes),
+        product_name=_strip_optional_text(transaction_in.product_name),
+        product_unit_price=transaction_in.product_unit_price,
+        product_quantity=transaction_in.product_quantity,
+        product_unit=_strip_optional_text(transaction_in.product_unit),
         created_by=user.id,
         updated_by=user.id,
     )
@@ -145,12 +161,18 @@ def update_financial_transaction(
         if "contact_id" in transaction_in.model_fields_set
         else transaction.contact_id
     )
-    _validate_category_and_contact(
+    next_employee_id = (
+        transaction_in.employee_id
+        if "employee_id" in transaction_in.model_fields_set
+        else transaction.employee_id
+    )
+    _validate_transaction_links(
         db=db,
         user=user,
         transaction_type=next_type,
         category_id=next_category_id,
         contact_id=next_contact_id,
+        employee_id=next_employee_id,
     )
 
     if transaction_in.description is not None:
@@ -167,6 +189,16 @@ def update_financial_transaction(
         transaction.category_id = transaction_in.category_id
     if "contact_id" in transaction_in.model_fields_set:
         transaction.contact_id = transaction_in.contact_id
+    if "employee_id" in transaction_in.model_fields_set:
+        transaction.employee_id = transaction_in.employee_id
+    if "product_name" in transaction_in.model_fields_set:
+        transaction.product_name = _strip_optional_text(transaction_in.product_name)
+    if "product_unit_price" in transaction_in.model_fields_set:
+        transaction.product_unit_price = transaction_in.product_unit_price
+    if "product_quantity" in transaction_in.model_fields_set:
+        transaction.product_quantity = transaction_in.product_quantity
+    if "product_unit" in transaction_in.model_fields_set:
+        transaction.product_unit = _strip_optional_text(transaction_in.product_unit)
     if "notes" in transaction_in.model_fields_set:
         transaction.notes = _strip_optional_text(transaction_in.notes)
 
@@ -228,12 +260,13 @@ def soft_delete_financial_transaction(
     return transaction
 
 
-def _validate_category_and_contact(
+def _validate_transaction_links(
     db: Session,
     user: User,
     transaction_type: FinancialTransactionType,
     category_id: uuid.UUID | None,
     contact_id: uuid.UUID | None,
+    employee_id: uuid.UUID | None,
 ) -> None:
     if category_id is not None:
         category = db.scalar(
@@ -267,6 +300,18 @@ def _validate_category_and_contact(
         if not _is_contact_type_compatible(contact.type, transaction_type):
             raise FinancialTransactionValidationError(
                 "O tipo do contato não é compatível com o tipo do lançamento"
+            )
+
+    if employee_id is not None:
+        employee = db.scalar(
+            select(Employee).where(
+                Employee.id == employee_id,
+                Employee.company_id == user.company_id,
+            )
+        )
+        if employee is None:
+            raise FinancialTransactionValidationError(
+                "Funcionario nao encontrado para a empresa autenticada"
             )
 
 

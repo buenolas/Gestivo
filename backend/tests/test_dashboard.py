@@ -180,6 +180,43 @@ def test_current_balance_ignores_settled_transactions_before_opening_balance_dat
     assert dashboard.current_balance == Decimal("560.00")
 
 
+def test_dashboard_month_totals_use_only_settled_transactions() -> None:
+    company = make_company()
+    user = make_user(company)
+    db = FakeDb(
+        company,
+        [
+            make_transaction(
+                company,
+                Decimal("300.00"),
+                FinancialTransactionType.income,
+                FinancialTransactionStatus.settled,
+                datetime.now(UTC),
+            ),
+            make_transaction(
+                company,
+                Decimal("120.00"),
+                FinancialTransactionType.expense,
+                FinancialTransactionStatus.settled,
+                datetime.now(UTC),
+            ),
+            make_transaction(
+                company,
+                Decimal("999.00"),
+                FinancialTransactionType.income,
+                FinancialTransactionStatus.pending,
+                None,
+            ),
+        ],
+    )
+
+    dashboard = get_financial_dashboard(db, user)
+
+    assert dashboard.month_income == Decimal("300.00")
+    assert dashboard.month_expense == Decimal("120.00")
+    assert dashboard.month_result == Decimal("180.00")
+
+
 def test_dashboard_due_alerts_include_pending_transactions_due_within_five_days() -> None:
     today = date.today()
     company = make_company()

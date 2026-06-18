@@ -22,6 +22,21 @@ class FinancialTransactionCreate(BaseModel):
     due_date: date | None = None
     category_id: UUID | None = None
     contact_id: UUID | None = None
+    employee_id: UUID | None = None
+    product_name: str | None = Field(default=None, max_length=160)
+    product_unit_price: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=2,
+    )
+    product_quantity: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=3,
+    )
+    product_unit: str | None = Field(default=None, max_length=20)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -38,6 +53,21 @@ class FinancialTransactionUpdate(BaseModel):
     due_date: date | None = None
     category_id: UUID | None = None
     contact_id: UUID | None = None
+    employee_id: UUID | None = None
+    product_name: str | None = Field(default=None, max_length=160)
+    product_unit_price: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=2,
+    )
+    product_quantity: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=3,
+    )
+    product_unit: str | None = Field(default=None, max_length=20)
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -63,6 +93,10 @@ class FinancialTransactionResponse(BaseModel):
     canceled_at: datetime | None
     deleted_at: datetime | None
     notes: str | None
+    product_name: str | None
+    product_unit_price: Decimal | None
+    product_quantity: Decimal | None
+    product_unit: str | None
     source: str
     created_by: UUID
     updated_by: UUID
@@ -74,6 +108,12 @@ class FinancialTransactionResponse(BaseModel):
     @field_serializer("amount")
     def serialize_amount(self, amount: Decimal) -> str:
         return str(amount)
+
+    @field_serializer("product_unit_price", "product_quantity")
+    def serialize_optional_decimal(self, value: Decimal | None) -> str | None:
+        if value is None:
+            return None
+        return str(value)
 
 
 class FinancialTransactionListResponse(FinancialTransactionResponse):

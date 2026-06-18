@@ -67,7 +67,11 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
             else:
                 current_balance -= amount
 
-        if period_start <= transaction.competence_date <= period_end:
+        if (
+            transaction.status == FinancialTransactionStatus.settled
+            and transaction.settled_at is not None
+            and period_start <= transaction.settled_at.date() <= period_end
+        ):
             if transaction.type == FinancialTransactionType.income:
                 month_income += amount
             else:
@@ -140,9 +144,9 @@ def _calculation_criteria() -> dict[str, str]:
             "opening_balance_date exists, only settled transactions with settled_at on or "
             "after that date are included. Canceled and soft-deleted transactions are ignored."
         ),
-        "month_income": "Non-canceled, non-deleted income with competence_date inside the current month.",
-        "month_expense": "Non-canceled, non-deleted expense with competence_date inside the current month.",
-        "month_result": "month_income minus month_expense.",
+        "month_income": "Settled, non-deleted income with settled_at inside the current month.",
+        "month_expense": "Settled, non-deleted expense with settled_at inside the current month.",
+        "month_result": "Settled month income minus settled month expense.",
         "open_payables": "Pending expense transactions.",
         "open_receivables": "Pending income transactions.",
         "overdue_payables": "Pending expense transactions with due_date before today.",
