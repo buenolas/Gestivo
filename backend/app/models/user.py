@@ -58,6 +58,19 @@ class User(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    password_reset_code_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        index=True,
+    )
+    password_reset_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    password_reset_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"),
         nullable=False,

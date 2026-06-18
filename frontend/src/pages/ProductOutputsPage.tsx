@@ -1,9 +1,9 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, Pencil, XCircle } from "lucide-react";
 import { apiFetch } from "../api";
 import { currencyInputToDecimal, dateText, formatCurrencyInput, money, statusText } from "../format";
-import type { Employee, Transaction } from "../types";
+import type { EmployeeOption, Transaction, User } from "../types";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -21,8 +21,9 @@ function toNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function ProductOutputsPage() {
+export function ProductOutputsPage({ user }: { user: User }) {
   const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     employee_id: "",
     product_name: "",
@@ -41,8 +42,8 @@ export function ProductOutputsPage() {
     queryFn: () => apiFetch<Transaction[]>(`/product-outputs${query.toString() ? `?${query}` : ""}`),
   });
   const employees = useQuery({
-    queryKey: ["employees"],
-    queryFn: () => apiFetch<Employee[]>("/employees"),
+    queryKey: ["employee-options"],
+    queryFn: () => apiFetch<EmployeeOption[]>("/employees/options"),
   });
   const employeeById = new Map((employees.data ?? []).map((employee) => [employee.id, employee.name]));
 
@@ -63,17 +64,31 @@ export function ProductOutputsPage() {
           competence_date: form.competence_date,
           notes: form.notes || null,
         }),
+    }),
+    onSuccess: async () => {
+      resetForm();
+      await queryClient.invalidateQueries({ queryKey: ["product-outputs"] });
+      await queryClient.invalidateQueries({ queryKey: ["receivables"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: () =>
+      apiFetch<Transaction>(`/product-outputs/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          employee_id: form.employee_id,
+          product_name: form.product_name,
+          unit_price: currencyInputToDecimal(form.unit_price),
+          quantity: normalizeDecimalInput(form.quantity),
+          unit: form.unit || "un",
+          competence_date: form.competence_date,
+          notes: form.notes || null,
+        }),
       }),
     onSuccess: async () => {
-      setForm({
-        employee_id: "",
-        product_name: "",
-        unit_price: "0,00",
-        quantity: "",
-        unit: "un",
-        competence_date: today,
-        notes: "",
-      });
+      resetForm();
       await queryClient.invalidateQueries({ queryKey: ["product-outputs"] });
       await queryClient.invalidateQueries({ queryKey: ["receivables"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -82,7 +97,39 @@ export function ProductOutputsPage() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    create.mutate();
+    if (editingId) update.mutate();
+    else create.mutate();
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({
+      employee_id: "",
+      product_name: "",
+      unit_price: "0,00",
+      quantity: "",
+      unit: "un",
+      competence_date: today,
+      notes: "",
+    });
+  }
+
+  function startEditing(item: Transaction) {
+    setEditingId(item.id);
+    setForm({
+      employee_id: item.employee_id ?? "",
+      product_name: item.product_name ?? item.description,
+      unit_price: formatCurrencyInput(item.product_unit_price),
+      quantity: item.product_quantity ?? "",
+      unit: item.product_unit ?? "un",
+      competence_date: item.competence_date,
+      notes: item.notes ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function canEdit(item: Transaction) {
+    return user.role === "company_admin" || item.created_by === user.id;
   }
 
   return (
@@ -94,7 +141,17 @@ export function ProductOutputsPage() {
           </span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-accent">Valor a receber</p>
-            <h2 className="panel-title">Nova saída de produto</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="panel-title">
+                {editingId ? "Editar saída de produto" : "Nova saída de produto"}
+              </h2>
+              {editingId && (
+                <button className="btn-ghost" type="button" onClick={resetForm}>
+                  <XCircle className="h-4 w-4" />
+                  Cancelar edição
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <label className="field" htmlFor="output-employee">
@@ -138,9 +195,15 @@ export function ProductOutputsPage() {
           <strong className="text-xl font-bold text-ink">{money(calculatedTotal)}</strong>
         </div>
         <div className="flex items-end">
-          <button className="btn-primary w-full" disabled={create.isPending}>Registrar saída</button>
+          <button className="btn-primary w-full" disabled={create.isPending || update.isPending}>
+            {editingId ? "Salvar alterações" : "Registrar saída"}
+          </button>
         </div>
-        {create.error && <div className="alert-error lg:col-span-4">{create.error.message}</div>}
+        {(create.error || update.error) && (
+          <div className="alert-error lg:col-span-4">
+            {create.error?.message ?? update.error?.message}
+          </div>
+        )}
       </form>
 
       <div className="panel">
@@ -167,6 +230,7 @@ export function ProductOutputsPage() {
                 <th className="text-right">Valor unitário/kg</th>
                 <th className="text-right">Qtd/peso</th>
                 <th className="text-right">Total a receber</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -179,6 +243,13 @@ export function ProductOutputsPage() {
                   <td className="text-right">{money(item.product_unit_price)}</td>
                   <td className="text-right">{item.product_quantity ?? "-"} {item.product_unit ?? ""}</td>
                   <td className="text-right">{money(item.amount)}</td>
+                  <td className="text-right">
+                    {canEdit(item) && (
+                      <button className="icon-btn" title="Editar" onClick={() => startEditing(item)}>
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

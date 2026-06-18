@@ -23,6 +23,21 @@ class CashFlowEntryCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=1000)
 
 
+class CashFlowEntryUpdate(BaseModel):
+    description: str | None = Field(default=None, min_length=2, max_length=255)
+    amount: Decimal | None = Field(
+        default=None,
+        gt=MONEY_GT_ZERO,
+        max_digits=14,
+        decimal_places=2,
+    )
+    type: FinancialTransactionType | None = None
+    competence_date: date | None = None
+    contact_id: UUID | None = None
+    employee_id: UUID | None = None
+    notes: str | None = Field(default=None, max_length=1000)
+
+
 class CashFlowSummary(BaseModel):
     income_total: Decimal
     expense_total: Decimal

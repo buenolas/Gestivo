@@ -12,12 +12,18 @@ from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
+from app.models.user import UserRole
 from app.schemas.product_output import ProductOutputCreate
+from app.schemas.product_output import ProductOutputUpdate
 
 PRODUCT_OUTPUT_SOURCE = "product_output"
 
 
 class ProductOutputValidationError(ValueError):
+    pass
+
+
+class ProductOutputPermissionError(PermissionError):
     pass
 
 
@@ -85,6 +91,102 @@ def create_product_output(
     db.commit()
     db.refresh(transaction)
     return transaction
+
+
+def get_product_output(
+    db: Session,
+    user: User,
+    transaction_id: UUID,
+) -> FinancialTransaction | None:
+    return db.scalar(
+        select(FinancialTransaction).where(
+            FinancialTransaction.id == transaction_id,
+            FinancialTransaction.company_id == user.company_id,
+            FinancialTransaction.source == PRODUCT_OUTPUT_SOURCE,
+            FinancialTransaction.deleted_at.is_(None),
+        )
+    )
+
+
+def update_product_output(
+    db: Session,
+    user: User,
+    transaction: FinancialTransaction,
+    output_in: ProductOutputUpdate,
+) -> FinancialTransaction:
+    _ensure_can_update_product_output(user, transaction)
+
+    next_employee_id = (
+        output_in.employee_id
+        if "employee_id" in output_in.model_fields_set
+        else transaction.employee_id
+    )
+    if next_employee_id is None:
+        raise ProductOutputValidationError("Funcionario e obrigatorio")
+    employee = _get_employee_or_raise(db, user, next_employee_id)
+
+    next_unit_price = (
+        output_in.unit_price
+        if output_in.unit_price is not None
+        else transaction.product_unit_price
+    )
+    next_quantity = (
+        output_in.quantity
+        if output_in.quantity is not None
+        else transaction.product_quantity
+    )
+    if next_unit_price is None or next_quantity is None:
+        raise ProductOutputValidationError("Valor unitario e quantidade sao obrigatorios")
+
+    if output_in.product_name is not None:
+        product_name = output_in.product_name.strip()
+        transaction.product_name = product_name
+        transaction.description = f"Saida de produto: {product_name}"
+    if "employee_id" in output_in.model_fields_set:
+        transaction.employee_id = employee.id
+    if output_in.unit_price is not None:
+        transaction.product_unit_price = output_in.unit_price
+    if output_in.quantity is not None:
+        transaction.product_quantity = output_in.quantity
+    if "unit" in output_in.model_fields_set:
+        transaction.product_unit = _strip_optional_text(output_in.unit) or "un"
+    if output_in.competence_date is not None:
+        transaction.competence_date = output_in.competence_date
+        transaction.due_date = _month_end(output_in.competence_date)
+    if "notes" in output_in.model_fields_set:
+        transaction.notes = _strip_optional_text(output_in.notes)
+
+    transaction.amount = _money(next_unit_price * next_quantity)
+    transaction.updated_by = user.id
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+def _get_employee_or_raise(db: Session, user: User, employee_id: UUID) -> Employee:
+    employee = db.scalar(
+        select(Employee).where(
+            Employee.id == employee_id,
+            Employee.company_id == user.company_id,
+        )
+    )
+    if employee is None:
+        raise ProductOutputValidationError("Funcionario nao encontrado")
+    return employee
+
+
+def _ensure_can_update_product_output(user: User, transaction: FinancialTransaction) -> None:
+    if transaction.company_id != user.company_id:
+        raise ProductOutputPermissionError("Saida de produto nao encontrada")
+    if transaction.source != PRODUCT_OUTPUT_SOURCE:
+        raise ProductOutputValidationError("Este lancamento nao pertence a saida de produtos")
+    if transaction.deleted_at is not None:
+        raise ProductOutputValidationError("Saidas excluidas nao podem ser editadas")
+    if transaction.status == FinancialTransactionStatus.canceled:
+        raise ProductOutputValidationError("Saidas canceladas nao podem ser editadas")
+    if user.role == UserRole.user and transaction.created_by != user.id:
+        raise ProductOutputPermissionError("Voce so pode editar saidas criadas por voce")
 
 
 def _money(amount: Decimal) -> Decimal:

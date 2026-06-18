@@ -7,11 +7,13 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_valid_subscription
 from app.db.session import get_db
 from app.models.employee import Employee
 from app.models.financial_transaction import FinancialTransaction
 from app.models.user import User
 from app.schemas.employee import EmployeeCreate
+from app.schemas.employee import EmployeeOptionResponse
 from app.schemas.employee import EmployeeResponse
 from app.schemas.employee import EmployeeUpdate
 from app.schemas.employee import SalaryExpenseGenerationCreate
@@ -50,6 +52,14 @@ def _raise_validation_error(error: EmployeeValidationError) -> None:
 @router.get("", response_model=list[EmployeeResponse])
 def list_user_employees(
     current_user: User = Depends(require_company_admin),
+    db: Session = Depends(get_db),
+) -> list[Employee]:
+    return list_employees(db, current_user)
+
+
+@router.get("/options", response_model=list[EmployeeOptionResponse])
+def list_employee_options(
+    current_user: User = Depends(require_valid_subscription),
     db: Session = Depends(get_db),
 ) -> list[Employee]:
     return list_employees(db, current_user)

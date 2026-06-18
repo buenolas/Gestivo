@@ -73,6 +73,14 @@ class EmployeeResponse(BaseModel):
         return str(salary_amount)
 
 
+class EmployeeOptionResponse(BaseModel):
+    id: UUID
+    name: str
+    status: EmployeeStatus
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SalaryExpenseGenerationCreate(BaseModel):
     reference_month: date = Field(
         description="Qualquer data dentro do mes de competencia a gerar."

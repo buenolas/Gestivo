@@ -33,6 +33,25 @@ def send_email_verification(email: str, verification_link: str) -> None:
     raise EmailDeliveryError("Email delivery mode is not configured")
 
 
+def send_password_reset_code(email: str, code: str) -> None:
+    if settings.email_delivery_mode == "mock":
+        logger.warning(
+            "Mock password reset code generated for %s. Code omitted from logs.",
+            email,
+        )
+        return
+
+    if settings.email_delivery_mode == "smtp":
+        send_password_reset_code_smtp(email, code)
+        return
+
+    if settings.email_delivery_mode == "brevo_api":
+        send_password_reset_code_brevo_api(email, code)
+        return
+
+    raise EmailDeliveryError("Email delivery mode is not configured")
+
+
 def send_email_verification_smtp(email: str, verification_link: str) -> None:
     if not settings.smtp_host or not settings.smtp_username or not settings.smtp_password:
         raise EmailDeliveryError("SMTP delivery is missing required configuration")
@@ -79,6 +98,31 @@ def send_email_verification_smtp(email: str, verification_link: str) -> None:
         raise EmailDeliveryError("Nao foi possivel enviar o e-mail de verificacao") from exc
 
 
+def send_password_reset_code_smtp(email: str, code: str) -> None:
+    if not settings.smtp_host or not settings.smtp_username or not settings.smtp_password:
+        raise EmailDeliveryError("SMTP delivery is missing required configuration")
+
+    message = EmailMessage()
+    message["Subject"] = "Codigo para redefinir sua senha"
+    message["From"] = f"{settings.email_from_name} <{settings.email_from}>"
+    message["To"] = email
+    message.set_content(password_reset_text(code))
+    message.add_alternative(password_reset_html(code), subtype="html")
+
+    try:
+        with smtplib.SMTP(
+            settings.smtp_host,
+            settings.smtp_port,
+            timeout=settings.smtp_timeout_seconds,
+        ) as smtp:
+            if settings.smtp_use_tls:
+                smtp.starttls()
+            smtp.login(settings.smtp_username, settings.smtp_password)
+            smtp.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        raise EmailDeliveryError("Nao foi possivel enviar o codigo de recuperacao") from exc
+
+
 def send_email_verification_brevo_api(email: str, verification_link: str) -> None:
     api_key = brevo_api_key()
     if not api_key:
@@ -110,6 +154,39 @@ def send_email_verification_brevo_api(email: str, verification_link: str) -> Non
         response.raise_for_status()
     except requests.RequestException as exc:
         raise EmailDeliveryError("Nao foi possivel enviar o e-mail de verificacao") from exc
+
+
+def send_password_reset_code_brevo_api(email: str, code: str) -> None:
+    api_key = brevo_api_key()
+    if not api_key:
+        raise EmailDeliveryError("Brevo API delivery is missing required configuration")
+
+    payload = {
+        "sender": {
+            "name": settings.email_from_name,
+            "email": settings.email_from,
+        },
+        "to": [{"email": email}],
+        "subject": "Codigo para redefinir sua senha",
+        "textContent": password_reset_text(code),
+        "htmlContent": password_reset_html(code),
+    }
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json",
+    }
+
+    try:
+        response = requests.post(
+            settings.brevo_api_url,
+            json=payload,
+            headers=headers,
+            timeout=settings.smtp_timeout_seconds,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise EmailDeliveryError("Nao foi possivel enviar o codigo de recuperacao") from exc
 
 
 def brevo_api_key() -> str:
@@ -156,6 +233,37 @@ def verification_html(verification_link: str) -> str:
         </p>
         <p style="font-size: 13px; color: #667085;">
           Este link expira em breve. Se voce nao criou uma conta, ignore esta mensagem.
+        </p>
+      </body>
+    </html>
+    """
+
+
+def password_reset_text(code: str) -> str:
+    return "\n".join(
+        [
+            "Redefinicao de senha",
+            "",
+            "Recebemos uma solicitacao para redefinir sua senha no Gestivo.",
+            f"Use este codigo para continuar: {code}",
+            "",
+            "Este codigo expira em breve. Se voce nao solicitou a redefinicao, ignore esta mensagem.",
+        ],
+    )
+
+
+def password_reset_html(code: str) -> str:
+    return f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
+        <h1 style="font-size: 20px;">Redefinicao de senha</h1>
+        <p>Recebemos uma solicitacao para redefinir sua senha no Gestivo.</p>
+        <p>Use este codigo para continuar:</p>
+        <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; color: #0F3D4A;">
+          {code}
+        </p>
+        <p style="font-size: 13px; color: #667085;">
+          Este codigo expira em breve. Se voce nao solicitou a redefinicao, ignore esta mensagem.
         </p>
       </body>
     </html>

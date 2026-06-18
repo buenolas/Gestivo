@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     email_from: str = "no-reply@example.com"
     email_from_name: str = "Gestivo"
     email_verification_token_expire_minutes: int = 60
+    password_reset_code_expire_minutes: int = 15
+    password_reset_resend_interval_seconds: int = 60
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
