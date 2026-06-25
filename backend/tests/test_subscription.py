@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from app.auth.google import GoogleTokenError
 from app.auth.google import GoogleUserInfo
+from app.api import auth as auth_api
 from app.api.deps import require_platform_admin
 from app.auth import google as google_auth
 from app.api.deps import require_valid_subscription
@@ -49,6 +50,7 @@ from app.services.platform_admin import PlatformAdminSeedError
 from app.services.platform_admin import create_platform_admin
 from app.services.email_verification import confirm_email
 from app.services.email_verification import token_hash
+from app.services.email import EmailDeliveryError
 
 TEST_PASSWORD = "x" * 12
 TEST_EMAIL_TOKEN = "t" * 32
@@ -74,6 +76,10 @@ class FakeDb:
 
     def add(self, instance):
         self.added.append(instance)
+        if isinstance(instance, Company):
+            self.company = instance
+        if isinstance(instance, User):
+            self.user = instance
 
     def commit(self):
         self.commits += 1
@@ -183,6 +189,32 @@ def test_company_created_with_30_day_trial_and_company_admin(
     assert user.company.onboarding_completed_at is None
     assert user.company.subscription_status == SubscriptionStatus.trialing
     assert user.company.trial_ends_at - trial_end_date() < timedelta(seconds=2)
+    assert user.email_verified_at is None
+    assert user.email_verification_token_hash is not None
+    assert user.email_verification_expires_at is not None
+
+
+def test_register_returns_created_user_when_verification_email_delivery_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_email_delivery(email: str, verification_link: str) -> None:
+        raise EmailDeliveryError("SMTP indisponivel")
+
+    monkeypatch.setattr(
+        "app.services.email_verification.send_email_verification",
+        fail_email_delivery,
+    )
+    db = FakeDb()
+
+    user = auth_api.register(
+        UserCreate(
+            email="admin@example.com",
+            password=TEST_PASSWORD,
+        ),
+        db,
+    )
+
+    assert user.email == "admin@example.com"
     assert user.email_verified_at is None
     assert user.email_verification_token_hash is not None
     assert user.email_verification_expires_at is not None

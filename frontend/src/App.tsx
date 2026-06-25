@@ -918,10 +918,10 @@ function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () 
           </div>
         </div>
         <p className="text-sm leading-6 text-muted">
-          O login está liberado, mas o acesso financeiro fica bloqueado até a confirmação do e-mail. Em modo dev, o link aparece nos logs do backend.
+          O login está liberado, mas o acesso financeiro fica bloqueado até a confirmação do e-mail. Confira sua caixa de entrada ou solicite um novo envio.
         </p>
         <label className="field" htmlFor="verification-token">
-          Token de verificação
+          Código de verificação
           <input id="verification-token" value={token} onChange={(event) => setTokenValue(event.target.value)} />
         </label>
         {confirm.error && <div className="alert-error">{confirm.error.message}</div>}
