@@ -538,8 +538,7 @@ Fluxo esperado ao fazer merge em `main`:
 2. Puxar variaveis de producao do projeto Vercel da API.
 3. Executar `alembic upgrade head` contra `MIGRATION_DATABASE_URL`.
 4. Confirmar que o banco esta no head com `python -m app.scripts.check_alembic_head`.
-5. Gerar build de producao com `vercel build --prod`.
-6. Publicar o artefato com `vercel deploy --prebuilt --prod`.
+5. Publicar a API com `vercel deploy --prod`, deixando o build Python rodar no ambiente da Vercel.
 
 Secrets obrigatorios no GitHub:
 
