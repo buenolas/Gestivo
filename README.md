@@ -578,6 +578,11 @@ Mudancas em `frontend/**` na `main` disparam o deploy da web. O workflow tambem
 pode ser executado manualmente pelo GitHub Actions quando for necessario
 republicar a interface sem alterar codigo.
 
+Os comandos da Vercel no workflow da web devem rodar da raiz do repositorio,
+pois o projeto Vercel `gestao-financeira-web` ja usa `frontend` como Root
+Directory. Rodar a CLI dentro de `frontend` faz a Vercel procurar
+`frontend/frontend`.
+
 ## 24. Documentos de referencia
 
 - `PROJECT_CONTEXT.md`: fonte de verdade do produto, escopo do MVP, regras de negocio e ordem geral de implementacao.
