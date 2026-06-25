@@ -1,5 +1,7 @@
 from functools import lru_cache
 
+from typing import Any
+
 from pydantic import field_validator
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
@@ -34,6 +36,30 @@ class Settings(BaseSettings):
     brevo_api_key_file: str = ""
     brevo_api_url: str = "https://api.brevo.com/v3/smtp/email"
     google_client_id: str = ""
+
+    @field_validator(
+        "access_token_expire_minutes",
+        "email_delivery_mode",
+        "email_verification_token_expire_minutes",
+        "password_reset_code_expire_minutes",
+        "password_reset_resend_interval_seconds",
+        "smtp_port",
+        "smtp_timeout_seconds",
+        "smtp_use_tls",
+        mode="before",
+    )
+    @classmethod
+    def use_defaults_for_blank_values(cls, value: Any, info) -> Any:
+        if value == "":
+            return cls.model_fields[info.field_name].default
+        return value
+
+    @field_validator("app_debug", mode="before")
+    @classmethod
+    def use_safe_debug_default_for_blank_values(cls, value: Any) -> Any:
+        if value == "":
+            return False
+        return value
 
     @field_validator("database_url", "migration_database_url")
     @classmethod
