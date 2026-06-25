@@ -16,6 +16,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "x" * 32)
 from app.api import import_batches as import_batches_api
 from app.models.company import Company
 from app.models.company import SubscriptionStatus
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.import_batch import ImportBatch
@@ -111,8 +112,8 @@ def test_template_csv_uses_bom_semicolon_and_example_rows() -> None:
     text = content.decode("utf-8")
 
     assert text.startswith("\ufeff")
-    assert "Data;Descricao;Tipo;Valor;Vencimento;Observacoes" in text
-    assert "15/05/2026;Venda de servico;entrada;1500,00;15/05/2026;Exemplo de receita" in text
+    assert "Data;Descricao;Tipo;Valor;Vencimento;Forma de pagamento;Observacoes" in text
+    assert "15/05/2026;Venda de servico;entrada;1500,00;15/05/2026;Pix;Exemplo de receita" in text
 
 
 def test_template_endpoint_returns_downloadable_csv() -> None:
@@ -191,3 +192,80 @@ def test_confirm_import_allows_duplicate_warnings_and_preserves_company_id() -> 
     assert db.added_all[0].amount == Decimal("1500.00")
     assert db.added_all[0].type == FinancialTransactionType.income
     assert db.added_all[0].status == FinancialTransactionStatus.pending
+
+
+def test_confirm_import_maps_payment_method_when_present() -> None:
+    company = make_company()
+    user = make_user(company)
+    db = FakeDb()
+    batch = ImportBatch(
+        id=uuid4(),
+        company_id=user.company_id,
+        filename="lancamentos.csv",
+        file_type=ImportBatchFileType.csv,
+        status=ImportBatchStatus.validated,
+        headers=["Data", "Descricao", "Tipo", "Valor", "Forma"],
+        preview_rows=[],
+        raw_rows=[
+            {
+                "Data": "15/05/2026",
+                "Descricao": "Venda de servico",
+                "Tipo": "entrada",
+                "Valor": "1500,00",
+                "Forma": "Pix",
+            },
+        ],
+        mapping=ImportColumnMapping(
+            date_column="Data",
+            description_column="Descricao",
+            type_column="Tipo",
+            amount_column="Valor",
+            payment_method_column="Forma",
+        ).model_dump(),
+        validation_errors=[],
+        duplicate_warnings=[],
+        created_by=user.id,
+    )
+
+    confirm_import_batch(db, user, batch)
+
+    assert db.added_all[0].payment_method == FinancialTransactionPaymentMethod.pix
+
+
+def test_confirm_import_rejects_invalid_payment_method() -> None:
+    company = make_company()
+    user = make_user(company)
+    db = FakeDb()
+    batch = ImportBatch(
+        id=uuid4(),
+        company_id=user.company_id,
+        filename="lancamentos.csv",
+        file_type=ImportBatchFileType.csv,
+        status=ImportBatchStatus.validated,
+        headers=["Data", "Descricao", "Tipo", "Valor", "Forma"],
+        preview_rows=[],
+        raw_rows=[
+            {
+                "Data": "15/05/2026",
+                "Descricao": "Venda de servico",
+                "Tipo": "entrada",
+                "Valor": "1500,00",
+                "Forma": "Cheque",
+            },
+        ],
+        mapping=ImportColumnMapping(
+            date_column="Data",
+            description_column="Descricao",
+            type_column="Tipo",
+            amount_column="Valor",
+            payment_method_column="Forma",
+        ).model_dump(),
+        validation_errors=[],
+        duplicate_warnings=[],
+        created_by=user.id,
+    )
+
+    with pytest.raises(ImportBatchValidationError):
+        confirm_import_batch(db, user, batch)
+
+    assert batch.validation_errors[0]["field"] == "payment_method"

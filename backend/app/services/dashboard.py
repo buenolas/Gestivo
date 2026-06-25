@@ -10,14 +10,24 @@ from sqlalchemy.orm import Session
 
 from app.models.company import Company
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
 from app.schemas.dashboard import DashboardAmountSummary
 from app.schemas.dashboard import DashboardDueAlert
+from app.schemas.dashboard import DashboardPaymentMethodSummary
 from app.schemas.dashboard import DashboardResponse
 
 ZERO = Decimal("0.00")
+PAYMENT_METHOD_LABELS = {
+    FinancialTransactionPaymentMethod.credit: "Credito",
+    FinancialTransactionPaymentMethod.debit: "Debito",
+    FinancialTransactionPaymentMethod.pix: "Pix",
+    FinancialTransactionPaymentMethod.boleto: "Boleto",
+    FinancialTransactionPaymentMethod.bank_transfer: "Transferencia",
+    FinancialTransactionPaymentMethod.cash: "Dinheiro",
+}
 
 
 def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
@@ -48,6 +58,14 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
     forecast_payables_total = ZERO
     forecast_receivables_total = ZERO
     due_alerts: list[DashboardDueAlert] = []
+    payment_method_totals = {
+        payment_method: {
+            "income_total": ZERO,
+            "expense_total": ZERO,
+            "count": 0,
+        }
+        for payment_method in FinancialTransactionPaymentMethod
+    }
     open_payables_count = 0
     open_receivables_count = 0
     overdue_payables_count = 0
@@ -76,6 +94,13 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
                 month_income += amount
             else:
                 month_expense += amount
+            if transaction.payment_method is not None:
+                summary = payment_method_totals[transaction.payment_method]
+                summary["count"] += 1
+                if transaction.type == FinancialTransactionType.income:
+                    summary["income_total"] += amount
+                else:
+                    summary["expense_total"] += amount
 
         if transaction.status != FinancialTransactionStatus.pending:
             continue
@@ -131,6 +156,7 @@ def get_financial_dashboard(db: Session, user: User) -> DashboardResponse:
             count=overdue_receivables_count,
             total=overdue_receivables_total,
         ),
+        payment_methods=_build_payment_method_summaries(payment_method_totals),
         due_alerts=due_alerts,
         month_end_balance_forecast=month_end_balance_forecast,
         calculation_criteria=_calculation_criteria(),
@@ -147,6 +173,10 @@ def _calculation_criteria() -> dict[str, str]:
         "month_income": "Settled, non-deleted income with settled_at inside the current month.",
         "month_expense": "Settled, non-deleted expense with settled_at inside the current month.",
         "month_result": "Settled month income minus settled month expense.",
+        "payment_methods": (
+            "Settled, non-deleted transactions inside the current month grouped by "
+            "the manually selected payment method."
+        ),
         "open_payables": "Pending expense transactions.",
         "open_receivables": "Pending income transactions.",
         "overdue_payables": "Pending expense transactions with due_date before today.",
@@ -174,6 +204,31 @@ def _transaction_impacts_current_balance(
     if transaction.settled_at is None:
         return False
     return transaction.settled_at.date() >= company.opening_balance_date
+
+
+def _build_payment_method_summaries(
+    totals: dict[FinancialTransactionPaymentMethod, dict[str, Decimal | int]],
+) -> list[DashboardPaymentMethodSummary]:
+    summaries: list[DashboardPaymentMethodSummary] = []
+    for payment_method in FinancialTransactionPaymentMethod:
+        item = totals[payment_method]
+        income_total = item["income_total"]
+        expense_total = item["expense_total"]
+        assert isinstance(income_total, Decimal)
+        assert isinstance(expense_total, Decimal)
+        count = item["count"]
+        assert isinstance(count, int)
+        summaries.append(
+            DashboardPaymentMethodSummary(
+                payment_method=payment_method,
+                label=PAYMENT_METHOD_LABELS[payment_method],
+                income_total=income_total,
+                expense_total=expense_total,
+                net_total=income_total - expense_total,
+                count=count,
+            )
+        )
+    return summaries
 
 
 def _build_due_alert(

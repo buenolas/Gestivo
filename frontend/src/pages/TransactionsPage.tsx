@@ -2,10 +2,18 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CheckCircle2, Download, Pencil, XCircle } from "lucide-react";
 import { apiFetch, apiUrl, getToken } from "../api";
-import { currencyInputToDecimal, dateText, formatCurrencyInput, money, statusText, typeText } from "../format";
+import { currencyInputToDecimal, dateText, formatCurrencyInput, money, paymentMethodText, statusText, typeText } from "../format";
 import type { Category, Contact, Transaction } from "../types";
 
 const today = new Date().toISOString().slice(0, 10);
+const paymentMethodOptions = [
+  ["credit", "Credito"],
+  ["debit", "Debito"],
+  ["pix", "Pix"],
+  ["boleto", "Boleto"],
+  ["bank_transfer", "Transferencia"],
+  ["cash", "Dinheiro"],
+] as const;
 
 export function TransactionsPage({ canManageAll = true }: { canManageAll?: boolean }) {
   const queryClient = useQueryClient();
@@ -15,6 +23,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     status: "",
     category_id: "",
     contact_id: "",
+    payment_method: "",
     start_date: "",
     end_date: "",
     search: "",
@@ -27,15 +36,19 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     due_date: "",
     category_id: "",
     contact_id: "",
+    payment_method: "",
     notes: "",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [settlingTransaction, setSettlingTransaction] = useState<Transaction | null>(null);
+  const [settlePaymentMethod, setSettlePaymentMethod] = useState("");
 
   const query = new URLSearchParams({ source: "manual" });
   if (filters.type) query.set("type", filters.type);
   if (filters.status) query.set("status", filters.status);
   if (filters.category_id) query.set("category_id", filters.category_id);
   if (filters.contact_id) query.set("contact_id", filters.contact_id);
+  if (filters.payment_method) query.set("payment_method", filters.payment_method);
   if (filters.start_date) query.set("start_date", filters.start_date);
   if (filters.end_date) query.set("end_date", filters.end_date);
   if (filters.search) query.set("search", filters.search);
@@ -66,6 +79,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
           due_date: form.due_date || null,
           category_id: form.category_id || null,
           contact_id: form.contact_id || null,
+          payment_method: form.payment_method || null,
           notes: form.notes || null,
         }),
       }),
@@ -88,6 +102,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
           due_date: form.due_date || null,
           category_id: form.category_id || null,
           contact_id: form.contact_id || null,
+          payment_method: form.payment_method || null,
           notes: form.notes || null,
         }),
       }),
@@ -99,8 +114,16 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
   });
 
   const settle = useMutation({
-    mutationFn: (id: string) => apiFetch<Transaction>(`/financial-transactions/${id}/settle`, { method: "POST", body: JSON.stringify({}) }),
-    onSuccess: () => queryClient.invalidateQueries(),
+    mutationFn: ({ id, payment_method }: { id: string; payment_method: string }) =>
+      apiFetch<Transaction>(`/financial-transactions/${id}/settle`, {
+        method: "POST",
+        body: JSON.stringify({ payment_method: payment_method || null }),
+      }),
+    onSuccess: async () => {
+      setSettlingTransaction(null);
+      setSettlePaymentMethod("");
+      await queryClient.invalidateQueries();
+    },
   });
   const cancel = useMutation({
     mutationFn: (id: string) => apiFetch<Transaction>(`/financial-transactions/${id}/cancel`, { method: "POST" }),
@@ -123,6 +146,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
       due_date: "",
       category_id: "",
       contact_id: "",
+      payment_method: "",
       notes: "",
     });
   }
@@ -137,6 +161,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
       due_date: transaction.due_date ?? "",
       category_id: transaction.category_id ?? "",
       contact_id: transaction.contact_id ?? "",
+      payment_method: transaction.payment_method ?? "",
       notes: transaction.notes ?? "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -219,7 +244,16 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
             ))}
           </select>
         </label>
-        <label className="field lg:col-span-3" htmlFor="transaction-notes">
+        <label className="field" htmlFor="transaction-payment-method">
+          Forma de pagamento
+          <select id="transaction-payment-method" value={form.payment_method} onChange={(event) => setForm({ ...form, payment_method: event.target.value })}>
+            <option value="">Nao registrar</option>
+            {paymentMethodOptions.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field lg:col-span-2" htmlFor="transaction-notes">
           Observações
           <input id="transaction-notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
         </label>
@@ -238,7 +272,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
       <div className="panel">
         <div className="table-header">
           <h2 className="panel-title">Lançamentos</h2>
-          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-8">
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-9">
             <select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
               <option value="">Todos os tipos</option>
               <option value="income">Entradas</option>
@@ -262,6 +296,12 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
                 <option key={contact.id} value={contact.id}>{contact.name}</option>
               ))}
             </select>
+            <select value={filters.payment_method} onChange={(event) => setFilters({ ...filters, payment_method: event.target.value })}>
+              <option value="">Todas as formas</option>
+              {paymentMethodOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
             <input type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
             <input type="date" value={filters.end_date} onChange={(event) => setFilters({ ...filters, end_date: event.target.value })} />
             <input placeholder="Buscar" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
@@ -275,6 +315,28 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
         </div>
         {transactions.isError && <div className="alert-error">{transactions.error.message}</div>}
         {exportError && <div className="alert-error">{exportError}</div>}
+        {settlingTransaction && (
+          <div className="alert-warning mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <label className="field flex-1" htmlFor="settle-payment-method">
+              Forma ao liquidar: {settlingTransaction.description}
+              <select id="settle-payment-method" value={settlePaymentMethod} onChange={(event) => setSettlePaymentMethod(event.target.value)}>
+                <option value="">Nao registrar</option>
+                {paymentMethodOptions.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="flex gap-2">
+              <button className="btn-primary" type="button" disabled={settle.isPending} onClick={() => settle.mutate({ id: settlingTransaction.id, payment_method: settlePaymentMethod })}>
+                Confirmar
+              </button>
+              <button className="btn-ghost" type="button" onClick={() => setSettlingTransaction(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+        {settle.error && <div className="alert-error">{settle.error.message}</div>}
         <div className="table-wrap">
           <table>
             <thead>
@@ -283,6 +345,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
                 <th>Cliente/Fornecedor</th>
                 <th>Tipo</th>
                 <th>Status</th>
+                <th>Forma</th>
                 <th>Competência</th>
                 <th>Vencimento</th>
                 <th className="text-right">Valor</th>
@@ -296,6 +359,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
                   <td>{transaction.contact_id ? contactById.get(transaction.contact_id) ?? "-" : "-"}</td>
                   <td>{typeText(transaction.type)}</td>
                   <td>{statusText(transaction.status)}</td>
+                  <td>{paymentMethodText(transaction.payment_method)}</td>
                   <td>{dateText(transaction.competence_date)}</td>
                   <td>{dateText(transaction.due_date)}</td>
                   <td className="text-right">{money(transaction.amount)}</td>
@@ -308,7 +372,10 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
                       )}
                       {canManageAll && transaction.status === "pending" && (
                         <>
-                        <button className="icon-btn" title="Liquidar" onClick={() => settle.mutate(transaction.id)}>
+                        <button className="icon-btn" title="Liquidar" onClick={() => {
+                          setSettlingTransaction(transaction);
+                          setSettlePaymentMethod(transaction.payment_method ?? "");
+                        }}>
                           <CheckCircle2 className="h-4 w-4" />
                         </button>
                         <button className="icon-btn" title="Cancelar" onClick={() => cancel.mutate(transaction.id)}>

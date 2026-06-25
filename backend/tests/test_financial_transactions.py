@@ -15,15 +15,18 @@ from app.models.company import SubscriptionStatus
 from app.models.employee import Employee
 from app.models.employee import EmployeeStatus
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
 from app.models.user import UserRole
 from app.schemas.financial_transaction import FinancialTransactionCreate
+from app.schemas.financial_transaction import FinancialTransactionSettle
 from app.services.account_view import list_account_view_transactions
 from app.services.financial_transaction import FinancialTransactionValidationError
 from app.services.financial_transaction import create_financial_transaction
 from app.services.financial_transaction import list_financial_transactions
+from app.services.financial_transaction import settle_financial_transaction
 from app.services.financial_transaction import soft_delete_financial_transaction
 
 
@@ -202,6 +205,22 @@ def test_list_financial_transactions_filters_by_employee_id() -> None:
     assert "financial_transactions.employee_id" in sql
 
 
+def test_list_financial_transactions_filters_by_payment_method() -> None:
+    company = make_company()
+    user = make_user(company)
+    db = FakeDb()
+
+    list_financial_transactions(
+        db,
+        user,
+        payment_method=FinancialTransactionPaymentMethod.pix,
+    )
+
+    sql = str(db.statements[0])
+    assert "financial_transactions.company_id" in sql
+    assert "financial_transactions.payment_method" in sql
+
+
 def test_create_financial_transaction_accepts_employee_from_same_company() -> None:
     company = make_company()
     user = make_user(company)
@@ -215,6 +234,7 @@ def test_create_financial_transaction_accepts_employee_from_same_company() -> No
             description="Venda de produto",
             amount=Decimal("150.00"),
             type=FinancialTransactionType.income,
+            payment_method=FinancialTransactionPaymentMethod.pix,
             competence_date=date(2026, 6, 1),
             employee_id=employee.id,
             product_name="Produto A",
@@ -225,6 +245,7 @@ def test_create_financial_transaction_accepts_employee_from_same_company() -> No
 
     assert transaction.company_id == user.company_id
     assert transaction.employee_id == employee.id
+    assert transaction.payment_method == FinancialTransactionPaymentMethod.pix
     assert transaction.product_name == "Produto A"
     assert transaction.product_quantity == Decimal("2")
     assert transaction.product_unit == "un"
@@ -252,3 +273,38 @@ def test_create_financial_transaction_rejects_employee_from_other_company() -> N
         assert "Funcionario nao encontrado" in str(error)
     else:
         raise AssertionError("Expected employee validation error")
+
+
+def test_settle_financial_transaction_updates_payment_method_when_present() -> None:
+    company = make_company()
+    user = make_user(company)
+    transaction = make_transaction(company)
+    db = FakeDb()
+
+    settled = settle_financial_transaction(
+        db,
+        user,
+        transaction,
+        settle_in=FinancialTransactionSettle(payment_method=FinancialTransactionPaymentMethod.credit),
+    )
+
+    assert settled.status == FinancialTransactionStatus.settled
+    assert settled.payment_method == FinancialTransactionPaymentMethod.credit
+    assert db.commits == 1
+
+
+def test_settle_financial_transaction_can_clear_payment_method() -> None:
+    company = make_company()
+    user = make_user(company)
+    transaction = make_transaction(company)
+    transaction.payment_method = FinancialTransactionPaymentMethod.pix
+    db = FakeDb()
+
+    settled = settle_financial_transaction(
+        db,
+        user,
+        transaction,
+        settle_in=FinancialTransactionSettle(payment_method=None),
+    )
+
+    assert settled.payment_method is None

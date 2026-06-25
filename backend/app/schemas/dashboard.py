@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import field_serializer
 
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionType
 
 
@@ -37,6 +38,19 @@ class DashboardDueAlert(BaseModel):
         return str(amount)
 
 
+class DashboardPaymentMethodSummary(BaseModel):
+    payment_method: FinancialTransactionPaymentMethod
+    label: str
+    income_total: Decimal
+    expense_total: Decimal
+    net_total: Decimal
+    count: int
+
+    @field_serializer("income_total", "expense_total", "net_total")
+    def serialize_money(self, amount: Decimal) -> str:
+        return str(amount)
+
+
 class DashboardResponse(BaseModel):
     period_start: date
     period_end: date
@@ -49,6 +63,7 @@ class DashboardResponse(BaseModel):
     open_receivables: DashboardAmountSummary
     overdue_payables: DashboardAmountSummary
     overdue_receivables: DashboardAmountSummary
+    payment_methods: list[DashboardPaymentMethodSummary]
     due_alerts: list[DashboardDueAlert]
     month_end_balance_forecast: Decimal
     calculation_criteria: dict[str, str]

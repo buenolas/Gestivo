@@ -28,6 +28,7 @@ dist/
 build/
 .vite/
 
+output/
 uploads/
 backend/uploads/
 frontend/dist/

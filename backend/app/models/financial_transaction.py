@@ -31,6 +31,15 @@ class FinancialTransactionStatus(str, enum.Enum):
     canceled = "canceled"
 
 
+class FinancialTransactionPaymentMethod(str, enum.Enum):
+    credit = "credit"
+    debit = "debit"
+    pix = "pix"
+    boleto = "boleto"
+    bank_transfer = "bank_transfer"
+    cash = "cash"
+
+
 class FinancialTransaction(Base):
     __tablename__ = "financial_transactions"
 
@@ -79,6 +88,11 @@ class FinancialTransaction(Base):
         Enum(FinancialTransactionStatus, name="financial_transaction_status"),
         nullable=False,
         default=FinancialTransactionStatus.pending,
+    )
+    payment_method: Mapped[FinancialTransactionPaymentMethod | None] = mapped_column(
+        Enum(FinancialTransactionPaymentMethod, name="financial_transaction_payment_method"),
+        nullable=True,
+        index=True,
     )
     competence_date: Mapped[date] = mapped_column(Date, nullable=False)
     reference_month: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -247,6 +247,13 @@ export type Contact = {
 
 export type TransactionStatus = "pending" | "settled" | "canceled";
 export type TransactionType = "income" | "expense";
+export type PaymentMethod =
+  | "credit"
+  | "debit"
+  | "pix"
+  | "boleto"
+  | "bank_transfer"
+  | "cash";
 
 export type Transaction = {
   id: string;
@@ -258,6 +265,7 @@ export type Transaction = {
   amount: string;
   type: TransactionType;
   status: TransactionStatus;
+  payment_method: PaymentMethod | null;
   competence_date: string;
   reference_month: string | null;
   due_date: string | null;
@@ -312,6 +320,14 @@ export type Dashboard = {
   open_receivables: { count: number; total: string };
   overdue_payables: { count: number; total: string };
   overdue_receivables: { count: number; total: string };
+  payment_methods: Array<{
+    payment_method: PaymentMethod;
+    label: string;
+    income_total: string;
+    expense_total: string;
+    net_total: string;
+    count: number;
+  }>;
   due_alerts: Array<{
     transaction_id: string;
     kind: TransactionType;

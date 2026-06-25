@@ -14,6 +14,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "x" * 32)
 from app.models.company import Company
 from app.models.company import SubscriptionStatus
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
@@ -74,6 +75,7 @@ def make_transaction(
     settled_at: datetime | None,
     due_date: date | None | object = DEFAULT_DUE_DATE,
     deleted_at: datetime | None = None,
+    payment_method: FinancialTransactionPaymentMethod | None = None,
 ) -> FinancialTransaction:
     user_id = uuid4()
     return FinancialTransaction(
@@ -83,6 +85,7 @@ def make_transaction(
         amount=amount,
         type=transaction_type,
         status=status,
+        payment_method=payment_method,
         competence_date=date.today(),
         due_date=date.today() if due_date is DEFAULT_DUE_DATE else due_date,
         settled_at=settled_at,
@@ -215,6 +218,78 @@ def test_dashboard_month_totals_use_only_settled_transactions() -> None:
     assert dashboard.month_income == Decimal("300.00")
     assert dashboard.month_expense == Decimal("120.00")
     assert dashboard.month_result == Decimal("180.00")
+
+
+def test_dashboard_groups_current_month_settled_transactions_by_payment_method() -> None:
+    company = make_company()
+    user = make_user(company)
+    db = FakeDb(
+        company,
+        [
+            make_transaction(
+                company,
+                Decimal("300.00"),
+                FinancialTransactionType.income,
+                FinancialTransactionStatus.settled,
+                datetime.now(UTC),
+                payment_method=FinancialTransactionPaymentMethod.pix,
+            ),
+            make_transaction(
+                company,
+                Decimal("120.00"),
+                FinancialTransactionType.expense,
+                FinancialTransactionStatus.settled,
+                datetime.now(UTC),
+                payment_method=FinancialTransactionPaymentMethod.pix,
+            ),
+            make_transaction(
+                company,
+                Decimal("80.00"),
+                FinancialTransactionType.expense,
+                FinancialTransactionStatus.settled,
+                datetime.now(UTC),
+                payment_method=FinancialTransactionPaymentMethod.cash,
+            ),
+            make_transaction(
+                company,
+                Decimal("999.00"),
+                FinancialTransactionType.income,
+                FinancialTransactionStatus.pending,
+                None,
+                payment_method=FinancialTransactionPaymentMethod.pix,
+            ),
+            make_transaction(
+                company,
+                Decimal("999.00"),
+                FinancialTransactionType.income,
+                FinancialTransactionStatus.settled,
+                datetime.now(UTC),
+                deleted_at=datetime.now(UTC),
+                payment_method=FinancialTransactionPaymentMethod.pix,
+            ),
+            make_transaction(
+                company,
+                Decimal("999.00"),
+                FinancialTransactionType.income,
+                FinancialTransactionStatus.settled,
+                datetime(2026, 1, 1, tzinfo=UTC),
+                payment_method=FinancialTransactionPaymentMethod.pix,
+            ),
+        ],
+    )
+
+    dashboard = get_financial_dashboard(db, user)
+
+    by_method = {item.payment_method: item for item in dashboard.payment_methods}
+    pix = by_method[FinancialTransactionPaymentMethod.pix]
+    cash = by_method[FinancialTransactionPaymentMethod.cash]
+
+    assert pix.income_total == Decimal("300.00")
+    assert pix.expense_total == Decimal("120.00")
+    assert pix.net_total == Decimal("180.00")
+    assert pix.count == 2
+    assert cash.expense_total == Decimal("80.00")
+    assert cash.count == 1
 
 
 def test_dashboard_due_alerts_include_pending_transactions_due_within_five_days() -> None:

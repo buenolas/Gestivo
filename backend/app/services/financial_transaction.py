@@ -13,6 +13,7 @@ from app.models.employee import Employee
 from app.models.financial_category import FinancialCategory
 from app.models.financial_category import FinancialCategoryType
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
@@ -36,6 +37,7 @@ def list_financial_transactions(
     category_id: uuid.UUID | None = None,
     contact_id: uuid.UUID | None = None,
     employee_id: uuid.UUID | None = None,
+    payment_method: FinancialTransactionPaymentMethod | None = None,
     source: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
@@ -58,6 +60,8 @@ def list_financial_transactions(
         query = query.where(FinancialTransaction.contact_id == contact_id)
     if employee_id is not None:
         query = query.where(FinancialTransaction.employee_id == employee_id)
+    if payment_method is not None:
+        query = query.where(FinancialTransaction.payment_method == payment_method)
     if source is not None:
         query = query.where(FinancialTransaction.source == source)
     if start_date is not None:
@@ -116,6 +120,7 @@ def create_financial_transaction(
         description=transaction_in.description.strip(),
         amount=transaction_in.amount,
         type=transaction_in.type,
+        payment_method=transaction_in.payment_method,
         status=FinancialTransactionStatus.pending,
         competence_date=transaction_in.competence_date,
         due_date=transaction_in.due_date,
@@ -181,6 +186,8 @@ def update_financial_transaction(
         transaction.amount = transaction_in.amount
     if transaction_in.type is not None:
         transaction.type = transaction_in.type
+    if "payment_method" in transaction_in.model_fields_set:
+        transaction.payment_method = transaction_in.payment_method
     if transaction_in.competence_date is not None:
         transaction.competence_date = transaction_in.competence_date
     if "due_date" in transaction_in.model_fields_set:
@@ -222,6 +229,8 @@ def settle_financial_transaction(
 
     transaction.status = FinancialTransactionStatus.settled
     transaction.settled_at = settle_in.settled_at or datetime.now(UTC)
+    if "payment_method" in settle_in.model_fields_set:
+        transaction.payment_method = settle_in.payment_method
     transaction.canceled_at = None
     transaction.updated_by = user.id
     db.add(transaction)

@@ -6,6 +6,19 @@ export function money(value: string | number | null | undefined) {
   }).format(Number.isFinite(parsed) ?parsed : 0);
 }
 
+export function paymentMethodText(paymentMethod: string | null | undefined) {
+  if (!paymentMethod) return "-";
+  const labels: Record<string, string> = {
+    credit: "Credito",
+    debit: "Debito",
+    pix: "Pix",
+    boleto: "Boleto",
+    bank_transfer: "Transferencia",
+    cash: "Dinheiro",
+  };
+  return labels[paymentMethod] ?? paymentMethod;
+}
+
 export function formatCurrencyInput(value: string | number | null | undefined) {
   const digits = String(value ?? "").replace(/\D/g, "").replace(/^0+(?=\d)/, "") || "0";
   const padded = digits.padStart(3, "0");

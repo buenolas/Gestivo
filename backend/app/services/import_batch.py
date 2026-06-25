@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.import_batch import ImportBatch
@@ -38,11 +39,12 @@ CSV_TEMPLATE_HEADERS = [
     "Tipo",
     "Valor",
     "Vencimento",
+    "Forma de pagamento",
     "Observacoes",
 ]
 CSV_TEMPLATE_ROWS = [
-    ["15/05/2026", "Venda de servico", "entrada", "1500,00", "15/05/2026", "Exemplo de receita"],
-    ["20/05/2026", "Aluguel", "saida", "850,00", "20/05/2026", "Exemplo de despesa"],
+    ["15/05/2026", "Venda de servico", "entrada", "1500,00", "15/05/2026", "Pix", "Exemplo de receita"],
+    ["20/05/2026", "Aluguel", "saida", "850,00", "20/05/2026", "Transferencia", "Exemplo de despesa"],
 ]
 
 
@@ -173,6 +175,7 @@ def confirm_import_batch(
             amount=row["amount"],
             type=row["type"],
             status=FinancialTransactionStatus.pending,
+            payment_method=row["payment_method"],
             competence_date=row["competence_date"],
             due_date=row["due_date"],
             notes=row["notes"],
@@ -456,6 +459,19 @@ def _validate_row(
                 )
             )
     notes = _get_cell(row, mapping.notes_column) if mapping.notes_column else None
+    payment_method = None
+    if mapping.payment_method_column:
+        payment_method_value = _get_cell(row, mapping.payment_method_column)
+        payment_method = _parse_payment_method(payment_method_value)
+        if payment_method_value and payment_method is None:
+            errors.append(
+                _error(
+                    row_number,
+                    "payment_method",
+                    "Informe uma forma como credito, debito, pix, boleto, transferencia ou dinheiro.",
+                    payment_method_value,
+                )
+            )
 
     if errors:
         return None, errors
@@ -466,6 +482,7 @@ def _validate_row(
         "description": description,
         "amount": amount,
         "type": transaction_type,
+        "payment_method": payment_method,
         "notes": notes,
     }, []
 
@@ -539,6 +556,31 @@ def _parse_transaction_type(value: str | None) -> FinancialTransactionType | Non
     if normalized in expense_values:
         return FinancialTransactionType.expense
     return None
+
+
+def _parse_payment_method(value: str | None) -> FinancialTransactionPaymentMethod | None:
+    if value is None or not value.strip():
+        return None
+    normalized = _normalize_text(value)
+    payment_methods = {
+        "credit": FinancialTransactionPaymentMethod.credit,
+        "credito": FinancialTransactionPaymentMethod.credit,
+        "cartao de credito": FinancialTransactionPaymentMethod.credit,
+        "debit": FinancialTransactionPaymentMethod.debit,
+        "debito": FinancialTransactionPaymentMethod.debit,
+        "cartao de debito": FinancialTransactionPaymentMethod.debit,
+        "pix": FinancialTransactionPaymentMethod.pix,
+        "boleto": FinancialTransactionPaymentMethod.boleto,
+        "bank_transfer": FinancialTransactionPaymentMethod.bank_transfer,
+        "transferencia": FinancialTransactionPaymentMethod.bank_transfer,
+        "transferencia bancaria": FinancialTransactionPaymentMethod.bank_transfer,
+        "ted": FinancialTransactionPaymentMethod.bank_transfer,
+        "doc": FinancialTransactionPaymentMethod.bank_transfer,
+        "cash": FinancialTransactionPaymentMethod.cash,
+        "dinheiro": FinancialTransactionPaymentMethod.cash,
+        "especie": FinancialTransactionPaymentMethod.cash,
+    }
+    return payment_methods.get(normalized)
 
 
 def _normalize_text(value: str) -> str:
