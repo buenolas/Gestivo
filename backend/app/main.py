@@ -32,43 +32,36 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.services.subscription import expire_overdue_subscriptions
 
-app = FastAPI(title=settings.app_name, debug=settings.app_debug)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+fastapi_app = FastAPI(title=settings.app_name, debug=settings.app_debug)
 
-app.include_router(auth_router)
-app.include_router(admin_clients_router)
-app.include_router(admin_financial_router)
-app.include_router(cash_flow_router)
-app.include_router(companies_router)
-app.include_router(company_users_router)
-app.include_router(contacts_router)
-app.include_router(employees_router)
-app.include_router(exports_router)
-app.include_router(financial_categories_router)
-app.include_router(financial_transactions_router)
-app.include_router(import_batches_router)
-app.include_router(payables_router)
-app.include_router(plans_admin_router)
-app.include_router(product_outputs_router)
-app.include_router(receivables_router)
-app.include_router(reports_router)
-app.include_router(subscription_router)
-app.include_router(subscription_admin_router)
+fastapi_app.include_router(auth_router)
+fastapi_app.include_router(admin_clients_router)
+fastapi_app.include_router(admin_financial_router)
+fastapi_app.include_router(cash_flow_router)
+fastapi_app.include_router(companies_router)
+fastapi_app.include_router(company_users_router)
+fastapi_app.include_router(contacts_router)
+fastapi_app.include_router(employees_router)
+fastapi_app.include_router(exports_router)
+fastapi_app.include_router(financial_categories_router)
+fastapi_app.include_router(financial_transactions_router)
+fastapi_app.include_router(import_batches_router)
+fastapi_app.include_router(payables_router)
+fastapi_app.include_router(plans_admin_router)
+fastapi_app.include_router(product_outputs_router)
+fastapi_app.include_router(receivables_router)
+fastapi_app.include_router(reports_router)
+fastapi_app.include_router(subscription_router)
+fastapi_app.include_router(subscription_admin_router)
 
 
-@app.get("/health")
+@fastapi_app.get("/health")
 def health_check(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(text("SELECT 1"))
     return {"status": "ok", "database": "ok"}
 
 
-@app.get("/internal/cron/expire-subscriptions", include_in_schema=False)
+@fastapi_app.get("/internal/cron/expire-subscriptions", include_in_schema=False)
 def expire_subscriptions_cron(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
@@ -85,3 +78,12 @@ def expire_subscriptions_cron(
 
     updated_count = expire_overdue_subscriptions(db)
     return {"status": "ok", "updated_count": updated_count}
+
+
+app = CORSMiddleware(
+    fastapi_app,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

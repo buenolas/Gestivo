@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 TEST_DATABASE_URL = (
@@ -74,3 +75,53 @@ def test_cron_endpoint_expires_subscriptions_when_authorized(
     )
 
     assert response == {"status": "ok", "updated_count": 4}
+
+
+def test_cors_headers_are_included_on_unhandled_errors() -> None:
+    @main_module.fastapi_app.get("/__test__/unhandled-error")
+    def unhandled_error() -> None:
+        raise RuntimeError("Erro interno simulado")
+
+    response_start = asyncio.run(
+        _call_app_and_get_response_start("/__test__/unhandled-error")
+    )
+
+    assert response_start["status"] == 500
+    assert (
+        dict(response_start["headers"])[b"access-control-allow-origin"]
+        == b"http://localhost:5173"
+    )
+
+
+async def _call_app_and_get_response_start(path: str) -> dict:
+    messages: list[dict] = []
+
+    async def receive() -> dict:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: dict) -> None:
+        messages.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": b"",
+        "headers": [
+            (b"host", b"testserver"),
+            (b"origin", b"http://localhost:5173"),
+        ],
+        "client": ("testclient", 50000),
+        "server": ("testserver", 80),
+    }
+
+    try:
+        await main_module.app(scope, receive, send)
+    except RuntimeError:
+        pass
+
+    return next(message for message in messages if message["type"] == "http.response.start")

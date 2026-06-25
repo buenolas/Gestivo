@@ -526,7 +526,49 @@ docker compose exec frontend npm test
 docker compose exec frontend npm run build
 ```
 
-## 23. Documentos de referencia
+## 23. Deploy de producao da API
+
+O deploy de producao da API deve ser feito pelo GitHub Actions em
+`.github/workflows/api-production-deploy.yml`. O objetivo do fluxo e impedir que
+codigo novo chegue na Vercel antes de o banco receber as migrations Alembic.
+
+Fluxo esperado ao fazer merge em `main`:
+
+1. Rodar testes criticos do backend.
+2. Puxar variaveis de producao do projeto Vercel da API.
+3. Executar `alembic upgrade head` contra `MIGRATION_DATABASE_URL`.
+4. Confirmar que o banco esta no head com `python -m app.scripts.check_alembic_head`.
+5. Gerar build de producao com `vercel build --prod`.
+6. Publicar o artefato com `vercel deploy --prebuilt --prod`.
+
+Secrets obrigatorios no GitHub:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_API_PROJECT_ID`
+
+Variaveis obrigatorias no ambiente Production do projeto Vercel da API:
+
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `DATABASE_URL`
+- `MIGRATION_DATABASE_URL`
+- `JWT_SECRET_KEY`
+- `CRON_SECRET`
+- `BACKEND_CORS_ORIGINS=https://gestao-financeira-web-bubas-software.vercel.app`
+- `FRONTEND_URL=https://gestao-financeira-web-bubas-software.vercel.app`
+
+Regras operacionais:
+
+- O arquivo `.env` continua sendo apenas para ambiente local.
+- Nunca versionar segredos reais de producao.
+- Nao fazer deploy manual da API sem antes executar `alembic upgrade head`.
+- Desativar o auto-deploy Git da Vercel para o projeto da API em `main`; a API
+  deve ser publicada apenas pelo workflow, para evitar corrida entre deploy e
+  migration.
+- Se uma migration falhar, o workflow deve parar antes de publicar a nova API.
+
+## 24. Documentos de referencia
 
 - `PROJECT_CONTEXT.md`: fonte de verdade do produto, escopo do MVP, regras de negocio e ordem geral de implementacao.
 - `AGENTS.md`: instrucoes obrigatorias para agentes de IA e colaboradores automatizados.
