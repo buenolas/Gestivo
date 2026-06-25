@@ -4,11 +4,11 @@ from alembic import context
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
-from app.core.config import settings
 from app.db.base import Base
+from app.db.migration_url import get_migration_database_url
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.alembic_database_url)
+config.set_main_option("sqlalchemy.url", get_migration_database_url())
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
