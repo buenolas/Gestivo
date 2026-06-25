@@ -4,7 +4,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
+from app.db.migration_url import get_migration_database_url
 
 
 def main() -> None:
@@ -12,7 +12,7 @@ def main() -> None:
     script = ScriptDirectory.from_config(config)
     expected_heads = set(script.get_heads())
 
-    engine = create_engine(settings.alembic_database_url, poolclass=NullPool)
+    engine = create_engine(get_migration_database_url(), poolclass=NullPool)
     with engine.connect() as connection:
         context = MigrationContext.configure(connection)
         current_heads = set(context.get_current_heads())

@@ -13,6 +13,7 @@ from fastapi import HTTPException
 
 from app import main as main_module
 from app.core.config import Settings
+from app.db import migration_url
 
 
 def test_migration_database_url_defaults_to_runtime_database_url() -> None:
@@ -34,6 +35,32 @@ def test_migration_database_url_prefers_direct_connection() -> None:
     )
 
     assert settings.alembic_database_url == "postgresql+psycopg://direct.example/app"
+
+
+def test_migration_database_url_helper_does_not_require_jwt_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://pooled.example/app?sslmode=require")
+    monkeypatch.setenv(
+        "MIGRATION_DATABASE_URL",
+        "postgres://direct.example/app?sslmode=require",
+    )
+
+    assert (
+        migration_url.get_migration_database_url()
+        == "postgresql+psycopg://direct.example/app?sslmode=require"
+    )
+
+
+def test_migration_database_url_helper_ignores_blank_environment_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", "")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://pooled.example/app")
+    monkeypatch.setattr(migration_url, "ENV_FILES", ())
+
+    assert migration_url.get_migration_database_url() == "postgresql+psycopg://pooled.example/app"
 
 
 def test_neon_postgresql_urls_use_psycopg_driver() -> None:
