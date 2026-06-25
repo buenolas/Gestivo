@@ -48,6 +48,29 @@ def test_neon_postgresql_urls_use_psycopg_driver() -> None:
     assert settings.alembic_database_url.startswith("postgresql+psycopg://")
 
 
+def test_blank_defaultable_environment_values_use_safe_defaults() -> None:
+    settings = Settings(
+        app_env="production",
+        app_debug="",
+        access_token_expire_minutes="",
+        email_delivery_mode="",
+        email_verification_token_expire_minutes="",
+        password_reset_code_expire_minutes="",
+        password_reset_resend_interval_seconds="",
+        database_url="postgresql+psycopg://pooled.example/app",
+        jwt_secret_key="x" * 32,
+        cron_secret="c" * 32,
+        _env_file=None,
+    )
+
+    assert settings.app_debug is False
+    assert settings.access_token_expire_minutes == 60
+    assert settings.email_delivery_mode == "mock"
+    assert settings.email_verification_token_expire_minutes == 60
+    assert settings.password_reset_code_expire_minutes == 15
+    assert settings.password_reset_resend_interval_seconds == 60
+
+
 def test_cron_endpoint_rejects_missing_authorization(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
