@@ -13,6 +13,7 @@ const mappingFields = [
   ["income_amount_column", "Valor entrada"],
   ["expense_amount_column", "Valor saida"],
   ["due_date_column", "Vencimento"],
+  ["payment_method_column", "Forma de pagamento"],
   ["notes_column", "Observacoes"],
 ] as const;
 
@@ -24,6 +25,7 @@ const expectedColumns = [
   ["Valor entrada", "Opcional. Use no modo com entrada e saida separadas."],
   ["Valor saida", "Opcional. Use no modo com entrada e saida separadas."],
   ["Vencimento", "Opcional. Use DD/MM/AAAA ou deixe em branco."],
+  ["Forma de pagamento", "Opcional. Aceita credito, debito, pix, boleto, transferencia ou dinheiro."],
   ["Observacoes", "Opcional."],
 ] as const;
 
@@ -69,6 +71,7 @@ export function ImportsPage() {
           income_amount_column: mapping.income_amount_column || null,
           expense_amount_column: mapping.expense_amount_column || null,
           due_date_column: mapping.due_date_column || null,
+          payment_method_column: mapping.payment_method_column || null,
           notes_column: mapping.notes_column || null,
         }),
       }),

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.exports.financial_transactions import export_financial_transactions_csv
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
@@ -24,6 +25,7 @@ def export_financial_transactions(
     category_id: UUID | None = None,
     contact_id: UUID | None = None,
     employee_id: UUID | None = None,
+    payment_method: FinancialTransactionPaymentMethod | None = None,
     source: str | None = Query(default=None, max_length=40),
     start_date: date | None = None,
     end_date: date | None = None,
@@ -39,6 +41,7 @@ def export_financial_transactions(
         category_id=category_id,
         contact_id=contact_id,
         employee_id=employee_id,
+        payment_method=payment_method,
         source=source,
         start_date=start_date,
         end_date=end_date,

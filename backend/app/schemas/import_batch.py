@@ -19,6 +19,7 @@ class ImportColumnMapping(BaseModel):
     income_amount_column: str | None = Field(default=None, min_length=1)
     expense_amount_column: str | None = Field(default=None, min_length=1)
     due_date_column: str | None = Field(default=None, min_length=1)
+    payment_method_column: str | None = Field(default=None, min_length=1)
     notes_column: str | None = Field(default=None, min_length=1)
 
 

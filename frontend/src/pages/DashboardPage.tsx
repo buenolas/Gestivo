@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarDays, TrendingUp, Wallet, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiFetch } from "../api";
-import { dateText, money } from "../format";
+import { dateText, money, paymentMethodText } from "../format";
 import type { Dashboard } from "../types";
 
 function toNumber(value: string | number | null | undefined) {
@@ -198,6 +198,33 @@ export function DashboardPage() {
             <Metric icon={ArrowUpRight} label={`${data.open_receivables.count} a receber`} value={money(data.open_receivables.total)} tone="good" />
             <Metric icon={AlertTriangle} label={`${data.overdue_payables.count + data.overdue_receivables.count} atrasos`} value={money(toNumber(data.overdue_payables.total) + toNumber(data.overdue_receivables.total))} tone="bad" />
           </div>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="mb-5">
+          <h3 className="panel-title">Movimentações por forma</h3>
+          <p className="mt-1 text-sm text-muted">Entradas e saídas liquidadas no mês atual.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {data.payment_methods.map((item) => (
+            <div className="metric" key={item.payment_method}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">{item.label || paymentMethodText(item.payment_method)}</p>
+                  <strong className="mt-3 block text-xl font-bold tracking-tight text-ink">{money(item.net_total)}</strong>
+                  <span className="mt-2 block text-xs font-medium text-muted">{item.count} movimentação(ões)</span>
+                </div>
+                <span className="rounded-md bg-mint px-2 py-1 text-xs font-semibold text-brand">
+                  {paymentMethodText(item.payment_method)}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-muted">
+                <span>Entradas: {money(item.income_total)}</span>
+                <span>Saídas: {money(item.expense_total)}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

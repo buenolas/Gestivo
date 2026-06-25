@@ -8,6 +8,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_serializer
 
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 
@@ -18,6 +19,7 @@ class FinancialTransactionCreate(BaseModel):
     description: str = Field(min_length=2, max_length=255)
     amount: Decimal = Field(gt=MONEY_GT_ZERO, max_digits=14, decimal_places=2)
     type: FinancialTransactionType
+    payment_method: FinancialTransactionPaymentMethod | None = None
     competence_date: date
     due_date: date | None = None
     category_id: UUID | None = None
@@ -49,6 +51,7 @@ class FinancialTransactionUpdate(BaseModel):
         decimal_places=2,
     )
     type: FinancialTransactionType | None = None
+    payment_method: FinancialTransactionPaymentMethod | None = None
     competence_date: date | None = None
     due_date: date | None = None
     category_id: UUID | None = None
@@ -73,6 +76,7 @@ class FinancialTransactionUpdate(BaseModel):
 
 class FinancialTransactionSettle(BaseModel):
     settled_at: datetime | None = None
+    payment_method: FinancialTransactionPaymentMethod | None = None
 
 
 class FinancialTransactionResponse(BaseModel):
@@ -86,6 +90,7 @@ class FinancialTransactionResponse(BaseModel):
     amount: Decimal
     type: FinancialTransactionType
     status: FinancialTransactionStatus
+    payment_method: FinancialTransactionPaymentMethod | None
     competence_date: date
     reference_month: date | None
     due_date: date | None

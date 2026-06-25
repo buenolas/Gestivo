@@ -21,6 +21,7 @@ from app.models.employee import EmployeeStatus
 from app.models.financial_category import FinancialCategory
 from app.models.financial_category import FinancialCategoryType
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
@@ -91,6 +92,7 @@ def make_transaction(company: Company, category: FinancialCategory) -> Financial
         amount=Decimal("1234.50"),
         type=FinancialTransactionType.income,
         status=FinancialTransactionStatus.settled,
+        payment_method=FinancialTransactionPaymentMethod.bank_transfer,
         competence_date=date(2026, 5, 10),
         due_date=date(2026, 5, 12),
         settled_at=datetime(2026, 5, 13, 14, 30, tzinfo=UTC),
@@ -121,9 +123,9 @@ def test_financial_transactions_csv_uses_bom_semicolon_and_brazilian_formats() -
     text = content.decode("utf-8")
 
     assert text.startswith("\ufeff")
-    assert "Descricao;Tipo;Status;Competencia;Vencimento" in text
+    assert "Descricao;Tipo;Status;Forma de pagamento;Competencia;Vencimento" in text
     assert "Categoria;Cliente/Fornecedor;Funcionario;Produto;Valor unitario;Quantidade;Unidade;Valor" in text
-    assert "Venda de servico;Entrada;Liquidado;10/05/2026;12/05/2026;13/05/2026 14:30;Servicos;Cliente ABC;Funcionario Teste;Produto A;100,00;2;un;1234,50;manual;Pago via transferencia" in text
+    assert "Venda de servico;Entrada;Liquidado;Transferencia;10/05/2026;12/05/2026;13/05/2026 14:30;Servicos;Cliente ABC;Funcionario Teste;Produto A;100,00;2;un;1234,50;manual;Pago via transferencia" in text
 
 
 def test_financial_transactions_csv_ignores_soft_deleted_transactions() -> None:
@@ -190,6 +192,7 @@ def test_export_endpoint_passes_authenticated_user_and_filters(monkeypatch) -> N
         category_id=category_id,
         contact_id=uuid4(),
         employee_id=uuid4(),
+        payment_method=FinancialTransactionPaymentMethod.pix,
         source="manual",
         start_date=date(2026, 5, 1),
         end_date=date(2026, 5, 31),
@@ -205,6 +208,7 @@ def test_export_endpoint_passes_authenticated_user_and_filters(monkeypatch) -> N
     assert captured["category_id"] == category_id
     assert captured["contact_id"] is not None
     assert captured["employee_id"] is not None
+    assert captured["payment_method"] == FinancialTransactionPaymentMethod.pix
     assert captured["source"] == "manual"
     assert captured["start_date"] == date(2026, 5, 1)
     assert captured["end_date"] == date(2026, 5, 31)

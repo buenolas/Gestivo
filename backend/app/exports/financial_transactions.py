@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.financial_transaction import FinancialTransaction
+from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
@@ -26,6 +27,7 @@ def export_financial_transactions_csv(
     category_id: UUID | None = None,
     contact_id: UUID | None = None,
     employee_id: UUID | None = None,
+    payment_method: FinancialTransactionPaymentMethod | None = None,
     source: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
@@ -39,6 +41,7 @@ def export_financial_transactions_csv(
         category_id=category_id,
         contact_id=contact_id,
         employee_id=employee_id,
+        payment_method=payment_method,
         source=source,
         start_date=start_date,
         end_date=end_date,
@@ -54,6 +57,7 @@ def export_financial_transactions_csv(
             "Descricao",
             "Tipo",
             "Status",
+            "Forma de pagamento",
             "Competencia",
             "Vencimento",
             "Liquidado em",
@@ -81,6 +85,7 @@ def _transaction_row(transaction: FinancialTransaction) -> list[str]:
         _safe_csv_text(transaction.description),
         _type_label(transaction.type),
         _status_label(transaction.status),
+        _payment_method_label(transaction.payment_method),
         _format_date(transaction.competence_date),
         _format_date(transaction.due_date),
         _format_datetime(transaction.settled_at),
@@ -165,3 +170,17 @@ def _status_label(status: FinancialTransactionStatus) -> str:
         FinancialTransactionStatus.canceled: "Cancelado",
     }
     return labels[status]
+
+
+def _payment_method_label(payment_method: FinancialTransactionPaymentMethod | None) -> str:
+    if payment_method is None:
+        return ""
+    labels = {
+        FinancialTransactionPaymentMethod.credit: "Credito",
+        FinancialTransactionPaymentMethod.debit: "Debito",
+        FinancialTransactionPaymentMethod.pix: "Pix",
+        FinancialTransactionPaymentMethod.boleto: "Boleto",
+        FinancialTransactionPaymentMethod.bank_transfer: "Transferencia",
+        FinancialTransactionPaymentMethod.cash: "Dinheiro",
+    }
+    return labels[payment_method]
