@@ -569,13 +569,25 @@ Regras operacionais:
 - Se uma migration falhar, o workflow deve parar antes de publicar a nova API.
 
 O frontend de producao deve ser publicado pelo GitHub Actions em
-`.github/workflows/frontend-production-deploy.yml`. O workflow roda `npm test`,
-puxa as variaveis Production do projeto Vercel da web, gera o build Vite com
-`vercel build --prod` e publica com `vercel deploy --prebuilt --prod`.
+`.github/workflows/frontend-production-deploy.yml`. O workflow valida os secrets
+da Vercel, roda `npm test`, puxa as variaveis Production do projeto Vercel da
+web, publica com `vercel deploy --prod` e entao aponta explicitamente o dominio
+`gestao-financeira-web-bubas-software.vercel.app` para o deployment gerado.
 
 Mudancas em `frontend/**` na `main` disparam o deploy da web. O workflow tambem
 pode ser executado manualmente pelo GitHub Actions quando for necessario
 republicar a interface sem alterar codigo.
+
+Os comandos da Vercel no workflow da web devem rodar da raiz do repositorio,
+pois o projeto Vercel `gestao-financeira-web` ja usa `frontend` como Root
+Directory. Rodar a CLI dentro de `frontend` faz a Vercel procurar
+`frontend/frontend`.
+
+Depois do deploy da API, o workflow tambem aponta explicitamente os dominios
+`gestao-financeira-api-six.vercel.app` e
+`gestao-financeira-api-bubas-software.vercel.app` para o deployment recem-criado.
+Isso evita pipeline verde publicando em um alias diferente do dominio usado pelo
+frontend ou pelos usuarios.
 
 ## 24. Documentos de referencia
 
