@@ -545,6 +545,7 @@ Secrets obrigatorios no GitHub:
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_API_PROJECT_ID`
+- `VERCEL_WEB_PROJECT_ID`
 
 Variaveis obrigatorias no ambiente Production do projeto Vercel da API:
 
@@ -566,6 +567,15 @@ Regras operacionais:
   deve ser publicada apenas pelo workflow, para evitar corrida entre deploy e
   migration.
 - Se uma migration falhar, o workflow deve parar antes de publicar a nova API.
+
+O frontend de producao deve ser publicado pelo GitHub Actions em
+`.github/workflows/frontend-production-deploy.yml`. O workflow roda `npm test`,
+puxa as variaveis Production do projeto Vercel da web, gera o build Vite com
+`vercel build --prod` e publica com `vercel deploy --prebuilt --prod`.
+
+Mudancas em `frontend/**` na `main` disparam o deploy da web. O workflow tambem
+pode ser executado manualmente pelo GitHub Actions quando for necessario
+republicar a interface sem alterar codigo.
 
 ## 24. Documentos de referencia
 
