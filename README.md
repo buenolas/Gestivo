@@ -571,8 +571,8 @@ Regras operacionais:
 O frontend de producao deve ser publicado pelo GitHub Actions em
 `.github/workflows/frontend-production-deploy.yml`. O workflow valida os secrets
 da Vercel, roda `npm test`, puxa as variaveis Production do projeto Vercel da
-web, gera o build Vite com `vercel build --prod` e publica com
-`vercel deploy --prebuilt --prod`.
+web e publica com `vercel deploy --prod`, deixando o build Vite rodar no
+ambiente da Vercel.
 
 Mudancas em `frontend/**` na `main` disparam o deploy da web. O workflow tambem
 pode ser executado manualmente pelo GitHub Actions quando for necessario
