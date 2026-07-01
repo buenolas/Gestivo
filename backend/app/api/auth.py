@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
@@ -39,6 +41,7 @@ from app.models.usage_event import UsageEventType
 from app.services.usage_event import record_usage_event
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -56,10 +59,18 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)) -> User:
             detail=str(exc),
         ) from exc
     except EmailDeliveryError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Cadastro criado, mas nao foi possivel enviar o e-mail de verificacao.",
-        ) from exc
+        created_user = get_user_by_email(db, user_in.email)
+        if created_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Nao foi possivel enviar o e-mail de verificacao.",
+            ) from exc
+
+        logger.warning(
+            "User %s was registered, but verification e-mail delivery failed.",
+            created_user.id,
+        )
+        return created_user
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -9,6 +9,7 @@ on:
       - ".github/workflows/api-production-deploy.yml"
       - "backend/vercel.json"
       - ".vercelignore"
+  workflow_dispatch:
 
 concurrency:
   group: api-production
@@ -22,10 +23,25 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      API_PRODUCTION_DOMAINS: "gestao-financeira-api-six.vercel.app gestao-financeira-api-bubas-software.vercel.app"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate Vercel API secrets
+        shell: bash
+        run: |
+          missing=()
+          [[ -n "$VERCEL_TOKEN" ]] || missing+=("VERCEL_TOKEN")
+          [[ -n "$VERCEL_ORG_ID" ]] || missing+=("VERCEL_ORG_ID")
+          [[ -n "$VERCEL_PROJECT_ID" ]] || missing+=("VERCEL_API_PROJECT_ID")
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub secret(s): %s\n' "${missing[*]}" >&2
+            printf 'Set them in GitHub > Settings > Secrets and variables > Actions before deploying the API.\n' >&2
+            exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -118,4 +134,24 @@ jobs:
           python -m app.scripts.check_alembic_head
 
       - name: Deploy API to Vercel production
-        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        id: deploy
+        shell: bash
+        run: |
+          deployment_output="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")"
+          printf '%s\n' "$deployment_output"
+          deployment_url="$(printf '%s\n' "$deployment_output" | grep -Eo 'https?://[^[:space:]]+|[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)"
+
+          if [[ -z "$deployment_url" ]]; then
+            printf 'Could not find the Vercel deployment URL in CLI output.\n' >&2
+            exit 1
+          fi
+
+          printf 'deployment_url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Point production API domains to this deployment
+        shell: bash
+        run: |
+          for domain in $API_PRODUCTION_DOMAINS; do
+            vercel alias set "${{ steps.deploy.outputs.deployment_url }}" "$domain" --token="$VERCEL_TOKEN"
+            vercel inspect "$domain" --token="$VERCEL_TOKEN"
+          done
