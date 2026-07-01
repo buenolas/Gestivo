@@ -464,7 +464,7 @@ Pontos que ainda merecem revisao antes de uso comercial amplo:
 
 Ambiente publicado para demonstracao e testes:
 
-- Frontend: https://gestao-financeira-web-bubas-software.vercel.app
+- Frontend: https://gestivo.bubassoftware.com.br
 - API: https://gestao-financeira-api-six.vercel.app
 - Health check: https://gestao-financeira-api-six.vercel.app/health
 
@@ -555,8 +555,12 @@ Variaveis obrigatorias no ambiente Production do projeto Vercel da API:
 - `MIGRATION_DATABASE_URL`
 - `JWT_SECRET_KEY`
 - `CRON_SECRET`
-- `BACKEND_CORS_ORIGINS=https://gestao-financeira-web-bubas-software.vercel.app`
-- `FRONTEND_URL=https://gestao-financeira-web-bubas-software.vercel.app`
+- `BACKEND_CORS_ORIGINS=https://gestivo.bubassoftware.com.br`
+- `FRONTEND_URL=https://gestivo.bubassoftware.com.br`
+
+Variaveis obrigatorias no ambiente Production do projeto Vercel da web:
+
+- `VITE_API_URL=https://gestao-financeira-api-six.vercel.app`
 
 Regras operacionais:
 
