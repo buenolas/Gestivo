@@ -15,13 +15,13 @@ concurrency:
 
 jobs:
   deploy:
-    name: Test and deploy frontend
+    name: Test, build and deploy frontend
     runs-on: ubuntu-latest
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      FRONTEND_PRODUCTION_DOMAIN: gestao-financeira-web-bubas-software.vercel.app
+      VERCEL_PRODUCTION_DOMAIN: gestivo.bubassoftware.com.br
 
     steps:
       - name: Checkout
@@ -68,17 +68,22 @@ jobs:
         run: |
           deployment_output="$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")"
           printf '%s\n' "$deployment_output"
-          deployment_url="$(printf '%s\n' "$deployment_output" | grep -Eo 'https?://[^[:space:]]+|[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)"
-
+          deployment_url="$(
+            printf '%s\n' "$deployment_output" |
+            grep -Eo 'https://[^[:space:]]+|[^[:space:]]+\.vercel\.app' |
+            tail -n 1
+          )"
           if [[ -z "$deployment_url" ]]; then
-            printf 'Could not find the Vercel deployment URL in CLI output.\n' >&2
+            printf 'Could not determine the Vercel deployment URL.\n' >&2
             exit 1
           fi
-
           printf 'deployment_url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
 
-      - name: Point production frontend domain to this deployment
+      - name: Attach production domain
         shell: bash
-        run: |
-          vercel alias set "${{ steps.deploy.outputs.deployment_url }}" "$FRONTEND_PRODUCTION_DOMAIN" --token="$VERCEL_TOKEN"
-          vercel inspect "$FRONTEND_PRODUCTION_DOMAIN" --token="$VERCEL_TOKEN"
+        run: >
+          vercel alias set
+          "${{ steps.deploy.outputs.deployment_url }}"
+          "$VERCEL_PRODUCTION_DOMAIN"
+          --yes
+          --token="$VERCEL_TOKEN"

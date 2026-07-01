@@ -464,7 +464,7 @@ Pontos que ainda merecem revisao antes de uso comercial amplo:
 
 Ambiente publicado para demonstracao e testes:
 
-- Frontend: https://gestao-financeira-web-bubas-software.vercel.app
+- Frontend: https://gestivo.bubassoftware.com.br
 - API: https://gestao-financeira-api-six.vercel.app
 - Health check: https://gestao-financeira-api-six.vercel.app/health
 
@@ -555,8 +555,12 @@ Variaveis obrigatorias no ambiente Production do projeto Vercel da API:
 - `MIGRATION_DATABASE_URL`
 - `JWT_SECRET_KEY`
 - `CRON_SECRET`
-- `BACKEND_CORS_ORIGINS=https://gestao-financeira-web-bubas-software.vercel.app`
-- `FRONTEND_URL=https://gestao-financeira-web-bubas-software.vercel.app`
+- `BACKEND_CORS_ORIGINS=https://gestivo.bubassoftware.com.br`
+- `FRONTEND_URL=https://gestivo.bubassoftware.com.br`
+
+Variaveis obrigatorias no ambiente Production do projeto Vercel da web:
+
+- `VITE_API_URL=https://gestao-financeira-api-six.vercel.app`
 
 Regras operacionais:
 
@@ -571,8 +575,8 @@ Regras operacionais:
 O frontend de producao deve ser publicado pelo GitHub Actions em
 `.github/workflows/frontend-production-deploy.yml`. O workflow valida os secrets
 da Vercel, roda `npm test`, puxa as variaveis Production do projeto Vercel da
-web, publica com `vercel deploy --prod` e entao aponta explicitamente o dominio
-`gestao-financeira-web-bubas-software.vercel.app` para o deployment gerado.
+web e publica com `vercel deploy --prod`, deixando o build Vite rodar no
+ambiente da Vercel.
 
 Mudancas em `frontend/**` na `main` disparam o deploy da web. O workflow tambem
 pode ser executado manualmente pelo GitHub Actions quando for necessario
@@ -582,12 +586,6 @@ Os comandos da Vercel no workflow da web devem rodar da raiz do repositorio,
 pois o projeto Vercel `gestao-financeira-web` ja usa `frontend` como Root
 Directory. Rodar a CLI dentro de `frontend` faz a Vercel procurar
 `frontend/frontend`.
-
-Depois do deploy da API, o workflow tambem aponta explicitamente os dominios
-`gestao-financeira-api-six.vercel.app` e
-`gestao-financeira-api-bubas-software.vercel.app` para o deployment recem-criado.
-Isso evita pipeline verde publicando em um alias diferente do dominio usado pelo
-frontend ou pelos usuarios.
 
 ## 24. Documentos de referencia
 
