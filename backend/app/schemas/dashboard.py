@@ -51,6 +51,58 @@ class DashboardPaymentMethodSummary(BaseModel):
         return str(amount)
 
 
+class DashboardTrendPoint(BaseModel):
+    date: date
+    income: Decimal
+    expense: Decimal
+    result: Decimal
+    transaction_count: int
+
+    @field_serializer("income", "expense", "result")
+    def serialize_money(self, amount: Decimal) -> str:
+        return str(amount)
+
+
+class DashboardCategorySummary(BaseModel):
+    type: FinancialTransactionType
+    name: str
+    total: Decimal
+    count: int
+
+    @field_serializer("total")
+    def serialize_total(self, total: Decimal) -> str:
+        return str(total)
+
+
+class DashboardComparison(BaseModel):
+    period_start: date
+    period_end: date
+    income: Decimal
+    expense: Decimal
+    result: Decimal
+    income_change: Decimal
+    expense_change: Decimal
+    result_change: Decimal
+    income_change_percent: Decimal | None
+    expense_change_percent: Decimal | None
+    result_change_percent: Decimal | None
+    transaction_count: int
+
+    @field_serializer(
+        "income",
+        "expense",
+        "result",
+        "income_change",
+        "expense_change",
+        "result_change",
+        "income_change_percent",
+        "expense_change_percent",
+        "result_change_percent",
+    )
+    def serialize_decimal(self, amount: Decimal | None) -> str | None:
+        return str(amount) if amount is not None else None
+
+
 class DashboardResponse(BaseModel):
     period_start: date
     period_end: date
@@ -66,6 +118,11 @@ class DashboardResponse(BaseModel):
     payment_methods: list[DashboardPaymentMethodSummary]
     due_alerts: list[DashboardDueAlert]
     month_end_balance_forecast: Decimal
+    transaction_count: int
+    trend_granularity: Literal["day", "month"]
+    trend_series: list[DashboardTrendPoint]
+    category_totals: list[DashboardCategorySummary]
+    comparison: DashboardComparison | None
     calculation_criteria: dict[str, str]
 
     model_config = ConfigDict(from_attributes=True)

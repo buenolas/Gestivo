@@ -768,7 +768,7 @@ function SidebarContactInfo() {
           (62) 99696-0340
         </a>
         <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="mailto:gestivo@bubassoftware.com.br">
-          <Mail className="h-4 w-4" />
+          <Mail className="h-4 w-4 shrink-0" />
           gestivo@bubassoftware.com.br
         </a>
       </div>

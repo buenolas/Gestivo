@@ -317,6 +317,35 @@ export type Dashboard = {
   month_income: string;
   month_expense: string;
   month_result: string;
+  transaction_count: number;
+  trend_granularity: "day" | "month";
+  trend_series: Array<{
+    date: string;
+    income: string;
+    expense: string;
+    result: string;
+    transaction_count: number;
+  }>;
+  category_totals: Array<{
+    type: TransactionType;
+    name: string;
+    total: string;
+    count: number;
+  }>;
+  comparison: {
+    period_start: string;
+    period_end: string;
+    income: string;
+    expense: string;
+    result: string;
+    income_change: string;
+    expense_change: string;
+    result_change: string;
+    income_change_percent: string | null;
+    expense_change_percent: string | null;
+    result_change_percent: string | null;
+    transaction_count: number;
+  } | null;
   open_payables: { count: number; total: string };
   open_receivables: { count: number; total: string };
   overdue_payables: { count: number; total: string };
