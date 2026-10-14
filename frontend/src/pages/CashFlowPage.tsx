@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownRight, ArrowUpRight, Pencil, TrendingUp, XCircle } from "lucide-react";
 import { apiFetch } from "../api";
+import { FilterDisclosure } from "../components/FilterDisclosure";
 import { currencyInputToDecimal, dateText, formatCurrencyInput, money, typeText } from "../format";
 import type { CashFlow, Contact, EmployeeOption, Transaction, TransactionType, User } from "../types";
 
@@ -83,6 +84,7 @@ export function CashFlowPage({ user }: { user: User }) {
   });
   const contactById = new Map((contacts.data ?? []).map((contact) => [contact.id, contact.name]));
   const employeeById = new Map((employees.data ?? []).map((employee) => [employee.id, employee.name]));
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   const create = useMutation({
     mutationFn: () =>
@@ -248,55 +250,77 @@ export function CashFlowPage({ user }: { user: User }) {
       <div className="panel">
         <div className="table-header">
           <h2 className="panel-title">Movimentações de caixa</h2>
-          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-6">
-            <select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
+        </div>
+        <FilterDisclosure
+          activeCount={activeFilterCount}
+          hint="Refine por tipo, cliente ou fornecedor, funcionário, período ou descrição."
+          onClear={() => setFilters({ type: "", contact_id: "", employee_id: "", start_date: "", end_date: "", search: "" })}
+        >
+          <label className="field" htmlFor="cash-filter-type">
+            Tipo
+            <select id="cash-filter-type" value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
               <option value="">Entradas e saídas</option>
               <option value="income">Entradas</option>
               <option value="expense">Saídas</option>
             </select>
-            <select value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
-              <option value="">Clientes/fornecedores</option>
+          </label>
+          <label className="field" htmlFor="cash-filter-contact">
+            Cliente/fornecedor
+            <select id="cash-filter-contact" value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
+              <option value="">Todos os contatos</option>
               {(contacts.data ?? []).map((contact) => (
                 <option key={contact.id} value={contact.id}>{contact.name}</option>
               ))}
             </select>
-            <select value={filters.employee_id} onChange={(event) => setFilters({ ...filters, employee_id: event.target.value })}>
-              <option value="">Funcionários</option>
+          </label>
+          <label className="field" htmlFor="cash-filter-employee">
+            Funcionário
+            <select id="cash-filter-employee" value={filters.employee_id} onChange={(event) => setFilters({ ...filters, employee_id: event.target.value })}>
+              <option value="">Todos os funcionários</option>
               {(employees.data ?? []).map((employee) => (
                 <option key={employee.id} value={employee.id}>{employee.name}</option>
               ))}
             </select>
-            <input type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
-            <input type="date" value={filters.end_date} onChange={(event) => setFilters({ ...filters, end_date: event.target.value })} />
-            <input placeholder="Buscar" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
-          </div>
-        </div>
+          </label>
+          <label className="field" htmlFor="cash-filter-start-date">
+            Competência a partir de
+            <input id="cash-filter-start-date" type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
+          </label>
+          <label className="field" htmlFor="cash-filter-end-date">
+            Competência até
+            <input id="cash-filter-end-date" type="date" value={filters.end_date} onChange={(event) => setFilters({ ...filters, end_date: event.target.value })} />
+          </label>
+          <label className="field sm:col-span-2" htmlFor="cash-filter-search">
+            Buscar movimentações
+            <input id="cash-filter-search" type="search" placeholder="Descrição, cliente ou funcionário" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
+          </label>
+        </FilterDisclosure>
         {cashFlow.isError && <div className="alert-error">{cashFlow.error.message}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Movimentações de caixa">
+            <thead className="sr-only sm:not-sr-only">
               <tr>
-                <th>Data</th>
-                <th>Descrição</th>
-                <th>Cliente/Fornecedor</th>
-                <th>Funcionário</th>
-                <th>Tipo</th>
-                <th className="text-right">Valor</th>
-                <th></th>
+                <th scope="col">Data</th>
+                <th scope="col">Descrição</th>
+                <th scope="col">Cliente/Fornecedor</th>
+                <th scope="col">Funcionário</th>
+                <th scope="col">Tipo</th>
+                <th scope="col" className="text-right">Valor</th>
+                <th scope="col">Ações</th>
               </tr>
             </thead>
             <tbody>
               {(cashFlow.data?.items ?? []).map((item) => (
                 <tr key={item.id}>
-                  <td>{dateText(item.competence_date)}</td>
-                  <td>{item.description}</td>
-                  <td>{item.contact_id ? contactById.get(item.contact_id) ?? "-" : "-"}</td>
-                  <td>{item.employee_id ? employeeById.get(item.employee_id) ?? "-" : "-"}</td>
-                  <td>{typeText(item.type)}</td>
-                  <td className="text-right">{money(item.amount)}</td>
-                  <td className="text-right">
+                  <td data-label="Data">{dateText(item.competence_date)}</td>
+                  <td data-label="Descrição" data-primary="true">{item.description}</td>
+                  <td data-label="Cliente/Fornecedor">{item.contact_id ? contactById.get(item.contact_id) ?? "-" : "-"}</td>
+                  <td data-label="Funcionário">{item.employee_id ? employeeById.get(item.employee_id) ?? "-" : "-"}</td>
+                  <td data-label="Tipo">{typeText(item.type)}</td>
+                  <td data-label="Valor" className="text-right font-semibold">{money(item.amount)}</td>
+                  <td data-actions className="text-right">
                     {canEdit(item) && (
-                      <button className="icon-btn" title="Editar" onClick={() => startEditing(item)}>
+                      <button className="icon-btn" type="button" aria-label={`Editar movimentação: ${item.description}`} onClick={() => startEditing(item)}>
                         <Pencil className="h-4 w-4" />
                       </button>
                     )}

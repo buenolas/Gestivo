@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, CheckCircle2, Download, Pencil, XCircle } from "lucide-react";
 import { apiFetch, apiUrl, getToken } from "../api";
+import { FilterDisclosure } from "../components/FilterDisclosure";
 import { currencyInputToDecimal, dateText, formatCurrencyInput, money, paymentMethodText, statusText, typeText } from "../format";
 import type { Category, Contact, Transaction } from "../types";
 
@@ -66,6 +67,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
     queryFn: () => apiFetch<Contact[]>("/contacts"),
   });
   const contactById = new Map((contacts.data ?? []).map((contact) => [contact.id, contact.name]));
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   const create = useMutation({
     mutationFn: () =>
@@ -272,47 +274,84 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
       <div className="panel">
         <div className="table-header">
           <h2 className="panel-title">Lançamentos</h2>
-          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-9">
-            <select value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
+          {canManageAll && (
+            <button className="btn-secondary inline-flex items-center justify-center gap-2" type="button" onClick={exportCsv}>
+              <Download className="h-4 w-4" />
+              CSV
+            </button>
+          )}
+        </div>
+        <FilterDisclosure
+          activeCount={activeFilterCount}
+          hint="Refine por tipo, status, categoria, contato, período ou descrição."
+          onClear={() => setFilters({
+            type: "",
+            status: "",
+            category_id: "",
+            contact_id: "",
+            payment_method: "",
+            start_date: "",
+            end_date: "",
+            search: "",
+          })}
+        >
+          <label className="field" htmlFor="transactions-filter-type">
+            Tipo
+            <select id="transactions-filter-type" value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}>
               <option value="">Todos os tipos</option>
               <option value="income">Entradas</option>
               <option value="expense">Saídas</option>
             </select>
-            <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
+          </label>
+          <label className="field" htmlFor="transactions-filter-status">
+            Status
+            <select id="transactions-filter-status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
               <option value="">Todos os status</option>
               <option value="pending">Pendentes</option>
               <option value="settled">Liquidados</option>
               <option value="canceled">Cancelados</option>
             </select>
-            <select value={filters.category_id} onChange={(event) => setFilters({ ...filters, category_id: event.target.value })}>
-              <option value="">Todas categorias</option>
+          </label>
+          <label className="field" htmlFor="transactions-filter-category">
+            Categoria
+            <select id="transactions-filter-category" value={filters.category_id} onChange={(event) => setFilters({ ...filters, category_id: event.target.value })}>
+              <option value="">Todas as categorias</option>
               {(categories.data ?? []).map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
-            <select value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
-              <option value="">Clientes/fornecedores</option>
+          </label>
+          <label className="field" htmlFor="transactions-filter-contact">
+            Cliente/fornecedor
+            <select id="transactions-filter-contact" value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
+              <option value="">Todos os contatos</option>
               {(contacts.data ?? []).map((contact) => (
                 <option key={contact.id} value={contact.id}>{contact.name}</option>
               ))}
             </select>
-            <select value={filters.payment_method} onChange={(event) => setFilters({ ...filters, payment_method: event.target.value })}>
+          </label>
+          <label className="field" htmlFor="transactions-filter-payment-method">
+            Forma de pagamento
+            <select id="transactions-filter-payment-method" value={filters.payment_method} onChange={(event) => setFilters({ ...filters, payment_method: event.target.value })}>
               <option value="">Todas as formas</option>
               {paymentMethodOptions.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
-            <input type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
-            <input type="date" value={filters.end_date} onChange={(event) => setFilters({ ...filters, end_date: event.target.value })} />
-            <input placeholder="Buscar" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
-            {canManageAll && (
-              <button className="btn-secondary inline-flex items-center justify-center gap-2" type="button" onClick={exportCsv}>
-                <Download className="h-4 w-4" />
-                CSV
-              </button>
-            )}
-          </div>
-        </div>
+          </label>
+          <label className="field" htmlFor="transactions-filter-start-date">
+            Competência a partir de
+            <input id="transactions-filter-start-date" type="date" value={filters.start_date} onChange={(event) => setFilters({ ...filters, start_date: event.target.value })} />
+          </label>
+          <label className="field" htmlFor="transactions-filter-end-date">
+            Competência até
+            <input id="transactions-filter-end-date" type="date" value={filters.end_date} onChange={(event) => setFilters({ ...filters, end_date: event.target.value })} />
+          </label>
+          <label className="field sm:col-span-2" htmlFor="transactions-filter-search">
+            Buscar lançamentos
+            <input id="transactions-filter-search" type="search" placeholder="Descrição ou cliente/fornecedor" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
+          </label>
+        </FilterDisclosure>
         {transactions.isError && <div className="alert-error">{transactions.error.message}</div>}
         {exportError && <div className="alert-error">{exportError}</div>}
         {settlingTransaction && (
@@ -337,48 +376,48 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
           </div>
         )}
         {settle.error && <div className="alert-error">{settle.error.message}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Lançamentos financeiros">
+            <thead className="sr-only sm:not-sr-only">
               <tr>
-                <th>Descrição</th>
-                <th>Cliente/Fornecedor</th>
-                <th>Tipo</th>
-                <th>Status</th>
-                <th>Forma</th>
-                <th>Competência</th>
-                <th>Vencimento</th>
-                <th className="text-right">Valor</th>
-                <th></th>
+                <th scope="col">Descrição</th>
+                <th scope="col">Cliente/Fornecedor</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Status</th>
+                <th scope="col">Forma</th>
+                <th scope="col">Competência</th>
+                <th scope="col">Vencimento</th>
+                <th scope="col" className="text-right">Valor</th>
+                <th scope="col">Ações</th>
               </tr>
             </thead>
             <tbody>
               {(transactions.data ?? []).map((transaction) => (
                 <tr key={transaction.id}>
-                  <td>{transaction.description}</td>
-                  <td>{transaction.contact_id ? contactById.get(transaction.contact_id) ?? "-" : "-"}</td>
-                  <td>{typeText(transaction.type)}</td>
-                  <td>{statusText(transaction.status)}</td>
-                  <td>{paymentMethodText(transaction.payment_method)}</td>
-                  <td>{dateText(transaction.competence_date)}</td>
-                  <td>{dateText(transaction.due_date)}</td>
-                  <td className="text-right">{money(transaction.amount)}</td>
-                  <td className="text-right">
+                  <td data-label="Descrição" data-primary="true">{transaction.description}</td>
+                  <td data-label="Cliente/Fornecedor">{transaction.contact_id ? contactById.get(transaction.contact_id) ?? "-" : "-"}</td>
+                  <td data-label="Tipo">{typeText(transaction.type)}</td>
+                  <td data-label="Status">{statusText(transaction.status)}</td>
+                  <td data-label="Forma">{paymentMethodText(transaction.payment_method)}</td>
+                  <td data-label="Competência">{dateText(transaction.competence_date)}</td>
+                  <td data-label="Vencimento">{dateText(transaction.due_date)}</td>
+                  <td data-label="Valor" className="text-right font-semibold">{money(transaction.amount)}</td>
+                  <td data-actions className="text-right">
                     <div className="inline-flex gap-2">
                       {transaction.status !== "canceled" && (
-                        <button className="icon-btn" title="Editar" onClick={() => startEditing(transaction)}>
+                        <button className="icon-btn" type="button" aria-label={`Editar lançamento: ${transaction.description}`} onClick={() => startEditing(transaction)}>
                           <Pencil className="h-4 w-4" />
                         </button>
                       )}
                       {canManageAll && transaction.status === "pending" && (
                         <>
-                        <button className="icon-btn" title="Liquidar" onClick={() => {
+                        <button className="icon-btn" type="button" aria-label={`Liquidar lançamento: ${transaction.description}`} onClick={() => {
                           setSettlingTransaction(transaction);
                           setSettlePaymentMethod(transaction.payment_method ?? "");
                         }}>
                           <CheckCircle2 className="h-4 w-4" />
                         </button>
-                        <button className="icon-btn" title="Cancelar" onClick={() => cancel.mutate(transaction.id)}>
+                        <button className="icon-btn" type="button" aria-label={`Cancelar lançamento: ${transaction.description}`} onClick={() => cancel.mutate(transaction.id)}>
                           <Ban className="h-4 w-4" />
                         </button>
                         </>

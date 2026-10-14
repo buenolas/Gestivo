@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User
 from app.models.user import UserRole
+from app.services.email import send_company_user_invitation as deliver_company_user_invitation
 from app.services.email import send_email_verification
 
 DISPOSABLE_EMAIL_DOMAINS = {
@@ -55,6 +56,10 @@ def verification_link(token: str) -> str:
     return f"{settings.frontend_url.rstrip('/')}/?email_verification_token={token}"
 
 
+def company_user_invitation_link(token: str) -> str:
+    return f"{settings.frontend_url.rstrip('/')}/?company_invite_token={token}"
+
+
 def send_user_email_verification(db: Session, user: User) -> None:
     if user.email_verified_at is not None:
         return
@@ -63,11 +68,19 @@ def send_user_email_verification(db: Session, user: User) -> None:
     send_email_verification(user.email, verification_link(token))
 
 
+def send_company_user_invitation(db: Session, user: User) -> None:
+    token = create_email_verification_token(db, user)
+    deliver_company_user_invitation(user.email, company_user_invitation_link(token))
+
+
 def confirm_email(db: Session, token: str) -> bool:
     user = db.scalar(
         select(User).where(User.email_verification_token_hash == token_hash(token))
     )
     if user is None or user.email_verification_expires_at is None:
+        return False
+
+    if user.role == UserRole.user and not user.is_active:
         return False
 
     expires_at = user.email_verification_expires_at

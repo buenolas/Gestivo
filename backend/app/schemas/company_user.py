@@ -12,7 +12,11 @@ from app.models.user import UserRole
 class CompanyUserCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
-    temporary_password: str = Field(min_length=8, max_length=72)
+
+
+class CompanyUserInvitationAccept(BaseModel):
+    token: str = Field(min_length=20, max_length=300)
+    new_password: str = Field(min_length=8, max_length=72)
 
 
 class CompanyUserStatusUpdate(BaseModel):
@@ -30,6 +34,7 @@ class CompanyUserResponse(BaseModel):
     role: UserRole
     is_active: bool
     must_change_password: bool
+    email_verified_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

@@ -219,33 +219,33 @@ export function ProductOutputsPage({ user }: { user: User }) {
           </div>
         </div>
         {outputs.isError && <div className="alert-error">{outputs.error.message}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Saídas de produtos registradas">
+            <thead className="sr-only sm:not-sr-only">
               <tr>
-                <th>Data</th>
-                <th>Funcionário</th>
-                <th>Produto</th>
-                <th>Status</th>
-                <th className="text-right">Valor unitário/kg</th>
-                <th className="text-right">Qtd/peso</th>
-                <th className="text-right">Total a receber</th>
-                <th></th>
+                <th scope="col">Produto</th>
+                <th scope="col">Data</th>
+                <th scope="col">Funcionário</th>
+                <th scope="col">Status</th>
+                <th scope="col" className="text-right">Valor unitário/kg</th>
+                <th scope="col" className="text-right">Qtd/peso</th>
+                <th scope="col" className="text-right">Total a receber</th>
+                <th scope="col">Ações</th>
               </tr>
             </thead>
             <tbody>
               {(outputs.data ?? []).map((item) => (
                 <tr key={item.id}>
-                  <td>{dateText(item.competence_date)}</td>
-                  <td>{item.employee_id ? employeeById.get(item.employee_id) ?? "-" : "-"}</td>
-                  <td>{item.product_name ?? item.description}</td>
-                  <td>{statusText(item.status)}</td>
-                  <td className="text-right">{money(item.product_unit_price)}</td>
-                  <td className="text-right">{item.product_quantity ?? "-"} {item.product_unit ?? ""}</td>
-                  <td className="text-right">{money(item.amount)}</td>
-                  <td className="text-right">
+                  <td data-label="Produto" data-primary="true">{item.product_name ?? item.description}</td>
+                  <td data-label="Data">{dateText(item.competence_date)}</td>
+                  <td data-label="Funcionário">{item.employee_id ? employeeById.get(item.employee_id) ?? "-" : "-"}</td>
+                  <td data-label="Status">{statusText(item.status)}</td>
+                  <td data-label="Valor unitário/kg" className="text-right">{money(item.product_unit_price)}</td>
+                  <td data-label="Qtd/peso" className="text-right">{item.product_quantity ?? "-"} {item.product_unit ?? ""}</td>
+                  <td data-label="Total a receber" className="text-right">{money(item.amount)}</td>
+                  <td data-label="Ações" data-actions className="text-right">
                     {canEdit(item) && (
-                      <button className="icon-btn" title="Editar" onClick={() => startEditing(item)}>
+                      <button className="icon-btn" type="button" aria-label={`Editar saída de ${item.product_name ?? item.description}`} title="Editar" onClick={() => startEditing(item)}>
                         <Pencil className="h-4 w-4" />
                       </button>
                     )}

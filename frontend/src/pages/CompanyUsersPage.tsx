@@ -1,14 +1,15 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CheckCircle2, KeyRound } from "lucide-react";
+import { Ban, CheckCircle2, KeyRound, Mail } from "lucide-react";
 import { apiFetch } from "../api";
 import type { CompanyUser } from "../types";
 
 export function CompanyUsersPage() {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", email: "", temporary_password: "" });
+  const [form, setForm] = useState({ name: "", email: "" });
   const [resetUser, setResetUser] = useState<CompanyUser | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [invitationNotice, setInvitationNotice] = useState("");
 
   const users = useQuery({
     queryKey: ["company-users"],
@@ -19,10 +20,20 @@ export function CompanyUsersPage() {
     mutationFn: () =>
       apiFetch<CompanyUser>("/company-users", {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({ name: form.name, email: form.email }),
       }),
-    onSuccess: async () => {
-      setForm({ name: "", email: "", temporary_password: "" });
+    onSuccess: async (user) => {
+      setForm({ name: "", email: "" });
+      setInvitationNotice(`Convite enviado para ${user.email}. O acesso será liberado depois da confirmação do e-mail e da criação de uma senha.`);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["company-users"] }),
+  });
+
+  const resendInvitation = useMutation({
+    mutationFn: (userId: string) =>
+      apiFetch<{ message: string }>(`/company-users/${userId}/resend-invitation`, { method: "POST" }),
+    onSuccess: async (response) => {
+      setInvitationNotice(response.message);
       await queryClient.invalidateQueries({ queryKey: ["company-users"] });
     },
   });
@@ -58,27 +69,24 @@ export function CompanyUsersPage() {
     <section className="space-y-5">
       <form className="panel grid gap-4 lg:grid-cols-4" onSubmit={onSubmit}>
         <div className="lg:col-span-4">
-          <h2 className="panel-title">Novo usuario</h2>
+          <h2 className="panel-title">Convidar usuário</h2>
           <p className="section-subtitle">
-            Acesso limitado a lancamentos, categorias e contatos.
+            Acesso limitado a lançamentos, categorias e contatos. Enviaremos um link para confirmar o e-mail e criar uma senha; o acesso só será ativado depois dessa confirmação.
           </p>
         </div>
         <label className="field" htmlFor="company-user-name">
           Nome
-          <input id="company-user-name" required minLength={2} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          <input id="company-user-name" required minLength={2} value={form.name} onChange={(event) => { setInvitationNotice(""); setForm({ ...form, name: event.target.value }); }} />
         </label>
         <label className="field" htmlFor="company-user-email">
           E-mail
-          <input id="company-user-email" required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-        </label>
-        <label className="field" htmlFor="company-user-password">
-          Senha temporaria
-          <input id="company-user-password" required minLength={8} type="password" value={form.temporary_password} onChange={(event) => setForm({ ...form, temporary_password: event.target.value })} />
+          <input id="company-user-email" required type="email" value={form.email} onChange={(event) => { setInvitationNotice(""); setForm({ ...form, email: event.target.value }); }} />
         </label>
         <div className="flex items-end">
-          <button className="btn-primary w-full" disabled={create.isPending}>Criar usuario</button>
+          <button className="btn-primary w-full" disabled={create.isPending}>{create.isPending ? "Enviando convite..." : "Enviar convite"}</button>
         </div>
         {create.error && <div className="alert-error lg:col-span-4">{create.error.message}</div>}
+        {invitationNotice && <div className="lg:col-span-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800" role="status">{invitationNotice}</div>}
       </form>
 
       {resetUser && (
@@ -99,28 +107,44 @@ export function CompanyUsersPage() {
           {users.isFetching && <span className="text-sm text-muted">Atualizando...</span>}
         </div>
         {users.isError && <div className="alert-error">{users.error.message}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Senha</th><th></th></tr>
+        {resendInvitation.error && <div className="alert-error">{resendInvitation.error.message}</div>}
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Usuários da empresa">
+            <thead className="sr-only sm:not-sr-only">
+              <tr>
+                <th scope="col">Nome</th>
+                <th scope="col">E-mail</th>
+                <th scope="col">Perfil</th>
+                <th scope="col">Status</th>
+                <th scope="col">Senha</th>
+                <th scope="col">Ações</th>
+              </tr>
             </thead>
             <tbody>
               {(users.data ?? []).map((user) => (
                 <tr key={user.id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>{user.role === "company_admin" ?"Administrador" : "Funcionario"}</td>
-                  <td>{user.is_active ?"Ativo" : "Bloqueado"}</td>
-                  <td>{user.must_change_password ?"Troca pendente" : "Definida"}</td>
-                  <td className="text-right">
+                  <td data-label="Nome" data-primary="true">{user.name}</td>
+                  <td data-label="E-mail">{user.email}</td>
+                  <td data-label="Perfil">{user.role === "company_admin" ?"Administrador" : "Funcionário"}</td>
+                  <td data-label="Status">{!user.email_verified_at ?"Aguardando confirmação" : user.is_active ?"Ativo" : "Bloqueado"}</td>
+                  <td data-label="Senha">{!user.email_verified_at ?"Definida ao aceitar convite" : user.must_change_password ?"Troca pendente" : "Definida"}</td>
+                  <td data-actions className="text-right">
                     {user.role === "user" && (
                       <div className="inline-flex gap-2">
-                        <button className="icon-btn" title="Redefinir senha" onClick={() => setResetUser(user)}>
-                          <KeyRound className="h-4 w-4" />
-                        </button>
-                        <button className="icon-btn" title={user.is_active ?"Bloquear" : "Reativar"} onClick={() => updateStatus.mutate({ id: user.id, is_active: !user.is_active })}>
-                          {user.is_active ?<Ban className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                        </button>
+                        {!user.email_verified_at ? (
+                          <button className="icon-btn" type="button" title="Reenviar convite" aria-label={`Reenviar convite para ${user.email}`} disabled={resendInvitation.isPending} onClick={() => { setInvitationNotice(""); resendInvitation.mutate(user.id); }}>
+                            <Mail className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <>
+                            <button className="icon-btn" type="button" title="Redefinir senha" aria-label={`Redefinir senha de ${user.name}`} onClick={() => setResetUser(user)}>
+                              <KeyRound className="h-4 w-4" />
+                            </button>
+                            <button className="icon-btn" type="button" title={user.is_active ?"Bloquear usuário" : "Reativar usuário"} aria-label={`${user.is_active ?"Bloquear" : "Reativar"} usuário: ${user.name}`} onClick={() => updateStatus.mutate({ id: user.id, is_active: !user.is_active })}>
+                              {user.is_active ?<Ban className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </td>

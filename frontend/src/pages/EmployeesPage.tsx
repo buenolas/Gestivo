@@ -198,34 +198,35 @@ export function EmployeesPage() {
           {employees.isFetching && <span className="text-sm text-muted">Atualizando...</span>}
         </div>
         {employees.isError && <div className="alert-error">{employees.error.message}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Funcionários">
+            <thead className="sr-only sm:not-sr-only">
               <tr>
-                <th>Nome</th>
-                <th>Cargo</th>
-                <th>Status</th>
-                <th>Inicio</th>
-                <th>Fim</th>
-                <th className="text-right">Salario</th>
-                <th></th>
+                <th scope="col">Nome</th>
+                <th scope="col">Cargo</th>
+                <th scope="col">Status</th>
+                <th scope="col">Início</th>
+                <th scope="col">Fim</th>
+                <th scope="col" className="text-right">Salário</th>
+                <th scope="col">Ações</th>
               </tr>
             </thead>
             <tbody>
               {(employees.data ?? []).map((employee) => (
                 <tr key={employee.id}>
-                  <td>{employee.name}</td>
-                  <td>{employee.position || "-"}</td>
-                  <td>{statusText(employee.status)}</td>
-                  <td>{dateText(employee.contract_start_date)}</td>
-                  <td>{dateText(employee.contract_end_date)}</td>
-                  <td className="text-right">{money(employee.salary_amount)}</td>
-                  <td className="text-right">
+                  <td data-label="Nome" data-primary="true">{employee.name}</td>
+                  <td data-label="Cargo">{employee.position || "-"}</td>
+                  <td data-label="Status">{statusText(employee.status)}</td>
+                  <td data-label="Início">{dateText(employee.contract_start_date)}</td>
+                  <td data-label="Fim">{dateText(employee.contract_end_date)}</td>
+                  <td data-label="Salário" className="text-right font-semibold">{money(employee.salary_amount)}</td>
+                  <td data-actions className="text-right">
                     <div className="inline-flex gap-2">
                       {employee.status !== "active" && (
                         <button
                           className="icon-btn"
-                          title="Ativar"
+                          type="button"
+                          aria-label={`Ativar funcionário: ${employee.name}`}
                           onClick={() => updateStatus.mutate({ id: employee.id, status: "active" })}
                         >
                           <CheckCircle2 className="h-4 w-4" />
@@ -234,7 +235,8 @@ export function EmployeesPage() {
                       {employee.status === "active" && (
                         <button
                           className="icon-btn"
-                          title="Inativar"
+                          type="button"
+                          aria-label={`Inativar funcionário: ${employee.name}`}
                           onClick={() =>
                             updateStatus.mutate({ id: employee.id, status: "inactive" })
                           }

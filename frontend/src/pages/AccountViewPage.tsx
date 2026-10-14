@@ -47,31 +47,31 @@ export function AccountViewPage({ kind }: { kind: "payables" | "receivables" }) 
       </div>
       {list.isLoading && <div className="screen-state">Carregando...</div>}
       {list.isError && <div className="alert-error">{list.error.message}</div>}
-      <div className="table-wrap">
-        <table>
-          <thead>
+        <div className="table-wrap responsive-cards">
+        <table aria-label={isPayable ? "Contas a pagar" : "Contas a receber"}>
+          <thead className="sr-only sm:not-sr-only">
             <tr>
-              <th>Descrição</th>
-              <th>Contato</th>
-              <th>Status</th>
-              <th>Competência</th>
-              <th>Vencimento</th>
-              <th className="text-right">Valor</th>
-              <th></th>
+              <th scope="col">Descrição</th>
+              <th scope="col">Contato</th>
+              <th scope="col">Status</th>
+              <th scope="col">Competência</th>
+              <th scope="col">Vencimento</th>
+              <th scope="col" className="text-right">Valor</th>
+              <th scope="col">Ações</th>
             </tr>
           </thead>
           <tbody>
             {(list.data ?? []).map((item) => (
               <tr key={item.id}>
-                <td>{item.description}</td>
-                <td>{item.contact_id ? contactById.get(item.contact_id) ?? "-" : "-"}</td>
-                <td>{statusText(item.status)}</td>
-                <td>{dateText(item.competence_date)}</td>
-                <td>{dateText(item.due_date)}</td>
-                <td className="text-right">{money(item.amount)}</td>
-                <td className="text-right">
+                <td data-label="Descrição" data-primary="true">{item.description}</td>
+                <td data-label="Contato">{item.contact_id ? contactById.get(item.contact_id) ?? "-" : "-"}</td>
+                <td data-label="Status">{statusText(item.status)}</td>
+                <td data-label="Competência">{dateText(item.competence_date)}</td>
+                <td data-label="Vencimento">{dateText(item.due_date)}</td>
+                <td data-label="Valor" className="text-right font-semibold">{money(item.amount)}</td>
+                <td data-actions className="text-right">
                   {item.status === "pending" && (
-                    <button className="icon-btn" title={isPayable ?"Pagar" : "Receber"} onClick={() => settle.mutate(item.id)}>
+                    <button className="icon-btn" type="button" aria-label={`${isPayable ? "Pagar" : "Receber"} lançamento: ${item.description}`} onClick={() => settle.mutate(item.id)}>
                       <CheckCircle2 className="h-4 w-4" />
                     </button>
                   )}

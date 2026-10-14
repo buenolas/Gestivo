@@ -143,19 +143,19 @@ export function ImportsPage() {
           </button>
         </div>
         {templateError && <div className="alert-error">{templateError}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Colunas e regras do arquivo de importação">
+            <thead className="sr-only sm:not-sr-only">
               <tr>
-                <th>Coluna</th>
-                <th>Regra</th>
+                <th scope="col">Coluna</th>
+                <th scope="col">Regra</th>
               </tr>
             </thead>
             <tbody>
               {expectedColumns.map(([column, rule]) => (
                 <tr key={column}>
-                  <td>{column}</td>
-                  <td>{rule}</td>
+                  <td data-label="Coluna" data-primary="true">{column}</td>
+                  <td data-label="Regra">{rule}</td>
                 </tr>
               ))}
             </tbody>
@@ -204,15 +204,15 @@ export function ImportsPage() {
                 </p>
               </div>
             </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
+            <div className="table-wrap responsive-cards">
+              <table aria-label="Prévia das linhas da planilha">
+                <thead className="sr-only sm:not-sr-only">
+                  <tr>{headers.map((header) => <th scope="col" key={header}>{header}</th>)}</tr>
                 </thead>
                 <tbody>
                   {batch.preview_rows.map((row, index) => (
                     <tr key={index}>
-                      {headers.map((header) => <td key={header}>{row[header] ?? ""}</td>)}
+                      {headers.map((header) => <td data-label={header} key={header}>{row[header] ?? ""}</td>)}
                     </tr>
                   ))}
                 </tbody>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownCircle,
@@ -104,6 +104,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 declare global {
   interface Window {
+    fbq?: (...args: unknown[]) => void;
     google?: {
       accounts: {
         id: {
@@ -124,6 +125,12 @@ declare global {
         };
       };
     };
+  }
+}
+
+function trackMetaEvent(eventName: string) {
+  if (typeof window.fbq === "function") {
+    window.fbq("track", eventName);
   }
 }
 
@@ -180,7 +187,11 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
         method: "POST",
         body: JSON.stringify({ email: form.email, password: form.password }),
       }),
-    onSuccess: () => login.mutate(),
+    onSuccess: () => {
+      // The API creates the company's 30-day trial during registration.
+      trackMetaEvent("StartTrial");
+      login.mutate();
+    },
   });
 
   const googleLogin = useMutation({
@@ -756,9 +767,9 @@ function SidebarContactInfo() {
           <MessageCircle className="h-4 w-4" />
           (62) 99696-0340
         </a>
-        <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="mailto:lucasdealmeidabueno@gmail.com">
+        <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="mailto:gestivo@bubassoftware.com.br">
           <Mail className="h-4 w-4" />
-          lucasdealmeidabueno@gmail.com
+          gestivo@bubassoftware.com.br
         </a>
       </div>
     </div>
@@ -881,6 +892,87 @@ function AdminSidebarNavigation({
   );
 }
 
+function CompanyUserInvitationScreen({
+  invitationToken,
+  onContinueToLogin,
+}: {
+  invitationToken: string;
+  onContinueToLogin: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [accepted, setAccepted] = useState(false);
+
+  const acceptInvitation = useMutation({
+    mutationFn: () =>
+      apiFetch<{ message: string }>("/company-users/accept-invitation", {
+        method: "POST",
+        body: JSON.stringify({ token: invitationToken, new_password: password }),
+      }),
+    onSuccess: () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("company_invite_token");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setAccepted(true);
+    },
+  });
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    setPasswordError("");
+    if (password !== passwordConfirmation) {
+      setPasswordError("As senhas não conferem.");
+      return;
+    }
+    acceptInvitation.mutate();
+  }
+
+  return (
+    <main className="min-h-screen bg-panel px-4 py-10 text-ink">
+      <section className="mx-auto max-w-xl space-y-5 rounded-lg border border-line bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.10)]">
+        <div className="flex items-center gap-3">
+          <div className="rounded-md bg-mint p-3 text-accent">
+            <MailCheck className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">{accepted ? "Convite aceito" : "Confirme seu e-mail"}</h1>
+            <p className="text-sm text-muted">Acesso à empresa no Gestivo</p>
+          </div>
+        </div>
+
+        {accepted ? (
+          <>
+            <p className="text-sm leading-6 text-muted">Seu e-mail foi confirmado e o acesso está ativo. Entre usando seu e-mail e a senha que acabou de criar.</p>
+            <Button onClick={onContinueToLogin} variant="premium">Ir para o login</Button>
+          </>
+        ) : (
+          <form className="space-y-4" onSubmit={submit}>
+            <p className="text-sm leading-6 text-muted">Confirme que você recebeu este convite criando sua senha. O acesso só será liberado depois desta etapa.</p>
+            <label className="field" htmlFor="invitation-password">
+              Criar senha
+              <input id="invitation-password" required minLength={8} maxLength={72} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            </label>
+            <label className="field" htmlFor="invitation-password-confirmation">
+              Confirmar senha
+              <input id="invitation-password-confirmation" required minLength={8} maxLength={72} type="password" autoComplete="new-password" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} />
+            </label>
+            {passwordError && <div className="alert-error" role="alert">{passwordError}</div>}
+            {acceptInvitation.error && (
+              <div className="alert-error" role="alert">
+                {acceptInvitation.error.message} Se o link expirou, peça um novo convite ao administrador da empresa.
+              </div>
+            )}
+            <Button className="w-full" disabled={acceptInvitation.isPending} variant="premium">
+              {acceptInvitation.isPending ? "Confirmando..." : "Confirmar e ativar acesso"}
+            </Button>
+          </form>
+        )}
+      </section>
+    </main>
+  );
+}
+
 function EmailVerificationScreen({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
   const [token, setTokenValue] = useState(() => new URLSearchParams(window.location.search).get("email_verification_token") ?? "");
@@ -988,6 +1080,10 @@ function SubscriptionBlocked({ subscription }: { subscription: Subscription }) {
 
 export default function App() {
   const [token, setCurrentToken] = useState(getToken());
+  const [invitationToken, setInvitationToken] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get("company_invite_token"),
+  );
+  const queryClient = useQueryClient();
   const me = useQuery({ queryKey: ["me", token], queryFn: () => apiFetch<User>("/auth/me"), enabled: Boolean(token) });
   const company = useQuery({
     queryKey: ["company"],
@@ -1002,9 +1098,21 @@ export default function App() {
     }
   }, [me.isError]);
 
+  const continueToLogin = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("company_invite_token");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    clearToken();
+    queryClient.clear();
+    setCurrentToken(null);
+    setInvitationToken(null);
+  }, [queryClient]);
+
   return (
     <TooltipProvider>
-      {!token ?(
+      {invitationToken ? (
+        <CompanyUserInvitationScreen invitationToken={invitationToken} onContinueToLogin={continueToLogin} />
+      ) : !token ?(
         <LoginScreen onAuthenticated={setCurrentToken} />
       ) : me.isLoading ?(
         <div className="screen-state">Carregando sessão...</div>

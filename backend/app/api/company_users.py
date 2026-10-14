@@ -10,13 +10,18 @@ from app.api.deps import require_company_admin
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.company_user import CompanyUserCreate
+from app.schemas.company_user import CompanyUserInvitationAccept
 from app.schemas.company_user import CompanyUserPasswordReset
 from app.schemas.company_user import CompanyUserResponse
 from app.schemas.company_user import CompanyUserStatusUpdate
+from app.schemas.auth import MessageResponse
+from app.services.email import EmailDeliveryError
 from app.services.company_user import CompanyUserError
+from app.services.company_user import accept_company_user_invitation
 from app.services.company_user import create_company_user
 from app.services.company_user import get_company_user
 from app.services.company_user import list_company_users
+from app.services.company_user import resend_company_user_invitation
 from app.services.company_user import reset_company_user_password
 from app.services.company_user import set_company_user_status
 
@@ -48,6 +53,18 @@ def list_users(
     return list_company_users(db, admin)
 
 
+@router.post("/accept-invitation", response_model=MessageResponse)
+def accept_invitation(
+    invitation: CompanyUserInvitationAccept,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    try:
+        accept_company_user_invitation(db, invitation.token, invitation.new_password)
+    except CompanyUserError as error:
+        _raise_company_user_error(error)
+    return MessageResponse(message="Convite aceito. Você já pode entrar com seu e-mail e senha.")
+
+
 @router.post("", response_model=CompanyUserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     user_in: CompanyUserCreate,
@@ -56,8 +73,32 @@ def create_user(
 ) -> User:
     try:
         return create_company_user(db, admin, user_in)
+    except EmailDeliveryError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Usuário criado como pendente, mas não foi possível enviar o convite. Verifique o envio de e-mails e tente reenviar.",
+        ) from error
     except CompanyUserError as error:
         _raise_company_user_error(error)
+
+
+@router.post("/{user_id}/resend-invitation", response_model=MessageResponse)
+def resend_invitation(
+    user_id: UUID,
+    admin: User = Depends(require_company_admin),
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    user = _get_user_or_404(db, admin, user_id)
+    try:
+        resend_company_user_invitation(db, user)
+    except EmailDeliveryError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Não foi possível enviar o convite. Verifique o envio de e-mails e tente novamente.",
+        ) from error
+    except CompanyUserError as error:
+        _raise_company_user_error(error)
+    return MessageResponse(message=f"Convite reenviado para {user.email}.")
 
 
 @router.patch("/{user_id}/status", response_model=CompanyUserResponse)

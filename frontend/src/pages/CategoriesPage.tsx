@@ -36,8 +36,8 @@ export function CategoriesPage({ canManage = true }: { canManage?: boolean }) {
   }
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[360px_1fr]">
-      <form className="panel space-y-4" onSubmit={onSubmit}>
+    <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)]">
+      <form className="panel min-w-0 space-y-4" onSubmit={onSubmit}>
         <h2 className="panel-title">Nova categoria</h2>
         <label className="field" htmlFor="category-name">
           Nome
@@ -51,34 +51,42 @@ export function CategoriesPage({ canManage = true }: { canManage?: boolean }) {
           </select>
         </label>
         {create.error && <div className="alert-error">{create.error.message}</div>}
-        <button className="btn-primary" disabled={create.isPending}>Salvar categoria</button>
+        <button className="btn-primary w-full sm:w-auto" disabled={create.isPending}>Salvar categoria</button>
       </form>
 
-      <div className="panel">
+      <div className="panel min-w-0">
         <div className="table-header">
           <h2 className="panel-title">Categorias</h2>
           {categories.isFetching && <span className="text-sm text-muted">Atualizando...</span>}
         </div>
         {categories.isError && <div className="alert-error">{categories.error.message}</div>}
-        <div className="table-wrap">
-          <table>
-            <thead>
+        {categories.isLoading ? (
+          <div className="screen-state mt-4">Carregando categorias...</div>
+        ) : categories.isError ? null :
+          (categories.data ?? []).length === 0 ? (
+          <div className="screen-state mt-4">
+            Nenhuma categoria cadastrada. Use o formulário para criar a primeira.
+          </div>
+        ) : (
+        <div className="table-wrap responsive-cards">
+          <table aria-label="Categorias financeiras">
+            <thead className="sr-only sm:not-sr-only">
               <tr>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Status</th>
-                <th></th>
+                <th scope="col">Nome</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Status</th>
+                <th scope="col">Ações</th>
               </tr>
             </thead>
             <tbody>
               {(categories.data ?? []).map((category) => (
                 <tr key={category.id}>
-                  <td>{category.name}</td>
-                  <td>{typeText(category.type)}</td>
-                  <td>{category.is_active ?"Ativa" : "Inativa"}</td>
-                  <td className="text-right">
+                  <td data-label="Nome" data-primary="true">{category.name}</td>
+                  <td data-label="Tipo">{typeText(category.type)}</td>
+                  <td data-label="Status">{category.is_active ?"Ativa" : "Inativa"}</td>
+                  <td data-actions className="text-right">
                     {canManage && category.is_active && (
-                      <button className="icon-btn" title="Desativar" onClick={() => remove.mutate(category.id)}>
+                      <button className="icon-btn" type="button" aria-label={`Desativar categoria: ${category.name}`} onClick={() => remove.mutate(category.id)}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
@@ -88,6 +96,7 @@ export function CategoriesPage({ canManage = true }: { canManage?: boolean }) {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </section>
   );
