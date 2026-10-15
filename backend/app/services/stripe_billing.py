@@ -265,7 +265,11 @@ def process_stripe_event(db: Session, event: Any) -> bool:
         raise ValueError("Evento Stripe inválido")
     if event_created is None:
         raise ValueError("Evento Stripe sem data válida")
-    if db.get(StripeWebhookEvent, event_id) is not None:
+    data = _value(event, "data", {})
+    resource = _value(data, "object", {})
+    existing_event = db.get(StripeWebhookEvent, event_id)
+    if existing_event is not None:
+        _recover_duplicate_subscription_created(db, existing_event, event_type, resource)
         return False
 
     event_record = StripeWebhookEvent(
@@ -370,7 +374,71 @@ def _remember_checkout(db: Session, session: Any, event_created: datetime) -> No
     ):
         return
     _copy_external_ids(company, _object_id(_value(session, "customer")), subscription_id)
-    company.stripe_subscription_event_created_at = event_created
+    
+
+
+def _recover_duplicate_subscription_created(
+    db: Session,
+    event_record: StripeWebhookEvent,
+    event_type: str,
+    subscription: Any,
+) -> None:
+    """Recover active subscriptions when an earlier replay was ignored as stale.
+
+    Checkout completion can arrive after subscription.created while carrying a
+    slightly newer Stripe event timestamp. Replays of subscription.created are
+    normally idempotent, but this narrow case reads Stripe's current snapshot and
+    repairs a pending company only when no subscription state was recorded yet.
+    """
+    if event_type != "customer.subscription.created" or event_record.company_id is not None:
+        return
+
+    metadata = _value(subscription, "metadata", {})
+    metadata_company_id = _value(metadata, "company_id")
+    subscription_id = _object_id(subscription)
+    customer_id = _object_id(_value(subscription, "customer"))
+    if not metadata_company_id or not subscription_id:
+        return
+
+    company = _find_company(
+        db,
+        company_id=metadata_company_id,
+        subscription_id=subscription_id,
+        customer_id=customer_id,
+    )
+    if (
+        company is None
+        or company.is_platform_company
+        or str(company.id) != str(metadata_company_id)
+        or company.subscription_status != SubscriptionStatus.pending_payment
+        or company.stripe_subscription_id != subscription_id
+        or (customer_id and company.stripe_customer_id != customer_id)
+    ):
+        return
+
+    client = StripeClient(_configured_api_key())
+    current_subscription = client.v1.subscriptions.retrieve(
+        subscription_id,
+        options={"stripe_version": STRIPE_API_VERSION},
+    )
+    current_metadata = _value(current_subscription, "metadata", {})
+    if (
+        _object_id(current_subscription) != subscription_id
+        or str(_value(current_metadata, "company_id", "")) != str(company.id)
+        or _value(current_subscription, "status") != "active"
+        or _object_id(_value(current_subscription, "customer")) != company.stripe_customer_id
+    ):
+        return
+
+    # The retrieval reflects Stripe's current state and supersedes delayed events.
+    _apply_subscription_snapshot(
+        db,
+        current_subscription,
+        "customer.subscription.updated",
+        datetime.now(UTC),
+    )
+    event_record.company_id = company.id
+    db.commit()
 
 
 def _remember_failed_checkout(db: Session, session: Any, event_created: datetime) -> None:
@@ -529,7 +597,9 @@ def _is_stale_event(company: Company, event_created: datetime) -> bool:
         return False
     if last_event.tzinfo is None:
         last_event = last_event.replace(tzinfo=UTC)
-    return event_created <= last_event.astimezone(UTC)
+    # Stripe timestamps have second precision. Distinct events from the same
+    # subscription can share a timestamp and must both be applied.
+    return event_created < last_event.astimezone(UTC)
 
 
 def _find_company(
@@ -615,6 +685,21 @@ def _subscription_item_period(subscription: Any, field: str) -> datetime | None:
 
 
 def _invoice_period_end(invoice: Any) -> datetime | None:
+    lines = _value(_value(invoice, "lines", {}), "data", []) or []
+    subscription_periods: list[datetime] = []
+    for line in lines:
+        period_end = _epoch_datetime(_value(_value(line, "period", {}), "end"))
+        if period_end is None:
+            continue
+        parent = _value(line, "parent", {})
+        subscription_item = _value(parent, "subscription_item_details", {})
+        if (
+            _object_id(_value(subscription_item, "subscription"))
+            or _object_id(_value(line, "subscription"))
+        ):
+            subscription_periods.append(period_end)
+    if subscription_periods:
+        return max(subscription_periods)
     direct = _epoch_datetime(_value(invoice, "period_end"))
     if direct is not None:
         return direct
