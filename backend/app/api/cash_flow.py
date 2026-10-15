@@ -8,6 +8,7 @@ from fastapi import Query
 from fastapi import status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_plan_feature
 from app.api.deps import require_valid_subscription
 from app.db.session import get_db
 from app.models.financial_transaction import FinancialTransaction
@@ -24,7 +25,11 @@ from app.services.cash_flow import get_cash_flow_entry
 from app.services.cash_flow import list_cash_flow_entries
 from app.services.cash_flow import update_cash_flow_entry
 
-router = APIRouter(prefix="/cash-flow", tags=["cash-flow"])
+router = APIRouter(
+    prefix="/cash-flow",
+    tags=["cash-flow"],
+    dependencies=[Depends(require_plan_feature("cashflow"))],
+)
 
 
 def _raise_validation_error(error: CashFlowValidationError) -> None:

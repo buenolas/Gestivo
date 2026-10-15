@@ -336,7 +336,7 @@ export function AdminClientsPage() {
                       Plano
                       <select id="detail-renew-plan" required value={renewForm.plan_id} onChange={(event) => setRenewForm({ ...renewForm, plan_id: event.target.value })}>
                         <option value="">Selecione</option>
-                        {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id}>{plan.name} - {money(plan.price)}</option>)}
+                        {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id} disabled={!plan.is_active}>{plan.name} - {money(plan.price)}</option>)}
                       </select>
                     </label>
                     <label className="field" htmlFor="detail-renew-date">
@@ -357,7 +357,7 @@ export function AdminClientsPage() {
                       Novo plano
                       <select id="detail-plan-change" required value={planChangeId} onChange={(event) => setPlanChangeId(event.target.value)}>
                         <option value="">Selecione</option>
-                        {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id}>{plan.name} - {money(plan.price)}</option>)}
+                        {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id} disabled={!plan.is_active}>{plan.name} - {money(plan.price)}</option>)}
                       </select>
                     </label>
                     {changePlan.error && <div className="alert-error">{changePlan.error.message}</div>}

@@ -17,6 +17,8 @@ class PlanResponse(BaseModel):
     billing_cycle: BillingCycle
     duration_months: int
     price: Decimal
+    feature_codes: list[str]
+    ai_daily_limit: int | None
     is_active: bool
     description: str | None
     created_at: datetime

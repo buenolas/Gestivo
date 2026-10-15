@@ -9,12 +9,17 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.dashboard import DashboardResponse
 from app.services.dashboard import get_financial_dashboard
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(
+    prefix="/reports",
+    tags=["reports"],
+    dependencies=[Depends(require_plan_feature("dashboard"))],
+)
 
 
 @router.get("/dashboard", response_model=DashboardResponse)

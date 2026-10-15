@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from fastapi import status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_plan_feature
 from app.api.deps import require_valid_subscription
 from app.db.session import get_db
 from app.models.financial_transaction import FinancialTransaction
@@ -20,7 +21,11 @@ from app.services.product_output import get_product_output
 from app.services.product_output import list_product_outputs
 from app.services.product_output import update_product_output
 
-router = APIRouter(prefix="/product-outputs", tags=["product-outputs"])
+router = APIRouter(
+    prefix="/product-outputs",
+    tags=["product-outputs"],
+    dependencies=[Depends(require_plan_feature("product_outputs"))],
+)
 
 
 def _raise_validation_error(error: ProductOutputValidationError) -> None:

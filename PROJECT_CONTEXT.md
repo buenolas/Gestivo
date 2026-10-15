@@ -40,7 +40,7 @@ O MVP deve evitar nichos que exijam complexidade fiscal, estoque avancado ou emi
 
 O MVP final deve estar pronto para deploy e uso real por clientes iniciais. Isso significa que
 o objetivo nao e apenas demonstrar telas em ambiente local, mas entregar um fluxo minimo
-operacional, com cadastro, trial, bloqueio, renovacao manual, dados isolados por empresa,
+operacional, com cadastro, trial, bloqueio, renovacao, dados isolados por empresa,
 dashboard, importacao, exportacao e documentacao de operacao.
 
 O MVP deve permitir que uma empresa:
@@ -58,7 +58,10 @@ O MVP deve permitir que uma empresa:
 - importe planilhas CSV/XLSX de ate 5 MB;
 - exporte lancamentos em CSV;
 - seja bloqueada nas rotas financeiras quando o trial ou assinatura vencer;
-- seja reativada manualmente por um platform admin apos pagamento confirmado fora da plataforma.
+- escolha entre quatro planos mensais e pague pelo Stripe Checkout hospedado;
+- tenha a assinatura liberada apenas apos confirmacao por webhook assinado do Stripe;
+- consulte faturas e atualize o meio de pagamento no portal hospedado do Stripe;
+- possa receber renovacao manual excepcional por um `platform_admin`.
 
 Para ser considerado pronto para clientes, o MVP tambem deve ter:
 
@@ -82,8 +85,7 @@ Nao implementar no MVP:
 - emissao de nota fiscal;
 - integracao bancaria;
 - conciliacao bancaria;
-- gateway de pagamento;
-- Stripe;
+- outros gateways de pagamento;
 - Mercado Pago;
 - Pix automatizado;
 - boleto;
@@ -103,6 +105,8 @@ Nao implementar no MVP:
 - exportacao Excel formatada.
 
 Qualquer expansao de escopo precisa de autorizacao explicita.
+
+Excecao autorizada em 2026-10-15: Stripe Billing/Checkout e Customer Portal para cobranca recorrente mensal dos quatro planos do Gestivo. O escopo fica limitado a Checkout hospedado, webhooks de assinatura e fatura, e portal hospedado; outros gateways, pagamentos avulsos ou automacoes de comunicacao continuam fora do MVP.
 
 ## 6. Diferencial: Importacao de Planilhas
 
@@ -184,7 +188,7 @@ Estado observado na auditoria de 2026-05-27:
 - PostgreSQL via Docker Compose configurado;
 - autenticacao JWT implementada;
 - cadastro self-service cria empresa e usuario `company_admin`;
-- trial de 30 dias e renovacao manual por `platform_admin` implementados de forma simplificada;
+- trial de 30 dias, Stripe Billing mensal e renovacao manual excepcional por `platform_admin`;
 - categorias financeiras implementadas;
 - lancamentos financeiros implementados;
 - contas a pagar e receber implementadas como visoes de lancamentos;
@@ -239,7 +243,8 @@ Renovacao manual:
 - sempre cria registro em `manual_payments`;
 - se a assinatura ainda estiver ativa, soma 30 dias ao vencimento atual;
 - se a assinatura estiver vencida, conta 30 dias a partir da data de pagamento ou confirmacao;
-- nao implementar gateway de pagamento no MVP.
+- a integracao recorrente do Stripe e a excecao explicitamente autorizada para cobranca no MVP;
+- nao adicionar outros gateways ou formas de pagamento automatizadas sem nova autorizacao.
 
 Datas financeiras:
 

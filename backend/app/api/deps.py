@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from uuid import UUID
 
 import jwt
@@ -13,6 +14,7 @@ from app.models.company import Company
 from app.models.user import User
 from app.models.user import UserRole
 from app.services.email_verification import can_access_customer_financial_routes
+from app.services.plan import get_company_plan
 from app.services.subscription import get_subscription_status
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -119,3 +121,26 @@ def require_platform_admin(
             detail="Apenas administradores da plataforma podem acessar este recurso.",
         )
     return current_user
+
+
+def require_plan_feature(feature_code: str) -> Callable[..., User]:
+    def dependency(
+        current_user: User = Depends(require_valid_subscription),
+        db: Session = Depends(get_db),
+    ) -> User:
+        company = db.get(Company, current_user.company_id)
+        if company is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Empresa não encontrada",
+            )
+
+        plan = get_company_plan(db, company)
+        if feature_code not in (plan.feature_codes or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="O plano atual não inclui este recurso.",
+            )
+        return current_user
+
+    return dependency

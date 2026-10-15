@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.company_user import CompanyUserCreate
@@ -45,7 +46,11 @@ def _raise_company_user_error(error: CompanyUserError) -> None:
     ) from error
 
 
-@router.get("", response_model=list[CompanyUserResponse])
+@router.get(
+    "",
+    response_model=list[CompanyUserResponse],
+    dependencies=[Depends(require_plan_feature("users"))],
+)
 def list_users(
     admin: User = Depends(require_company_admin),
     db: Session = Depends(get_db),
@@ -65,7 +70,12 @@ def accept_invitation(
     return MessageResponse(message="Convite aceito. Você já pode entrar com seu e-mail e senha.")
 
 
-@router.post("", response_model=CompanyUserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=CompanyUserResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_plan_feature("users"))],
+)
 def create_user(
     user_in: CompanyUserCreate,
     admin: User = Depends(require_company_admin),
@@ -82,7 +92,11 @@ def create_user(
         _raise_company_user_error(error)
 
 
-@router.post("/{user_id}/resend-invitation", response_model=MessageResponse)
+@router.post(
+    "/{user_id}/resend-invitation",
+    response_model=MessageResponse,
+    dependencies=[Depends(require_plan_feature("users"))],
+)
 def resend_invitation(
     user_id: UUID,
     admin: User = Depends(require_company_admin),
@@ -101,7 +115,11 @@ def resend_invitation(
     return MessageResponse(message=f"Convite reenviado para {user.email}.")
 
 
-@router.patch("/{user_id}/status", response_model=CompanyUserResponse)
+@router.patch(
+    "/{user_id}/status",
+    response_model=CompanyUserResponse,
+    dependencies=[Depends(require_plan_feature("users"))],
+)
 def update_user_status(
     user_id: UUID,
     status_in: CompanyUserStatusUpdate,
@@ -115,7 +133,11 @@ def update_user_status(
         _raise_company_user_error(error)
 
 
-@router.post("/{user_id}/reset-password", response_model=CompanyUserResponse)
+@router.post(
+    "/{user_id}/reset-password",
+    response_model=CompanyUserResponse,
+    dependencies=[Depends(require_plan_feature("users"))],
+)
 def reset_user_password(
     user_id: UUID,
     password_in: CompanyUserPasswordReset,

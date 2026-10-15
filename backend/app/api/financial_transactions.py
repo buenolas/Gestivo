@@ -8,6 +8,7 @@ from fastapi import Query
 from fastapi import status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_plan_feature
 from app.api.deps import require_valid_subscription
 from app.api.deps import require_company_admin
 from app.db.session import get_db
@@ -30,7 +31,11 @@ from app.services.financial_transaction import soft_delete_financial_transaction
 from app.services.financial_transaction import settle_financial_transaction
 from app.services.financial_transaction import update_financial_transaction
 
-router = APIRouter(prefix="/financial-transactions", tags=["financial-transactions"])
+router = APIRouter(
+    prefix="/financial-transactions",
+    tags=["financial-transactions"],
+    dependencies=[Depends(require_plan_feature("transactions"))],
+)
 
 
 def _get_user_transaction_or_404(

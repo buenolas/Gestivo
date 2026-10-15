@@ -32,9 +32,16 @@ export type Subscription = {
   company_id: string;
   status: SubscriptionStatus;
   is_valid: boolean;
+  can_manage_billing: boolean;
   trial_ends_at: string;
   subscription_valid_until: string | null;
   access_until: string | null;
+  plan_id: string | null;
+  plan_name: string | null;
+  plan_slug: string | null;
+  feature_codes: string[];
+  ai_daily_limit: number | null;
+  ai_interactions_used_today: number;
 };
 
 export type Company = {
@@ -66,6 +73,18 @@ export type AdminMetricCard = {
 export type AdminChartPoint = {
   label: string;
   value: number | string;
+};
+
+export type StripeRiskEvent = {
+  event_id: string;
+  event_type: "charge.refunded" | "charge.dispute.created" | "radar.early_fraud_warning.created";
+  event_created_at: string;
+  received_at: string;
+  company_id: string | null;
+  company_name: string | null;
+  stripe_object_id: string | null;
+  stripe_charge_id: string | null;
+  review_status: "open" | "reviewed";
 };
 
 export type AdminClientDashboard = {
@@ -148,10 +167,12 @@ export type BillingCycle = "monthly" | "semiannual" | "annual";
 export type Plan = {
   id: string;
   name: string;
-  slug: "monthly" | "semiannual" | "annual";
+  slug: "basic" | "intermediate" | "advanced" | "pro";
   billing_cycle: BillingCycle;
   duration_months: number;
   price: string;
+  feature_codes: string[];
+  ai_daily_limit: number | null;
   is_active: boolean;
   description: string | null;
   created_at: string;

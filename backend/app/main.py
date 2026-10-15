@@ -19,15 +19,18 @@ from app.api.contacts import router as contacts_router
 from app.api.employees import router as employees_router
 from app.api.exports import router as exports_router
 from app.api.financial_categories import router as financial_categories_router
+from app.api.financial_assistant import router as financial_assistant_router
 from app.api.financial_transactions import router as financial_transactions_router
 from app.api.import_batches import router as import_batches_router
 from app.api.payables import router as payables_router
+from app.api.plans import public_router as plans_public_router
 from app.api.plans import router as plans_admin_router
 from app.api.product_outputs import router as product_outputs_router
 from app.api.reports import router as reports_router
 from app.api.receivables import router as receivables_router
 from app.api.subscriptions import admin_router as subscription_admin_router
 from app.api.subscriptions import router as subscription_router
+from app.api.stripe_billing import router as stripe_billing_router
 from app.core.config import settings
 from app.db.session import get_db
 from app.services.subscription import expire_overdue_subscriptions
@@ -44,15 +47,18 @@ fastapi_app.include_router(contacts_router)
 fastapi_app.include_router(employees_router)
 fastapi_app.include_router(exports_router)
 fastapi_app.include_router(financial_categories_router)
+fastapi_app.include_router(financial_assistant_router)
 fastapi_app.include_router(financial_transactions_router)
 fastapi_app.include_router(import_batches_router)
 fastapi_app.include_router(payables_router)
 fastapi_app.include_router(plans_admin_router)
+fastapi_app.include_router(plans_public_router)
 fastapi_app.include_router(product_outputs_router)
 fastapi_app.include_router(receivables_router)
 fastapi_app.include_router(reports_router)
 fastapi_app.include_router(subscription_router)
 fastapi_app.include_router(subscription_admin_router)
+fastapi_app.include_router(stripe_billing_router)
 
 
 @fastapi_app.get("/health")

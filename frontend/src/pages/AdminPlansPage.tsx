@@ -14,6 +14,27 @@ function cycleText(cycle: Plan["billing_cycle"]) {
   return labels[cycle];
 }
 
+const featureLabels: Record<string, string> = {
+  dashboard: "Visão geral",
+  assistant: "Assistente financeiro",
+  cashflow: "Fluxo de caixa",
+  product_outputs: "Saída de produtos",
+  transactions: "Lançamentos",
+  payables: "A pagar",
+  receivables: "A receber",
+  categories: "Categorias",
+  imports: "Importação de planilhas",
+  employees: "Funcionários",
+  users: "Usuários da empresa",
+  contacts: "Contatos",
+};
+
+function aiLimitText(limit: number | null) {
+  if (limit === 0) return "Não incluída";
+  if (limit === null) return "Ilimitadas por dia";
+  return `${limit} interações por dia`;
+}
+
 type EditForm = {
   price: string;
   is_active: boolean;
@@ -90,13 +111,13 @@ export function AdminPlansPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
         {(plans.data ?? []).map((plan) => (
           <article key={plan.id} className="metric space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-ink">{plan.name}</h3>
-                <p className="text-sm text-muted">{cycleText(plan.billing_cycle)}</p>
+                <p className="text-sm text-muted">Cobrança {cycleText(plan.billing_cycle).toLowerCase()}</p>
               </div>
               <span
                 className={`rounded-md px-2 py-1 text-xs font-semibold ${
@@ -107,24 +128,26 @@ export function AdminPlansPage() {
               </span>
             </div>
             <div>
-              <p>Valor atual</p>
-              <strong>{money(plan.price)}</strong>
+              <p className="text-sm text-muted">Mensalidade</p>
+              <strong className="text-2xl">{money(plan.price)}<span className="ml-1 text-sm font-medium text-muted">/ mês</span></strong>
             </div>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <dt className="text-muted">Duracao</dt>
-                <dd className="font-medium">{plan.duration_months} mes(es)</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Atualizado em</dt>
-                <dd className="font-medium">{dateText(plan.updated_at)}</dd>
-              </div>
-              <div className="col-span-2">
-                <dt className="text-muted">Slug</dt>
-                <dd className="font-medium">{plan.slug}</dd>
-              </div>
-            </dl>
+            <div className="rounded-md border border-line bg-white px-3 py-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Assistente financeiro</p>
+              <p className="mt-1 text-sm font-semibold text-ink">{aiLimitText(plan.ai_daily_limit)}</p>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-semibold text-ink">Recursos incluídos</p>
+              <ul className="grid gap-1.5 text-sm text-muted">
+                {plan.feature_codes.map((feature) => (
+                  <li className="flex items-start gap-2" key={feature}>
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                    <span>{featureLabels[feature] ?? feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <p className="min-h-10 text-sm leading-5 text-muted">{plan.description ?? "-"}</p>
+            <p className="text-xs text-muted">Atualizado em {dateText(plan.updated_at)}</p>
             <button className="btn-secondary w-full" onClick={() => startEditing(plan)}>
               <Pencil className="h-4 w-4" />
               Editar

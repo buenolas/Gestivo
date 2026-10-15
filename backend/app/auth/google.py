@@ -27,6 +27,7 @@ def verify_google_id_token(token: str) -> GoogleUserInfo:
             token,
             requests.Request(),
             settings.google_client_id,
+            clock_skew_in_seconds=60,
         )
     except ValueError as exc:
         raise GoogleTokenError("Token Google invalido.") from exc

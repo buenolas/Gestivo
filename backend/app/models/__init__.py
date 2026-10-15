@@ -16,6 +16,7 @@ from app.models.manual_payment import ManualPayment
 from app.models.manual_payment import PaymentStatus
 from app.models.plan import BillingCycle
 from app.models.plan import Plan
+from app.models.stripe_webhook_event import StripeWebhookEvent
 from app.models.user import User
 from app.models.user import UserRole
 from app.models.usage_event import UsageEvent
@@ -40,6 +41,7 @@ __all__ = [
     "PaymentStatus",
     "BillingCycle",
     "Plan",
+    "StripeWebhookEvent",
     "User",
     "UserRole",
     "UsageEvent",

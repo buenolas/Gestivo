@@ -27,6 +27,7 @@ class UsageEventType(str, enum.Enum):
     subscription_canceled = "subscription_canceled"
     subscription_reactivated = "subscription_reactivated"
     plan_changed = "plan_changed"
+    assistant_interaction = "assistant_interaction"
 
 
 class UsageEvent(Base):

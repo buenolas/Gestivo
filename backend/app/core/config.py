@@ -36,6 +36,23 @@ class Settings(BaseSettings):
     brevo_api_key_file: str = ""
     brevo_api_url: str = "https://api.brevo.com/v3/smtp/email"
     google_client_id: str = ""
+    openai_api_key: str = ""
+    openai_model: str = "gpt-6-luna"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_billing_portal_configuration_id: str = ""
+    stripe_price_id_basic: str = ""
+    stripe_price_id_intermediate: str = ""
+    stripe_price_id_advanced: str = ""
+    stripe_price_id_pro: str = ""
+
+    def stripe_price_id_for_plan(self, plan_slug: str) -> str:
+        return {
+            "basic": self.stripe_price_id_basic,
+            "intermediate": self.stripe_price_id_intermediate,
+            "advanced": self.stripe_price_id_advanced,
+            "pro": self.stripe_price_id_pro,
+        }.get(plan_slug, "").strip()
 
     @field_validator(
         "access_token_expire_minutes",

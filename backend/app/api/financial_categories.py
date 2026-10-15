@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from fastapi import status
 from sqlalchemy.orm import Session
 
+from app.api.deps import require_plan_feature
 from app.api.deps import require_valid_subscription
 from app.api.deps import require_company_admin
 from app.db.session import get_db
@@ -21,7 +22,11 @@ from app.services.financial_category import get_financial_category
 from app.services.financial_category import list_financial_categories
 from app.services.financial_category import update_financial_category
 
-router = APIRouter(prefix="/financial-categories", tags=["financial-categories"])
+router = APIRouter(
+    prefix="/financial-categories",
+    tags=["financial-categories"],
+    dependencies=[Depends(require_plan_feature("categories"))],
+)
 
 
 def _get_user_category_or_404(

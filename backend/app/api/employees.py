@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.api.deps import require_valid_subscription
 from app.db.session import get_db
 from app.models.employee import Employee
@@ -25,7 +26,11 @@ from app.services.employees import list_employees
 from app.services.employees import update_employee
 from app.services.payroll import generate_monthly_salary_expenses
 
-router = APIRouter(prefix="/employees", tags=["employees"])
+router = APIRouter(
+    prefix="/employees",
+    tags=["employees"],
+    dependencies=[Depends(require_plan_feature("employees"))],
+)
 
 
 def _get_user_employee_or_404(

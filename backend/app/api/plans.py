@@ -17,6 +17,12 @@ from app.services.plan import list_plans
 from app.services.plan import update_plan
 
 router = APIRouter(prefix="/admin/plans", tags=["admin-plans"])
+public_router = APIRouter(prefix="/plans", tags=["plans"])
+
+
+@public_router.get("", response_model=list[PlanResponse])
+def list_public_plans(db: Session = Depends(get_db)) -> list[PlanResponse]:
+    return [plan for plan in list_plans(db) if plan.is_active]
 
 
 @router.get("", response_model=list[PlanResponse])

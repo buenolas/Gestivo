@@ -10,6 +10,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.db.session import get_db
 from app.models.import_batch import ImportBatch
 from app.models.user import User
@@ -25,7 +26,11 @@ from app.services.import_batch import create_import_batch
 from app.services.import_batch import get_import_batch
 from app.services.import_batch import validate_import_batch
 
-router = APIRouter(prefix="/imports/financial-transactions", tags=["imports"])
+router = APIRouter(
+    prefix="/imports/financial-transactions",
+    tags=["imports"],
+    dependencies=[Depends(require_plan_feature("imports"))],
+)
 
 
 def _raise_validation_error(error: ImportBatchValidationError) -> None:

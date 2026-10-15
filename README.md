@@ -50,7 +50,7 @@ O sistema permite importar arquivos CSV ou XLSX de ate 5 MB, ajudando o cliente 
 
 ### Controle por assinatura simples
 
-Cada empresa inicia com trial gratuito de 30 dias. Quando o trial ou a assinatura vence, o login continua funcionando, mas as rotas financeiras sao bloqueadas ate a renovacao manual por um administrador da plataforma.
+Cada empresa inicia com trial gratuito de 30 dias. Depois do trial, o administrador da empresa escolhe um plano mensal e paga pelo Stripe Checkout. O login continua funcionando enquanto a assinatura aguarda pagamento, mas as rotas financeiras só são liberadas após confirmação por webhook assinado do Stripe. O administrador também pode acessar faturas e atualizar o meio de pagamento pelo portal hospedado do Stripe.
 
 ### Dados isolados por empresa
 
@@ -73,6 +73,8 @@ Funcionalidades principais:
 - recuperacao de senha por codigo enviado por e-mail;
 - onboarding com dados iniciais da empresa;
 - bloqueio das funcionalidades financeiras quando a assinatura nao esta valida;
+- escolha de plano mensal e renovacao automatica pelo Stripe Billing;
+- consulta de faturas e atualizacao de pagamento pelo portal do Stripe;
 - renovacao manual de acesso por `platform_admin`;
 - categorias financeiras;
 - lancamentos financeiros de entrada e saida;
@@ -93,9 +95,7 @@ Para manter o produto focado, os itens abaixo nao fazem parte da proposta inicia
 - emissao de nota fiscal;
 - integracao bancaria;
 - conciliacao bancaria;
-- gateway de pagamento;
-- Stripe, Mercado Pago, Pix automatico, boleto ou cartao de credito;
-- webhook de pagamento;
+- outros gateways de pagamento, Mercado Pago, Pix automatico, boleto ou cartao de credito;
 - folha de pagamento;
 - estoque avancado;
 - integracao contabil;
@@ -133,7 +133,7 @@ Empresas que ja possuem uma planilha podem importar os dados para reduzir trabal
 
 ### Renovacao
 
-Ao fim do trial ou da assinatura, o usuario continua conseguindo entrar no sistema, mas o acesso financeiro fica bloqueado. A liberacao acontece manualmente pela area administrativa da plataforma apos confirmacao externa do pagamento.
+Ao fim do trial ou da assinatura, o usuario continua conseguindo entrar no sistema, mas o acesso financeiro fica bloqueado. O administrador da empresa escolhe um dos quatro planos mensais e conclui o pagamento no Stripe Checkout. O acesso só e liberado quando o webhook assinado confirma o estado da assinatura. O portal de cobranca do Stripe permite consultar faturas e atualizar o meio de pagamento. A renovacao manual por `platform_admin` permanece disponivel para operacao excepcional.
 
 ---
 
@@ -333,7 +333,9 @@ Quando uma assinatura vence:
 - o cliente continua conseguindo fazer login;
 - o acesso financeiro fica bloqueado;
 - o status pode ir para `pending_payment`;
-- a renovacao acontece manualmente apos pagamento confirmado fora da plataforma.
+- o administrador da empresa pode iniciar o Checkout mensal do Stripe;
+- a liberacao acontece apos confirmacao por webhook assinado;
+- o `platform_admin` ainda pode registrar uma renovacao manual quando necessario.
 
 Passo a passo do administrador:
 
@@ -424,6 +426,7 @@ O MVP sera considerado bem-sucedido se clientes iniciais conseguirem:
 - acompanhar contas a pagar e receber;
 - importar uma planilha simples com seguranca;
 - exportar seus dados em CSV;
+- escolher um plano e concluir a renovacao mensal sem suporte manual;
 - perceber mais clareza do caixa em comparacao com a planilha anterior;
 - renovar acesso manualmente com apoio do operador da plataforma.
 
@@ -491,6 +494,19 @@ Variaveis locais essenciais:
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `JWT_SECRET_KEY`
+- `OPENAI_API_KEY` para habilitar o Assistente financeiro local
+- `OPENAI_MODEL` (opcional; o padrao e `gpt-6-luna`)
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e os quatro `STRIPE_PRICE_ID_*` para habilitar cobranca mensal no ambiente de teste.
+
+Veja [docs/STRIPE.md](docs/STRIPE.md) para cadastrar os Price IDs de teste, configurar o webhook e saber onde preencher as chaves. A chave publicavel nao e usada pelo Checkout hospedado. Mantenha chaves secretas somente no `.env` local ou em um gerenciador de segredos; nunca no frontend ou em arquivos versionados.
+
+A chave da OpenAI deve ficar apenas no `.env`, que nao deve ser versionado. O Assistente consulta os dados financeiros da empresa autenticada em modo somente leitura. Usuarios com acesso limitado consultam apenas os lancamentos criados por eles.
+
+Depois de adicionar a chave, atualize as variaveis do container com:
+
+```bash
+docker compose up -d --force-recreate backend
+```
 
 Subir containers:
 

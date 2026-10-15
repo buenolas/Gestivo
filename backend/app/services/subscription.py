@@ -19,6 +19,8 @@ from app.schemas.subscription import AdminCompanySubscriptionResponse
 from app.schemas.subscription import ManualRenewalCreate
 from app.schemas.subscription import SubscriptionStatusResponse
 from app.services.plan import get_plan_by_slug
+from app.services.plan import get_company_plan
+from app.services.assistant_usage import assistant_interactions_today
 from app.services.usage_event import record_usage_event
 
 TRIAL_DAYS = 30
@@ -95,15 +97,30 @@ def is_subscription_valid(company: Company) -> bool:
     )
 
 
-def get_subscription_status(db: Session, company: Company) -> SubscriptionStatusResponse:
+def get_subscription_status(
+    db: Session,
+    company: Company,
+    *,
+    include_plan: bool = True,
+) -> SubscriptionStatusResponse:
     company = refresh_subscription_status(db, company)
+    plan = get_company_plan(db, company) if include_plan else None
     return SubscriptionStatusResponse(
         company_id=company.id,
         status=company.subscription_status,
         is_valid=is_subscription_valid(company),
+        can_manage_billing=bool(company.stripe_customer_id),
         trial_ends_at=company.trial_ends_at,
         subscription_valid_until=company.subscription_valid_until,
         access_until=get_access_until(company),
+        plan_id=plan.id if plan is not None else None,
+        plan_name=plan.name if plan is not None else None,
+        plan_slug=plan.slug if plan is not None else None,
+        feature_codes=list(plan.feature_codes or []) if plan is not None else [],
+        ai_daily_limit=plan.ai_daily_limit if plan is not None else None,
+        ai_interactions_used_today=(
+            assistant_interactions_today(db, company.id) if include_plan else 0
+        ),
     )
 
 
@@ -115,7 +132,7 @@ def list_admin_company_subscriptions(db: Session) -> list[AdminCompanySubscripti
     )
     return [
         AdminCompanySubscriptionResponse(
-            **get_subscription_status(db, company).model_dump(),
+            **get_subscription_status(db, company, include_plan=False).model_dump(),
             company_name=company.name,
             current_plan_id=company.current_plan_id,
             current_plan_name=company.current_plan.name if company.current_plan else None,
@@ -249,7 +266,7 @@ def _resolve_renewal_plan(
     elif company.current_plan_id is not None:
         plan = db.get(Plan, company.current_plan_id)
         if plan is None:
-            plan = get_plan_by_slug(db, "monthly")
+            plan = get_plan_by_slug(db, "basic")
     else:
         plan = None
 

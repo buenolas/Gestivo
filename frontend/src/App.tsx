@@ -20,6 +20,7 @@ import {
   RefreshCw,
   PackagePlus,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   UsersRound,
   X,
@@ -37,8 +38,12 @@ import { ImportsPage } from "./pages/ImportsPage";
 import { AdminClientsPage } from "./pages/AdminClientsPage";
 import { AdminPlansPage } from "./pages/AdminPlansPage";
 import { AdminFinancialPage } from "./pages/AdminFinancialPage";
+import { AdminStripeRiskEventsPage } from "./pages/AdminStripeRiskEventsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { CompanyUsersPage } from "./pages/CompanyUsersPage";
+import { FinancialAssistantPage } from "./pages/FinancialAssistantPage";
+import { SubscriptionPage } from "./pages/SubscriptionPage";
+import { SubscriptionCheckout } from "./components/SubscriptionCheckout";
 import { brandAssets } from "./assets/brand";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +52,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 type PageKey =
   | "dashboard"
+  | "assistant"
   | "cashflow"
   | "productOutputs"
   | "categories"
@@ -56,7 +62,10 @@ type PageKey =
   | "transactions"
   | "payables"
   | "receivables"
-  | "imports";
+  | "imports"
+  | "plans";
+
+type AdminPageKey = "financial" | "clients" | "plans" | "stripe-risk";
 
 const pages: Array<{
   key: PageKey;
@@ -65,6 +74,7 @@ const pages: Array<{
   icon: typeof LayoutDashboard;
 }> = [
   { key: "dashboard", label: "Visão geral", description: "Indicadores do mês", icon: LayoutDashboard },
+  { key: "assistant", label: "Assistente financeiro", description: "Pergunte sobre seu negócio", icon: Sparkles },
   { key: "cashflow", label: "Fluxo de caixa", description: "Caixa realizado", icon: CircleDollarSign },
   { key: "productOutputs", label: "Saída de produtos", description: "Valores a receber", icon: PackagePlus },
   { key: "transactions", label: "Lançamentos", description: "Entradas e saídas", icon: ReceiptText },
@@ -75,20 +85,23 @@ const pages: Array<{
   { key: "employees", label: "Funcionários", description: "Despesas salariais", icon: UsersRound },
   { key: "users", label: "Usuários", description: "Acesso da empresa", icon: UsersRound },
   { key: "contacts", label: "Contatos", description: "Contrapartes", icon: Building2 },
+  { key: "plans", label: "Plano e assinatura", description: "Upgrade e cobrança", icon: CreditCard },
 ];
 
 const sidebarSections: Array<{
   label: string;
   pageKeys: PageKey[];
 }> = [
-  { label: "Principal", pageKeys: ["dashboard", "cashflow"] },
+  { label: "Principal", pageKeys: ["dashboard", "assistant", "cashflow"] },
   { label: "Financeiro", pageKeys: ["transactions", "payables", "receivables", "categories"] },
   { label: "Operação", pageKeys: ["productOutputs", "imports"] },
   { label: "Administração", pageKeys: ["employees", "users", "contacts"] },
+  { label: "Conta", pageKeys: ["plans"] },
 ];
 
 const financialPages = new Set<PageKey>([
   "dashboard",
+  "assistant",
   "cashflow",
   "productOutputs",
   "categories",
@@ -98,7 +111,24 @@ const financialPages = new Set<PageKey>([
   "payables",
   "receivables",
   "imports",
+  "contacts",
 ]);
+
+const pageFeatureCodes: Record<PageKey, string> = {
+  dashboard: "dashboard",
+  assistant: "assistant",
+  cashflow: "cashflow",
+  productOutputs: "product_outputs",
+  categories: "categories",
+  contacts: "contacts",
+  employees: "employees",
+  users: "users",
+  transactions: "transactions",
+  payables: "payables",
+  receivables: "receivables",
+  imports: "imports",
+  plans: "",
+};
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -597,19 +627,52 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   const [activePage, setActivePage] = useState<PageKey>(pageFromHash);
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user.role === "company_admin";
+  const [checkoutReturn] = useState<"success" | "cancelled" | null>(() => {
+    const result = new URLSearchParams(window.location.search).get("checkout");
+    return result === "success" || result === "cancelled" ? result : null;
+  });
+  const [checkoutPollExpired, setCheckoutPollExpired] = useState(false);
+  const subscription = useQuery({
+    queryKey: ["subscription-status"],
+    queryFn: () => apiFetch<Subscription>("/subscription/status"),
+    refetchInterval: (query) =>
+      checkoutReturn === "success" && !query.state.data?.is_valid && !checkoutPollExpired ? 3000 : false,
+  });
+  const company = useQuery({ queryKey: ["company"], queryFn: () => apiFetch<Company>("/companies/me") });
+  const billingPortal = useMutation({
+    mutationFn: () =>
+      apiFetch<{ url: string }>("/subscription/billing-portal", {
+        method: "POST",
+      }),
+    onSuccess: ({ url }) => window.location.assign(url),
+  });
+
+  useEffect(() => {
+    if (!checkoutReturn) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [checkoutReturn]);
+
+  useEffect(() => {
+    if (checkoutReturn !== "success" || subscription.data?.is_valid) return;
+    const timeout = window.setTimeout(() => setCheckoutPollExpired(true), 120_000);
+    return () => window.clearTimeout(timeout);
+  }, [checkoutReturn, subscription.data?.is_valid]);
   const visiblePages = useMemo(
-    () =>
-      isAdmin
+    () => {
+      const rolePages = isAdmin
         ? pages
         : pages.filter((page) =>
-            ["cashflow", "productOutputs", "transactions", "categories", "contacts"].includes(
-              page.key,
-            ),
-          ),
-    [isAdmin],
+            ["assistant", "cashflow", "productOutputs", "transactions", "categories", "contacts"].includes(page.key),
+          );
+      const features = subscription.data?.feature_codes;
+      return features
+        ? rolePages.filter((page) => page.key === "plans" || features.includes(pageFeatureCodes[page.key]))
+        : rolePages;
+    },
+    [isAdmin, subscription.data?.feature_codes],
   );
-  const subscription = useQuery({ queryKey: ["subscription-status"], queryFn: () => apiFetch<Subscription>("/subscription/status") });
-  const company = useQuery({ queryKey: ["company"], queryFn: () => apiFetch<Company>("/companies/me") });
 
   useEffect(() => {
     const syncPage = () => {
@@ -629,6 +692,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
   const activeMeta = useMemo(() => pages.find((page) => page.key === activePage) ?? pages[0], [activePage]);
   const content = {
     dashboard: <DashboardPage />,
+    assistant: <FinancialAssistantPage />,
     cashflow: <CashFlowPage user={user} />,
     productOutputs: <ProductOutputsPage user={user} />,
     categories: <CategoriesPage canManage={isAdmin} />,
@@ -639,10 +703,15 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     payables: <AccountViewPage kind="payables" />,
     receivables: <AccountViewPage kind="receivables" />,
     imports: <ImportsPage />,
+    plans: subscription.data
+      ? <SubscriptionPage subscription={subscription.data} canManage={isAdmin} />
+      : <div className="screen-state">Verificando assinatura...</div>,
   }[activePage];
   const isFinancialPage = financialPages.has(activePage);
   const shouldBlockFinancialPage = isFinancialPage && subscription.data !== undefined && !subscription.data.is_valid;
-  const shellContent = shouldBlockFinancialPage ?<SubscriptionBlocked subscription={subscription.data!} /> : content;
+  const shellContent = shouldBlockFinancialPage
+    ? <SubscriptionBlocked subscription={subscription.data!} canManage={isAdmin} />
+    : content;
 
   function navigate(page: PageKey) {
     window.location.hash = `/${page}`;
@@ -680,6 +749,17 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
               </div>
             </div>
             {subscription.data && <SubscriptionBadge subscription={subscription.data} />}
+            {isAdmin && subscription.data?.can_manage_billing && (
+              <Button
+                className="shrink-0"
+                size="sm"
+                variant="secondary"
+                disabled={billingPortal.isPending}
+                onClick={() => billingPortal.mutate()}
+              >
+                {billingPortal.isPending ? "Abrindo..." : "Faturas e pagamento"}
+              </Button>
+            )}
             <div className="hidden shrink-0 text-right sm:block">
               <p className="text-sm font-semibold text-ink">{user.name}</p>
               <p className="text-xs text-muted">{user.email}</p>
@@ -699,7 +779,23 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-3 py-5 sm:px-4 md:px-6">
-          {subscription.isLoading && isFinancialPage ?<div className="screen-state">Verificando assinatura...</div> : shellContent}
+          {checkoutReturn && (
+            <div className="mb-4 rounded-lg border border-line bg-white p-4 text-sm leading-6 text-ink" role="status">
+              {checkoutReturn === "cancelled"
+                ? "Checkout cancelado. Nenhuma cobrança foi confirmada."
+                : subscription.data?.is_valid
+                  ? "A assinatura foi confirmada pelo Gestivo e o acesso está liberado."
+                  : checkoutPollExpired
+                    ? "Ainda aguardamos a confirmação do Stripe. Atualize esta página em instantes."
+                    : "Recebemos seu retorno do Checkout. Aguardando a confirmação segura do Stripe..."}
+            </div>
+          )}
+          {billingPortal.error && <div className="alert-error mb-4">{billingPortal.error.message}</div>}
+          {subscription.isError && activePage === "plans"
+            ? <div className="alert-error">{subscription.error.message}</div>
+            : subscription.isLoading && (isFinancialPage || activePage === "plans")
+              ? <div className="screen-state">Verificando assinatura...</div>
+              : shellContent}
         </main>
       </div>
     </div>
@@ -778,19 +874,26 @@ function SidebarContactInfo() {
 
 function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const [activePage, setActivePage] = useState<"financial" | "clients" | "plans">("financial");
+  const [activePage, setActivePage] = useState<AdminPageKey>(() =>
+    window.location.pathname === "/admin/stripe/risk-events" ? "stripe-risk" : "financial",
+  );
   const [menuOpen, setMenuOpen] = useState(false);
 
   const adminPages = [
     { key: "financial" as const, label: "Financeiro", description: "Receita e assinaturas", icon: CircleDollarSign },
     { key: "clients" as const, label: "Clientes", description: "Base e risco", icon: ShieldCheck },
     { key: "plans" as const, label: "Planos", description: "Valores e status", icon: CreditCard },
+    { key: "stripe-risk" as const, label: "Alertas Stripe", description: "Revisão de pagamentos", icon: ShieldAlert },
   ];
   const activeAdminPage = adminPages.find((page) => page.key === activePage) ?? adminPages[0];
 
-  function navigate(page: "financial" | "clients" | "plans") {
+  function navigate(page: AdminPageKey) {
     setActivePage(page);
     setMenuOpen(false);
+    const targetPath = page === "stripe-risk" ? "/admin/stripe/risk-events" : "/";
+    if (window.location.pathname !== targetPath) {
+      window.history.replaceState({}, "", `${targetPath}${window.location.search}`);
+    }
   }
 
   const sidebar = <AdminSidebarNavigation pages={adminPages} activePage={activePage} navigate={navigate} />;
@@ -843,6 +946,7 @@ function AdminShell({ user, onLogout }: { user: User; onLogout: () => void }) {
           {activePage === "financial" && <AdminFinancialPage />}
           {activePage === "clients" && <AdminClientsPage />}
           {activePage === "plans" && <AdminPlansPage />}
+          {activePage === "stripe-risk" && <AdminStripeRiskEventsPage />}
         </main>
       </div>
     </div>
@@ -855,13 +959,13 @@ function AdminSidebarNavigation({
   navigate,
 }: {
   pages: Array<{
-    key: "financial" | "clients" | "plans";
+    key: AdminPageKey;
     label: string;
     description: string;
     icon: typeof CircleDollarSign;
   }>;
-  activePage: "financial" | "clients" | "plans";
-  navigate: (page: "financial" | "clients" | "plans") => void;
+  activePage: AdminPageKey;
+  navigate: (page: AdminPageKey) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -1067,13 +1171,19 @@ function SubscriptionBadge({ subscription }: { subscription: Subscription }) {
   );
 }
 
-function SubscriptionBlocked({ subscription }: { subscription: Subscription }) {
+function SubscriptionBlocked({ subscription, canManage }: { subscription: Subscription; canManage: boolean }) {
   return (
-    <section className="panel max-w-2xl space-y-3">
+    <section className="panel max-w-4xl space-y-3">
       <Badge variant="warning">{subscriptionStatusText(subscription.status)}</Badge>
-      <h2 className="panel-title">Seu período gratuito terminou.</h2>
-      <p className="text-sm leading-6 text-muted">Para continuar usando o sistema, realize o pagamento da assinatura.</p>
-      <p className="text-sm leading-6 text-muted">Entre em contato para liberação.</p>
+      <h2 className="panel-title">
+        {subscription.status === "trialing" ? "Seu período gratuito terminou." : "A assinatura não está ativa."}
+      </h2>
+      <p className="text-sm leading-6 text-muted">
+        {subscription.status === "blocked"
+          ? "O acesso foi bloqueado pelo administrador da plataforma. Entre em contato com o suporte."
+          : "Para continuar usando as áreas financeiras, escolha um plano mensal."}
+      </p>
+      {subscription.status !== "blocked" && <SubscriptionCheckout canManage={canManage} />}
     </section>
   );
 }

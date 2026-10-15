@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.db.session import get_db
 from app.exports.financial_transactions import export_financial_transactions_csv
 from app.models.financial_transaction import FinancialTransactionPaymentMethod
@@ -15,7 +16,11 @@ from app.models.financial_transaction import FinancialTransactionStatus
 from app.models.financial_transaction import FinancialTransactionType
 from app.models.user import User
 
-router = APIRouter(prefix="/exports", tags=["exports"])
+router = APIRouter(
+    prefix="/exports",
+    tags=["exports"],
+    dependencies=[Depends(require_plan_feature("transactions"))],
+)
 
 
 @router.get("/financial-transactions.csv")

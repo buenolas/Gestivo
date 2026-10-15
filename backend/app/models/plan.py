@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import Boolean
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
+from sqlalchemy import JSON
 from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import String
@@ -45,6 +46,8 @@ class Plan(Base):
         nullable=False,
         default=Decimal("0.00"),
     )
+    feature_codes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    ai_daily_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

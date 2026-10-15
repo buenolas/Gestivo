@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.db.session import get_db
 from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionStatus
@@ -20,7 +21,11 @@ from app.services.account_view import list_account_view_transactions
 from app.services.account_view import settle_account_view_transaction
 from app.services.financial_transaction import FinancialTransactionValidationError
 
-router = APIRouter(prefix="/receivables", tags=["receivables"])
+router = APIRouter(
+    prefix="/receivables",
+    tags=["receivables"],
+    dependencies=[Depends(require_plan_feature("receivables"))],
+)
 
 
 def _get_user_receivable_or_404(

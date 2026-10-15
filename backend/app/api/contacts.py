@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_company_admin
+from app.api.deps import require_plan_feature
 from app.api.deps import require_valid_subscription
 from app.db.session import get_db
 from app.models.contact import Contact
@@ -20,7 +21,11 @@ from app.services.contact import get_contact
 from app.services.contact import list_contacts
 from app.services.contact import update_contact
 
-router = APIRouter(prefix="/contacts", tags=["contacts"])
+router = APIRouter(
+    prefix="/contacts",
+    tags=["contacts"],
+    dependencies=[Depends(require_plan_feature("contacts"))],
+)
 
 
 def _get_user_contact_or_404(

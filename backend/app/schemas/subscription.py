@@ -16,9 +16,16 @@ class SubscriptionStatusResponse(BaseModel):
     company_id: UUID
     status: SubscriptionStatus
     is_valid: bool
+    can_manage_billing: bool = False
     trial_ends_at: datetime
     subscription_valid_until: datetime | None
     access_until: datetime | None
+    plan_id: UUID | None = None
+    plan_name: str | None = None
+    plan_slug: str | None = None
+    feature_codes: list[str] = Field(default_factory=list)
+    ai_daily_limit: int | None = None
+    ai_interactions_used_today: int = 0
 
 
 class AdminCompanySubscriptionResponse(SubscriptionStatusResponse):
