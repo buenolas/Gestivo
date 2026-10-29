@@ -20,7 +20,7 @@ html {
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   margin: 0;
   background:
     linear-gradient(180deg, rgba(221, 247, 236, 0.55), rgba(248, 250, 252, 0) 380px),
@@ -292,4 +292,26 @@ tbody tr {
   .table-wrap.responsive-cards table tbody td.text-right {
     text-align: start;
   }
+}
+
+.landing-dashboard-preview .dashboard-preview-period {
+  display: none;
+}
+
+.landing-dashboard-preview .dashboard-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.landing-dashboard-preview .dashboard-metrics > :nth-child(n + 4) {
+  display: none;
+}
+
+.landing-dashboard-preview .dashboard-metrics .metric {
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+.landing-dashboard-preview .dashboard-metrics .metric strong {
+  font-size: 1rem;
 }

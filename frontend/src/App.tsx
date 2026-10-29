@@ -28,6 +28,8 @@ import {
 import { apiFetch, clearToken, getToken, setToken } from "./api";
 import type { Company, Subscription, User } from "./types";
 import { DashboardPage } from "./pages/DashboardPage";
+import { landingDashboard } from "./landingDashboard";
+import { PublicInfoPage } from "./pages/PublicInfoPage";
 import { CashFlowPage } from "./pages/CashFlowPage";
 import { ProductOutputsPage } from "./pages/ProductOutputsPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
@@ -283,7 +285,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
         size: "large",
         text: mode === "login" ?"signin_with" : "signup_with",
         locale: "pt-BR",
-        width: element.clientWidth || 360,
+        width: Math.max(120, Math.min(element.clientWidth || 360, 400)),
       });
     },
     [googleReady, mode],
@@ -335,16 +337,51 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
   }
 
   return (
-    <main className="min-h-screen bg-panel px-4 py-6 text-ink md:py-10">
-      <section className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl overflow-hidden rounded-lg border border-line bg-white shadow-[0_30px_90px_rgba(15,23,42,0.10)] lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[1.2fr_460px]">
-        <div className="relative flex min-h-[420px] flex-col justify-between overflow-hidden bg-ink p-6 text-white sm:p-8 md:p-12 lg:min-h-[560px]">
+    <main className="min-h-screen bg-[#f7f9f7] text-ink">
+      <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-2 gap-y-4 px-6 py-5 sm:gap-x-4 sm:py-6 lg:px-10">
+        <BrandLogo />
+        <nav aria-label="Navegação principal" className="order-last flex w-full items-center justify-between gap-3 text-xs font-medium text-slate-600 sm:justify-start sm:gap-6 sm:text-sm md:order-none md:w-auto md:gap-8">
+          <a className="hover:text-ink" href="#recursos">O que você encontra</a>
+          <a className="hover:text-ink" href="#assistente">Assistente financeiro</a>
+        </nav>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <a className="whitespace-nowrap text-xs font-semibold text-ink hover:text-emerald-700 sm:text-sm" href="#acesso" onClick={() => switchMode("login")}>Entrar</a>
+          <a className="whitespace-nowrap rounded-full bg-ink px-2 py-2.5 text-xs font-semibold text-white hover:bg-slate-700 sm:px-5 sm:py-3 sm:text-sm" href="#acesso" onClick={() => switchMode("register")}>Criar conta <span className="hidden sm:inline" aria-hidden="true">↗</span></a>
+        </div>
+      </header>
+
+      <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 pb-20 pt-12 lg:grid-cols-[0.9fr_1.1fr] lg:px-10 lg:pb-28 lg:pt-20">
+        <div>
+          <h1 className="mt-7 max-w-2xl text-5xl font-bold leading-[1.04] tracking-[-0.04em] text-ink sm:text-6xl xl:text-7xl">Seu financeiro, com clareza para ir <span className="text-emerald-600">mais longe.</span></h1>
+          <p className="mt-7 max-w-xl text-lg leading-8 text-slate-600">Saiba de onde vem e para onde vai o dinheiro da sua empresa. Organize o dia a dia, acompanhe o caixa e tome decisões com mais segurança.</p>
+          <div className="mt-9 flex flex-wrap items-center gap-5">
+            <a className="rounded-full bg-ink px-7 py-4 text-sm font-bold text-white shadow-lg shadow-slate-900/10 hover:bg-slate-700" href="#acesso" onClick={() => switchMode("register")}>Começar gratuitamente <span aria-hidden="true">↗</span></a>
+            <a className="text-sm font-semibold text-ink underline decoration-emerald-400 underline-offset-4" href="#recursos">Conhecer o Gestivo</a>
+          </div>
+          <p className="mt-5 text-sm text-slate-500">30 dias de teste gratuito · Comece com sua planilha</p>
+        </div>
+        <div className="rounded-[2rem] bg-[#dceee4] p-4 sm:p-7">
+          <div className="overflow-hidden rounded-2xl border border-white/80 bg-panel shadow-[0_25px_70px_rgba(20,55,40,0.17)]">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3"><span className="text-sm font-bold">Gestivo <span className="ml-2 font-normal text-slate-400">/ Visão geral</span></span><span className="text-xs text-emerald-700">Demonstração</span></div>
+            <div className="h-[430px] overflow-hidden" inert aria-hidden="true"><div className="w-[200%] origin-top-left scale-50 p-8"><DashboardPage previewData={landingDashboard} /></div></div>
+          </div>
+          <p className="mt-4 text-right text-xs text-emerald-900/60">Interface do Gestivo · dados de demonstração</p>
+        </div>
+      </section>
+
+      <section id="recursos" className="bg-white px-6 py-20 lg:px-10 lg:py-28"><div className="mx-auto max-w-7xl"><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Tudo em perspectiva</p><div className="mt-4 grid gap-6 md:grid-cols-2"><h2 className="max-w-xl text-4xl font-bold tracking-tight sm:text-5xl">Mais controle para o presente. Mais confiança para o futuro.</h2><p className="max-w-lg self-start text-lg leading-8 text-slate-500">O Gestivo reúne as informações financeiras da sua empresa em um lugar simples de acompanhar.</p></div><div className="mt-14 grid gap-5 md:grid-cols-3">{[[LayoutDashboard, "Uma visão clara do caixa", "Acompanhe entradas, saídas, saldo e resultados em um painel visual."], [ReceiptText, "Contas sob controle", "Organize lançamentos, compromissos a pagar e valores a receber."], [FileSpreadsheet, "Sua planilha tem lugar aqui", "Importe dados em CSV ou XLSX e comece com as informações que você já tem."]].map(([Icon, title, description]) => { const FeatureIcon = Icon as typeof LayoutDashboard; return <article key={title as string} className="rounded-2xl border border-slate-100 bg-[#f8faf9] p-7"><FeatureIcon className="h-6 w-6 text-emerald-600" /><h3 className="mt-8 text-xl font-bold">{title as string}</h3><p className="mt-3 text-sm leading-7 text-slate-500">{description as string}</p></article>; })}</div></div></section>
+
+      <section id="assistente" className="bg-ink px-6 py-20 text-white lg:px-10 lg:py-28"><div className="mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-2"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Inteligência para suas decisões</p><h2 className="mt-5 max-w-xl text-4xl font-bold tracking-tight sm:text-5xl">Converse com os números do seu negócio.</h2><p className="mt-6 max-w-lg text-lg leading-8 text-slate-300">O assistente financeiro com IA ajuda você a entender suas movimentações, receitas e despesas com perguntas em linguagem simples.</p><p className="mt-5 text-sm text-slate-400">Disponibilidade e limites conforme o plano contratado.</p></div><div className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8"><div className="flex items-center gap-3 text-sm font-semibold"><Sparkles className="h-5 w-5 text-emerald-300" /> Assistente financeiro</div><div className="ml-auto mt-8 max-w-sm rounded-2xl rounded-br-sm bg-white/10 p-4 text-sm leading-6">Onde minha empresa mais gastou neste mês?</div><div className="mr-auto mt-4 max-w-sm rounded-2xl rounded-bl-sm bg-emerald-100 p-4 text-sm leading-6 text-emerald-950">Neste mês, suas maiores despesas foram com fornecedores (R$ 8.400), seguidas de salários (R$ 5.200) e aluguel (R$ 2.000). Fornecedores representam cerca de 46% das saídas. Vale acompanhar essa categoria para identificar oportunidades de economia.</div><p className="mt-5 text-xs text-slate-400">Exemplo ilustrativo</p></div></div></section>
+
+      <section id="acesso" className="grid w-full overflow-hidden bg-ink text-white lg:grid-cols-[1.2fr_1fr]">
+        <div className="relative flex min-w-0 min-h-[420px] flex-col justify-between overflow-hidden bg-ink p-6 text-white sm:p-8 md:p-12 lg:min-h-[560px]">
           <div className="relative z-10">
             <BrandLogo variant="dark" />
             <Badge className="mt-10 bg-white/10 text-white" variant="outline">
               SaaS financeiro B2B
             </Badge>
             <h1 className="mt-6 max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl">
-              Gestão financeira ativa para negócios em crescimento.
+              Comece a enxergar seu financeiro com mais clareza.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
               Organize caixa, receitas, despesas e indicadores em uma experiência visual, segura e pronta para sair das planilhas.
@@ -366,7 +403,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
         </div>
 
         <form
-          className="flex flex-col justify-center space-y-5 p-6 md:p-10"
+          className="mx-auto flex min-w-0 w-full max-w-[480px] flex-col justify-center space-y-5 p-6 text-white md:p-10 lg:py-16"
           onSubmit={(event) => {
             event.preventDefault();
             if (mode === "login") login.mutate();
@@ -376,13 +413,13 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
           }}
         >
           <div>
-            <p className="text-sm font-semibold text-accent">
+            <p className="text-sm font-semibold text-lime-300">
               {mode === "login" ?"Acessar plataforma" : mode === "register" ?"Começar agora" : "Recuperar acesso"}
             </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink">
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-white">
               {mode === "login" ?"Entre na sua conta" : mode === "register" ?"Crie sua empresa" : "Redefina sua senha"}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-muted">
+            <p className="mt-2 text-sm leading-6 text-slate-300">
               {mode === "login"
                 ?"Use seu e-mail e senha para continuar."
                 : mode === "register"
@@ -393,19 +430,19 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
             </p>
           </div>
 
-          <label className="field" htmlFor="email">
+          <label className="field !text-white" htmlFor="email">
             E-mail
             <input id="email" required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
           </label>
           {isAuthMode && (
-            <label className="field" htmlFor="password">
+            <label className="field !text-white" htmlFor="password">
               Senha
               <input id="password" required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
             </label>
           )}
           {mode === "forgot-password" && resetStep === "confirm" && (
             <>
-              <label className="field" htmlFor="password-reset-code">
+              <label className="field !text-white" htmlFor="password-reset-code">
                 Código de verificação
                 <input
                   id="password-reset-code"
@@ -418,7 +455,7 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
                   onChange={(event) => setPasswordResetForm({ ...passwordResetForm, code: event.target.value.replace(/\D/g, "").slice(0, 6) })}
                 />
               </label>
-              <label className="field" htmlFor="new-password">
+              <label className="field !text-white" htmlFor="new-password">
                 Nova senha
                 <input
                   id="new-password"
@@ -446,18 +483,19 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (token: string) => 
                   :"Redefinir senha"}
           </Button>
           {mode === "login" && (
-            <Button className="w-full" type="button" variant="ghost" onClick={() => switchMode("forgot-password")}>
+            <Button className="w-full !text-slate-100 hover:!bg-white/10" type="button" variant="ghost" onClick={() => switchMode("forgot-password")}>
               Esqueci minha senha
             </Button>
           )}
           {isAuthMode && GOOGLE_CLIENT_ID && (
             <GoogleSignInButton disabled={!googleReady || googleLogin.isPending} onClickContainer={renderGoogleButton} />
           )}
-          <Button className="w-full" type="button" variant="ghost" onClick={() => switchMode(mode === "login" ?"register" : "login")}>
+          <Button className="w-full !text-slate-100 hover:!bg-white/10" type="button" variant="ghost" onClick={() => switchMode(mode === "login" ?"register" : "login")}>
             {mode === "login" ?"Criar uma empresa" : "Já tenho conta"}
           </Button>
         </form>
       </section>
+      <footer className="border-t border-slate-200 bg-[#f7f9f7] px-6 py-14 lg:px-10"><div className="mx-auto grid max-w-7xl gap-10 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1.5fr]"><div><BrandLogo /><p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">Gestão financeira para empresas que querem acompanhar seus números e crescer com clareza.</p></div><div className="space-y-3 text-sm"><h2 className="font-bold text-ink">Conheça o Gestivo</h2><a className="block text-slate-600 hover:text-emerald-700" href="/?pagina=sobre">Quem somos</a><a className="block text-slate-600 hover:text-emerald-700" href="/?pagina=contato">Contato</a><a className="block text-slate-600 hover:text-emerald-700" href="#recursos">Funcionalidades</a></div><div className="space-y-3 text-sm"><h2 className="font-bold text-ink">Fale com a gente</h2><a className="block break-all text-slate-600 hover:text-emerald-700" href="mailto:gestivo@bubassoftware.com.br">gestivo@bubassoftware.com.br</a><a className="block text-slate-600 hover:text-emerald-700" href="tel:+556231901862">(62) 3190-1862</a></div></div><div className="mx-auto mt-12 max-w-7xl border-t border-slate-200 pt-6 text-xs text-slate-500">Gestivo · Gestão financeira para seu negócio</div></footer>
     </main>
   );
 }
@@ -473,19 +511,33 @@ function GoogleSignInButton({
 
   useEffect(() => {
     if (!container || disabled) return;
-    container.innerHTML = "";
-    onClickContainer(container);
+    const render = () => {
+      container.innerHTML = "";
+      onClickContainer(container);
+    };
+
+    render();
+    let renderedWidth = container.clientWidth;
+    const observer = new ResizeObserver(() => {
+      const nextWidth = container.clientWidth;
+      if (nextWidth === renderedWidth) return;
+      renderedWidth = nextWidth;
+      render();
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
   }, [container, disabled, onClickContainer]);
 
   return (
-    <div className="min-h-11 w-full">
+    <div className="min-h-11 min-w-0 w-full overflow-hidden">
       {disabled && (
         <Button className="w-full" disabled type="button" variant="secondary">
           <Chrome className="h-4 w-4" />
           Google
         </Button>
       )}
-      <div className={disabled ?"hidden" : ""} ref={setContainer} />
+      <div className={`${disabled ? "hidden" : ""} min-w-0 w-full overflow-hidden`} ref={setContainer} />
     </div>
   );
 }
@@ -1217,6 +1269,11 @@ export default function App() {
     setCurrentToken(null);
     setInvitationToken(null);
   }, [queryClient]);
+
+  const publicPage = new URLSearchParams(window.location.search).get("pagina");
+  if (publicPage === "sobre" || publicPage === "contato") {
+    return <PublicInfoPage page={publicPage} />;
+  }
 
   return (
     <TooltipProvider>
