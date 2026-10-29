@@ -246,7 +246,7 @@ function CategoryChart({
   );
 }
 
-export function DashboardPage() {
+export function DashboardPage({ previewData }: { previewData?: Dashboard } = {}) {
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
   const [periodControlsOpen, setPeriodControlsOpen] = useState(false);
   const [period, setPeriod] = useState<Period>("month");
@@ -266,7 +266,9 @@ export function DashboardPage() {
     !comparisonDatesComplete || comparisonStart <= comparisonEnd;
 
   const query = useQuery({
-    queryKey: ["dashboard", period, selectedMonth, compareEnabled, comparisonStart, comparisonEnd],
+    queryKey: [previewData ? "dashboard-preview" : "dashboard", period, selectedMonth, compareEnabled, comparisonStart, comparisonEnd],
+    enabled: !previewData,
+    initialData: previewData,
     queryFn: () => {
       const params = new URLSearchParams({ period });
       if (period !== "all") params.set("month", `${selectedMonth}-01`);
@@ -310,7 +312,7 @@ export function DashboardPage() {
   const expenseCategories = data.category_totals.filter((item) => item.type === "expense");
 
   return (
-    <section className="min-w-0 space-y-6">
+    <section className={`min-w-0 space-y-6 ${previewData ? "landing-dashboard-preview" : ""}`}>
       <div className="flex min-w-0 flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">Resumo executivo</p>
@@ -325,7 +327,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="panel min-w-0">
+      <div className={`panel min-w-0 ${previewData ? "dashboard-preview-period" : ""}`}>
         <button
           type="button"
           className="flex w-full items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
@@ -436,7 +438,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="dashboard-metrics grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Metric icon={Wallet} label="Caixa realizado" value={money(data.current_balance)} detail="Saldo atual da empresa" />
         <Metric icon={ArrowUpRight} label="Entradas realizadas" value={money(data.month_income)} detail={`${data.transaction_count} liquidação(ões) no período`} tone="good" />
         <Metric icon={ArrowDownRight} label="Saídas realizadas" value={money(data.month_expense)} detail={`Período de ${dateText(data.period_start)} a ${dateText(data.period_end)}`} tone="bad" />
