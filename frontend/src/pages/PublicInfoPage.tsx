@@ -2,18 +2,18 @@ import { brandAssets } from "../assets/brand";
 
 const teamMembers = [
   {
-    name: "Fundador do Gestivo",
-    role: null,
+    name: "Lucas Bueno",
+    role: "Fundador do Gestivo",
     image: "/images/team/founder.png",
-    imageAlt: "Retrato do fundador do Gestivo",
+    imageAlt: "Retrato de Lucas Bueno, fundador do Gestivo",
     description:
       "A experiência trabalhando próximo de comércios mostrou como o controle em planilhas e papel podia complicar a rotina financeira.",
   },
   {
-    name: "Ester",
+    name: "Ester Carvalho",
     role: "Diretora Comercial",
     image: "/images/team/ester.png",
-    imageAlt: "Retrato de Ester, diretora comercial do Gestivo",
+    imageAlt: "Retrato de Ester Carvalho, diretora comercial do Gestivo",
     description:
       "No comercial, Ester aproxima o Gestivo das empresas e das pessoas que buscam mais organização e clareza financeira.",
   },
