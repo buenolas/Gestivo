@@ -124,7 +124,7 @@ def test_financial_transactions_csv_uses_bom_semicolon_and_brazilian_formats() -
 
     assert text.startswith("\ufeff")
     assert "Descricao;Tipo;Status;Forma de pagamento;Competencia;Vencimento" in text
-    assert "Categoria;Cliente/Fornecedor;Funcionario;Produto;Valor unitario;Quantidade;Unidade;Valor" in text
+    assert "Categoria;Contraparte;Funcionario;Produto;Valor unitario;Quantidade;Unidade;Valor" in text
     assert "Venda de servico;Entrada;Liquidado;Transferencia;10/05/2026;12/05/2026;13/05/2026 14:30;Servicos;Cliente ABC;Funcionario Teste;Produto A;100,00;2;un;1234,50;manual;Pago via transferencia" in text
 
 
