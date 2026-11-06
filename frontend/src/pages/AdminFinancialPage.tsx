@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Banknote, CalendarClock, TrendingDown, TrendingUp, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { apiFetch } from "../api";
 import { dateText, money } from "../format";
 import type {
@@ -29,28 +30,33 @@ const paymentLabels: Record<string, string> = {
   "-": "Sem pagamento",
 };
 
-const cardDefinitions = [
-  ["mrr", "MRR atual", "money", TrendingUp],
-  ["arr", "ARR estimado", "money", TrendingUp],
-  ["received_current_month", "Recebido no mês", "money", Banknote],
-  ["received_last_30_days", "Recebido em 30 dias", "money", Banknote],
-  ["forecast_current_month", "Previsto no mês", "money", CalendarClock],
-  ["forecast_next_30_days", "Previsto em 30 dias", "money", CalendarClock],
-  ["pending_revenue", "Receita pendente", "money", AlertTriangle],
-  ["overdue_revenue", "Receita vencida", "money", AlertTriangle],
-  ["lost_cancellations", "Perdida por cancelamentos", "money", TrendingDown],
-  ["lost_delinquency", "Perdida por bloqueios", "money", TrendingDown],
-  ["average_ticket", "Ticket médio", "money", Banknote],
-  ["paying_customers", "Clientes pagantes", "number", Users],
-  ["valid_subscriptions", "Assinaturas válidas", "number", Users],
-  ["received_today", "Recebido hoje", "money", Banknote],
-  ["received_current_week", "Recebido na semana", "money", Banknote],
-  ["renewals_current_month", "Renovações no mês", "number", CalendarClock],
-  ["renewals_next_7_days", "Renovações em 7 dias", "number", CalendarClock],
-  ["renewals_next_30_days", "Renovações em 30 dias", "number", CalendarClock],
-  ["monthly_financial_churn_rate", "Churn financeiro mensal", "percent", TrendingDown],
-  ["delinquency_rate", "Taxa de inadimplência", "percent", AlertTriangle],
-] as const;
+type CardDefinition = {
+  key: keyof AdminFinancialDashboard["metrics"];
+  label: string;
+  format: "money" | "number" | "percent";
+  Icon: LucideIcon;
+  description?: string;
+};
+
+const cardDefinitions: CardDefinition[] = [
+  { key: "mrr", label: "MRR atual", format: "money", Icon: TrendingUp, description: "Receita recorrente mensal das assinaturas ativas." },
+  { key: "arr", label: "ARR estimado", format: "money", Icon: TrendingUp, description: "Projeção anual de receita recorrente: MRR multiplicado por 12." },
+  { key: "received_current_month", label: "Recebido no mês", format: "money", Icon: Banknote },
+  { key: "forecast_current_month", label: "Previsto no mês", format: "money", Icon: CalendarClock },
+  { key: "pending_revenue", label: "Receita pendente", format: "money", Icon: AlertTriangle },
+  { key: "overdue_revenue", label: "Receita vencida", format: "money", Icon: AlertTriangle },
+  { key: "lost_cancellations", label: "Perdida por cancelamentos", format: "money", Icon: TrendingDown },
+  { key: "average_ticket", label: "Ticket médio", format: "money", Icon: Banknote },
+  { key: "paying_customers", label: "Clientes pagantes", format: "number", Icon: Users },
+  { key: "valid_subscriptions", label: "Assinaturas válidas", format: "number", Icon: Users },
+  { key: "received_today", label: "Recebido hoje", format: "money", Icon: Banknote },
+  { key: "received_current_week", label: "Recebido na semana", format: "money", Icon: Banknote },
+  { key: "renewals_current_month", label: "Renovações no mês", format: "number", Icon: CalendarClock },
+  { key: "renewals_next_7_days", label: "Renovações em 7 dias", format: "number", Icon: CalendarClock },
+  { key: "renewals_next_30_days", label: "Renovações em 30 dias", format: "number", Icon: CalendarClock },
+  { key: "monthly_financial_churn_rate", label: "Churn financeiro mensal", format: "percent", Icon: TrendingDown, description: "Percentual do MRR do início do período perdido por cancelamentos." },
+  { key: "delinquency_rate", label: "Taxa de inadimplência", format: "percent", Icon: AlertTriangle },
+];
 
 export function AdminFinancialPage() {
   const now = new Date();
@@ -132,9 +138,9 @@ export function AdminFinancialPage() {
       {metrics && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
-            {cardDefinitions.map(([key, label, format, Icon]) => {
+            {cardDefinitions.map(({ key, label, format, Icon, description }) => {
               const value = metrics[key];
-              const warning = ["pending_revenue", "overdue_revenue", "lost_cancellations", "lost_delinquency"].includes(key);
+              const warning = key === "pending_revenue" || key === "overdue_revenue" || key === "lost_cancellations";
               return (
                 <article key={key} className={`metric ${warning ?"border-amber-200 bg-amber-50/40" : ""}`}>
                   <div className="flex items-center justify-between gap-2">
@@ -142,6 +148,7 @@ export function AdminFinancialPage() {
                     <Icon className={`h-4 w-4 ${warning ?"text-amber-700" : "text-brand"}`} />
                   </div>
                   <strong>{formatMetric(value, format)}</strong>
+                  {description && <p className="mt-2 text-xs leading-5 text-muted">{description}</p>}
                 </article>
               );
             })}

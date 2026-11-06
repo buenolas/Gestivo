@@ -16,19 +16,35 @@ const paymentMethodOptions = [
   ["cash", "Dinheiro"],
 ] as const;
 
+function initialTypeAndStatus() {
+  const [route = "", queryString = ""] = window.location.hash.replace("#/", "").split("?", 2);
+  if (route === "payables") return { type: "expense", status: "pending" };
+  if (route === "receivables") return { type: "income", status: "pending" };
+  const params = new URLSearchParams(queryString);
+  const view = params.get("view");
+  if (view === "payables") return { type: "expense", status: "pending" };
+  if (view === "receivables") return { type: "income", status: "pending" };
+  return { type: "", status: "" };
+}
+
+function categoryLabel(category: Category, categories: Category[]) {
+  if (!category.parent_id) return category.name;
+  const parent = categories.find((item) => item.id === category.parent_id);
+  return `${parent?.name ?? "Categoria"} › ${category.name}`;
+}
+
 export function TransactionsPage({ canManageAll = true }: { canManageAll?: boolean }) {
   const queryClient = useQueryClient();
   const [exportError, setExportError] = useState("");
-  const [filters, setFilters] = useState({
-    type: "",
-    status: "",
+  const [filters, setFilters] = useState(() => ({
+    ...initialTypeAndStatus(),
     category_id: "",
     contact_id: "",
     payment_method: "",
     start_date: "",
     end_date: "",
     search: "",
-  });
+  }));
   const [form, setForm] = useState({
     description: "",
     amount: "0,00",
@@ -68,6 +84,12 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
   });
   const contactById = new Map((contacts.data ?? []).map((contact) => [contact.id, contact.name]));
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const quickViews = [
+    { key: "all", label: "Todos", type: "", status: "" },
+    { key: "payables", label: "A pagar", type: "expense", status: "pending" },
+    { key: "receivables", label: "A receber", type: "income", status: "pending" },
+  ] as const;
+  const activeQuickView = quickViews.find((view) => view.type === filters.type && view.status === filters.status)?.key;
 
   const create = useMutation({
     mutationFn: () =>
@@ -233,14 +255,14 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
           <select id="transaction-category" value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })}>
             <option value="">Sem categoria</option>
             {(categories.data ?? []).filter((item) => item.is_active).map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
+              <option key={category.id} value={category.id}>{categoryLabel(category, categories.data ?? [])}</option>
             ))}
           </select>
         </label>
         <label className="field" htmlFor="transaction-contact">
-          Cliente/Fornecedor
+          Contraparte
           <select id="transaction-contact" value={form.contact_id} onChange={(event) => setForm({ ...form, contact_id: event.target.value })}>
-            <option value="">Sem cliente/fornecedor</option>
+            <option value="">Sem contraparte</option>
             {(contacts.data ?? []).filter((item) => item.is_active).map((contact) => (
               <option key={contact.id} value={contact.id}>{contact.name}</option>
             ))}
@@ -281,9 +303,22 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
             </button>
           )}
         </div>
+        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtros rápidos de lançamentos">
+          {quickViews.map((view) => (
+            <button
+              key={view.key}
+              className={`btn-secondary ${activeQuickView === view.key ? "border-brand bg-brand/5 text-brand" : ""}`}
+              type="button"
+              aria-pressed={activeQuickView === view.key}
+              onClick={() => setFilters({ ...filters, type: view.type, status: view.status })}
+            >
+              {view.label}
+            </button>
+          ))}
+        </div>
         <FilterDisclosure
           activeCount={activeFilterCount}
-          hint="Refine por tipo, status, categoria, contato, período ou descrição."
+          hint="Refine por tipo, status, categoria, contraparte, período ou descrição."
           onClear={() => setFilters({
             type: "",
             status: "",
@@ -317,14 +352,14 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
             <select id="transactions-filter-category" value={filters.category_id} onChange={(event) => setFilters({ ...filters, category_id: event.target.value })}>
               <option value="">Todas as categorias</option>
               {(categories.data ?? []).map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
+                <option key={category.id} value={category.id}>{categoryLabel(category, categories.data ?? [])}</option>
               ))}
             </select>
           </label>
           <label className="field" htmlFor="transactions-filter-contact">
-            Cliente/fornecedor
+            Contraparte
             <select id="transactions-filter-contact" value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
-              <option value="">Todos os contatos</option>
+              <option value="">Todas as contrapartes</option>
               {(contacts.data ?? []).map((contact) => (
                 <option key={contact.id} value={contact.id}>{contact.name}</option>
               ))}
@@ -349,7 +384,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
           </label>
           <label className="field sm:col-span-2" htmlFor="transactions-filter-search">
             Buscar lançamentos
-            <input id="transactions-filter-search" type="search" placeholder="Descrição ou cliente/fornecedor" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
+            <input id="transactions-filter-search" type="search" placeholder="Descrição ou contraparte" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
           </label>
         </FilterDisclosure>
         {transactions.isError && <div className="alert-error">{transactions.error.message}</div>}
@@ -381,7 +416,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
             <thead className="sr-only sm:not-sr-only">
               <tr>
                 <th scope="col">Descrição</th>
-                <th scope="col">Cliente/Fornecedor</th>
+                <th scope="col">Contraparte</th>
                 <th scope="col">Tipo</th>
                 <th scope="col">Status</th>
                 <th scope="col">Forma</th>
@@ -395,7 +430,7 @@ export function TransactionsPage({ canManageAll = true }: { canManageAll?: boole
               {(transactions.data ?? []).map((transaction) => (
                 <tr key={transaction.id}>
                   <td data-label="Descrição" data-primary="true">{transaction.description}</td>
-                  <td data-label="Cliente/Fornecedor">{transaction.contact_id ? contactById.get(transaction.contact_id) ?? "-" : "-"}</td>
+                  <td data-label="Contraparte">{transaction.contact_id ? contactById.get(transaction.contact_id) ?? "-" : "-"}</td>
                   <td data-label="Tipo">{typeText(transaction.type)}</td>
                   <td data-label="Status">{statusText(transaction.status)}</td>
                   <td data-label="Forma">{paymentMethodText(transaction.payment_method)}</td>

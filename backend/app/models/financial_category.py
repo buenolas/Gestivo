@@ -37,6 +37,16 @@ class FinancialCategory(Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "financial_categories.id",
+            name="fk_financial_categories_parent_id_financial_categories",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
+    )
     type: Mapped[FinancialCategoryType] = mapped_column(
         Enum(FinancialCategoryType, name="financial_category_type"),
         nullable=False,
@@ -55,3 +65,4 @@ class FinancialCategory(Base):
     )
 
     company = relationship("Company")
+    parent = relationship("FinancialCategory", remote_side=[id])

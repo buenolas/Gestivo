@@ -62,7 +62,7 @@ def export_financial_transactions_csv(
             "Vencimento",
             "Liquidado em",
             "Categoria",
-            "Cliente/Fornecedor",
+            "Contraparte",
             "Funcionario",
             "Produto",
             "Valor unitario",

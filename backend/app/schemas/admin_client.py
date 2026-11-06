@@ -67,6 +67,8 @@ class AdminClientListItem(BaseModel):
     imports_count: int
     usage_status: str
     is_at_risk: bool
+    deletion_requested_at: datetime | None = None
+    deletion_due_at: datetime | None = None
 
     @field_serializer("plan_price")
     def serialize_price(self, price: Decimal | None) -> str | None:
@@ -100,13 +102,16 @@ class AdminClientRenewRequest(BaseModel):
     notes: str | None = Field(default=None, max_length=500)
 
 
-class AdminClientPlanUpdate(BaseModel):
-    plan_id: UUID
-
-
 class AdminClientActionResponse(BaseModel):
     company_id: UUID
     status: SubscriptionStatus
     message: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AdminClientDeletionResponse(BaseModel):
+    company_id: UUID
+    deletion_requested_at: datetime
+    deletion_due_at: datetime
+    message: str

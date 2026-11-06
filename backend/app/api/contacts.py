@@ -37,7 +37,7 @@ def _get_user_contact_or_404(
     if contact is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contato não encontrado",
+            detail="Contraparte não encontrada",
         )
     return contact
 

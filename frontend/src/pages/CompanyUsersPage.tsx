@@ -71,7 +71,7 @@ export function CompanyUsersPage() {
         <div className="lg:col-span-4">
           <h2 className="panel-title">Convidar usuário</h2>
           <p className="section-subtitle">
-            Acesso limitado a lançamentos, categorias e contatos. Enviaremos um link para confirmar o e-mail e criar uma senha; o acesso só será ativado depois dessa confirmação.
+            Acesso limitado a lançamentos, categorias e contrapartes. Enviaremos um link para confirmar o e-mail e criar uma senha; o acesso só será ativado depois dessa confirmação.
           </p>
         </div>
         <label className="field" htmlFor="company-user-name">

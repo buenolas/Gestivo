@@ -121,6 +121,8 @@ export type AdminClientListItem = {
   imports_count: number;
   usage_status: "ativo" | "pouco uso" | "sem uso recente" | "nunca usou";
   is_at_risk: boolean;
+  deletion_requested_at: string | null;
+  deletion_due_at: string | null;
 };
 
 export type AdminClientList = {
@@ -139,6 +141,13 @@ export type AdminClientDetail = AdminClientListItem & {
   payment_history: Array<Record<string, string | null>>;
   usage_events: Array<Record<string, string | null>>;
   last_import_at: string | null;
+};
+
+export type AdminClientDeletion = {
+  company_id: string;
+  deletion_requested_at: string;
+  deletion_due_at: string;
+  message: string;
 };
 
 export type ManualPayment = {
@@ -256,14 +265,13 @@ export type AdminFinancialTable = {
 export type Category = {
   id: string;
   name: string;
-  type: "income" | "expense";
+  parent_id: string | null;
   is_active: boolean;
 };
 
 export type Contact = {
   id: string;
   name: string;
-  type: "customer" | "supplier" | "both";
   is_active: boolean;
 };
 

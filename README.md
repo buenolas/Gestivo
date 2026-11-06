@@ -1,115 +1,90 @@
 # Gestivo
 
-Uma plataforma simples, segura e visual para pequenas e medias empresas que querem sair das planilhas e organizar o controle financeiro do dia a dia.
+Uma plataforma de gestao empresarial para pequenas e medias empresas, combinando controle financeiro com a evolucao de funcionalidades de CRM e relacionamento comercial.
 
-Este documento apresenta o produto como ele deve ser entendido por clientes, operadores e decisores: qual problema resolve, para quem foi criado, como usar, quais fluxos entrega e quais limites foram definidos para manter o MVP enxuto.
+Este documento apresenta o produto, os fluxos disponiveis, a direcao atual e as orientacoes operacionais. O Gestivo superou o enquadramento de MVP e esta em evolucao continua.
 
 ---
 
 ## 1. Apresentacao do produto
 
-O Gestivo e um sistema web para empresas que ainda controlam entradas, saidas, contas a pagar, contas a receber e fluxo de caixa em planilhas, cadernos, mensagens ou processos pouco padronizados.
+O Gestivo ajuda empresas a organizar entradas, saidas, contas a pagar, contas a receber e fluxo de caixa, e esta evoluindo para oferecer mais recursos de CRM e relacionamento com clientes e outras contrapartes.
 
-A proposta nao e substituir um ERP completo. O objetivo do MVP e muito mais direto: permitir que uma empresa cadastre seus lancamentos financeiros, acompanhe o mes atual, organize categorias, visualize pendencias, importe uma planilha existente e mantenha seus dados separados com seguranca por empresa.
+A gestao financeira e uma base central da plataforma. A frente de CRM tambem faz parte da direcao atual do produto. A area de Contrapartes e a base existente para essa evolucao; os fluxos especificos serao desenvolvidos conforme as prioridades do usuario.
 
-Em outras palavras, o produto foi desenhado para responder perguntas simples e importantes:
+O produto nao pretende se tornar um ERP completo. Seu objetivo e reunir ferramentas claras para a rotina financeira e para a gestao das relacoes comerciais, preservando seguranca e simplicidade para pequenas e medias empresas.
 
-- Quanto entrou neste mes?
-- Quanto saiu?
-- Quais contas ainda preciso pagar?
-- Quais recebimentos ainda estao pendentes?
-- Meu caixa esta melhorando ou piorando?
-- Quais categorias concentram mais despesas?
-- Como migrar meu controle atual sem comecar tudo do zero?
+A plataforma deve ajudar a responder perguntas como:
+
+- Quanto entrou e saiu neste mes?
+- Quais contas estao vencendo e quais recebimentos estao pendentes?
+- Como esta o saldo da empresa?
+- Quais categorias concentram despesas?
+- Quais pessoas e empresas estao relacionadas ao negocio e como organizar esse relacionamento?
+- Como aproveitar dados ja registrados sem recomecar tudo do zero?
 
 ## 2. Publico-alvo
 
-O produto foi pensado para pequenas empresas, prestadores de servico e negocios locais que ja possuem alguma rotina financeira, mas ainda dependem de planilhas ou controles manuais.
+O produto atende pequenas empresas, prestadores de servico e negocios locais que precisam organizar o financeiro e melhorar a gestao de suas relacoes comerciais.
 
-Exemplos de perfis atendidos:
-
-- pequenas lojas;
-- clinicas;
-- escritorios;
-- prestadores de servico;
-- restaurantes e lanchonetes em fase inicial;
-- negocios familiares;
-- empresas que usam Excel ou Google Sheets para controlar entradas e saidas.
-
-O MVP evita deliberadamente nichos que exigem fiscal complexo, estoque avancado, emissao de nota fiscal, conciliacao bancaria ou integracoes financeiras automaticas.
+Exemplos incluem pequenas lojas, clinicas, escritorios, prestadores de servico, restaurantes, negocios familiares e empresas que hoje dependem de planilhas ou controles manuais.
 
 ## 3. Proposta de valor
 
-### Clareza financeira sem complexidade de ERP
+### Gestao financeira clara
 
-A empresa ganha uma visao centralizada do financeiro sem precisar implantar um sistema grande, caro e cheio de modulos que nao fazem parte da rotina inicial.
+A empresa acompanha lancamentos, saldo, vencimentos e categorias em uma plataforma centralizada, com isolamento de dados por empresa.
+
+### Evolucao do relacionamento comercial
+
+A plataforma possui uma base de Contrapartes e esta ampliando sua direcao para incluir funcionalidades de CRM. A documentacao e as entregas devem distinguir claramente o que ja esta implementado daquilo que ainda sera desenvolvido.
 
 ### Migracao a partir de planilhas
 
 O sistema permite importar arquivos CSV ou XLSX de ate 5 MB, ajudando o cliente a aproveitar dados que ja possui. O fluxo de importacao foi pensado para reduzir atrito: enviar arquivo, revisar, mapear campos, validar e confirmar a criacao dos lancamentos.
 
-### Controle por assinatura simples
+### Controle por assinatura
 
-Cada empresa inicia com trial gratuito de 30 dias. Depois do trial, o administrador da empresa escolhe um plano mensal e paga pelo Stripe Checkout. O login continua funcionando enquanto a assinatura aguarda pagamento, mas as rotas financeiras só são liberadas após confirmação por webhook assinado do Stripe. O administrador também pode acessar faturas e atualizar o meio de pagamento pelo portal hospedado do Stripe.
+Cada empresa inicia com trial gratuito de 30 dias. Depois do trial, o administrador escolhe um plano mensal e paga pelo Stripe Checkout. O login continua funcionando enquanto a assinatura aguarda pagamento, mas as rotas financeiras so sao liberadas apos confirmacao por webhook assinado do Stripe. O administrador tambem pode acessar faturas e atualizar o meio de pagamento pelo portal hospedado do Stripe.
 
 ### Dados isolados por empresa
 
-Os dados financeiros pertencem sempre a uma empresa. O usuario comum nao informa `company_id`; o backend identifica a empresa a partir da sessao autenticada. Isso reduz risco operacional e preserva isolamento entre clientes.
+Os dados financeiros pertencem sempre a uma empresa. O usuario comum nao informa company_id; o backend identifica a empresa a partir da sessao autenticada. Isso reduz risco operacional e preserva o isolamento entre clientes.
 
 ### Precisao para dinheiro
 
-Valores monetarios sao tratados com `Decimal` no backend e com campos `NUMERIC`/`DECIMAL` no banco de dados. O produto evita calculos financeiros com `float`.
+Valores monetarios sao tratados com Decimal no backend e com campos NUMERIC ou DECIMAL no banco de dados. O produto evita calculos financeiros com float.
 
-## 4. O que o MVP entrega
+## 4. Funcionalidades da plataforma
 
-O MVP foi definido para provar um ponto muito especifico: uma empresa que controla o financeiro em planilhas consegue migrar para uma experiencia mais organizada, segura e visual.
-
-Funcionalidades principais:
+A plataforma ja oferece uma base de gestao financeira e operacional:
 
 - cadastro self-service de empresa e usuario administrador;
 - trial gratuito de 30 dias;
-- login com e-mail e senha;
-- confirmacao de e-mail;
-- recuperacao de senha por codigo enviado por e-mail;
+- login com e-mail e senha, confirmacao de e-mail e recuperacao de senha;
 - onboarding com dados iniciais da empresa;
-- bloqueio das funcionalidades financeiras quando a assinatura nao esta valida;
-- escolha de plano mensal e renovacao automatica pelo Stripe Billing;
+- controle de acesso por assinatura;
+- escolha de plano mensal e renovacao pelo Stripe Billing;
 - consulta de faturas e atualizacao de pagamento pelo portal do Stripe;
-- renovacao manual de acesso por `platform_admin`;
-- categorias financeiras;
+- renovacao manual excepcional por platform_admin;
+- categorias financeiras com subcategorias;
 - lancamentos financeiros de entrada e saida;
-- contas a pagar como visao filtrada dos lancamentos;
-- contas a receber como visao filtrada dos lancamentos;
-- dashboard simples do mes atual;
-- saldo atual com base em saldo inicial e lancamentos liquidados;
+- contas a pagar e a receber como visoes filtradas de lancamentos;
+- dashboard e fluxo de caixa;
 - importacao CSV/XLSX de ate 5 MB;
 - exportacao CSV de lancamentos financeiros;
+- Contrapartes como base para evolucao do CRM;
 - area administrativa para acompanhamento de clientes, planos e renovacoes.
 
-## 5. O que nao faz parte do MVP
+O CRM e uma frente ativa de evolucao do produto. Esta descricao nao promete funcionalidades que ainda nao foram implementadas.
 
-Para manter o produto focado, os itens abaixo nao fazem parte da proposta inicial e nao devem ser apresentados como promessa comercial:
+## 5. Diretrizes e limites atuais
 
-- ERP completo;
-- CRM;
-- emissao de nota fiscal;
-- integracao bancaria;
-- conciliacao bancaria;
-- outros gateways de pagamento, Mercado Pago, Pix automatico, boleto ou cartao de credito;
-- folha de pagamento;
-- estoque avancado;
-- integracao contabil;
-- aplicativo mobile nativo;
-- inteligencia artificial;
-- WhatsApp automatico;
-- e-mail automatico de cobranca ou comunicacao;
-- recorrencia avancada;
-- permissoes complexas;
-- relatorios avancados;
-- exportacao PDF;
-- exportacao Excel formatada.
+CRM e relacionamento comercial fazem parte da direcao aprovada do Gestivo. Funcionalidades especificas serao definidas e implementadas progressivamente conforme os pedidos e prioridades do usuario.
 
-Essas limitacoes sao parte da estrategia: entregar um financeiro operacional, compreensivel e pronto para validacao com clientes iniciais.
+O Gestivo nao pretende se tornar um ERP completo. Emissao de nota fiscal, integracao bancaria, conciliacao bancaria, folha de pagamento, estoque avancado, integracao contabil, outros gateways de pagamento, automacoes de comunicacao, aplicativo mobile nativo, permissoes complexas, relatorios avancados, exportacao PDF e exportacao Excel formatada nao fazem parte da direcao atual e exigem autorizacao especifica.
+
+O Stripe Billing, Checkout, webhooks de assinatura e fatura e Customer Portal ja fazem parte da integracao autorizada para cobranca recorrente da plataforma. Essa decisao nao autoriza outros gateways ou pagamentos automatizados.
 
 ---
 
@@ -176,7 +151,7 @@ Boas praticas:
 
 ## 9. Tutorial: cadastrar categorias financeiras
 
-Categorias ajudam a organizar receitas e despesas. Elas permitem entender para onde o dinheiro esta indo e quais entradas sustentam o caixa.
+Categorias ajudam a agrupar lancamentos para entender para onde o dinheiro esta indo e quais entradas sustentam o caixa. O tipo de movimentacao (entrada ou saida) e definido no lancamento, nao na categoria. Uma categoria pode ter subcategorias de um nivel para detalhar o controle.
 
 Exemplos de categorias:
 
@@ -196,8 +171,8 @@ Passo a passo:
 1. Acesse o menu Categorias.
 2. Crie uma nova categoria.
 3. Informe um nome claro.
-4. Defina se ela sera usada para entrada, saida ou ambos, conforme o modelo disponivel.
-5. Salve.
+4. Opcionalmente, escolha uma categoria principal para criar uma subcategoria.
+5. Salve. Os lancamentos continuam definindo se o movimento e entrada ou saida.
 
 Recomendacao: comece com poucas categorias. Uma categorizacao simples e consistente costuma ser mais util do que uma lista enorme dificil de manter.
 
@@ -257,7 +232,7 @@ Rotina recomendada:
 - olhar vencimentos da semana;
 - priorizar contas vencidas ou proximas do vencimento;
 - conferir se pagamentos liquidados aparecem corretamente no saldo;
-- manter despesas recorrentes simples registradas manualmente no MVP.
+- manter despesas recorrentes simples registradas manualmente.
 
 ## 12. Tutorial: acompanhar contas a receber
 
@@ -368,6 +343,8 @@ Usuario voltado para operacao financeira limitada conforme regras atuais do prod
 
 Perfil interno usado para operar planos, clientes, assinaturas e pagamentos manuais. Esse usuario nao e criado por cadastro publico.
 
+Na lista de clientes, o `platform_admin` pode excluir perfis de teste. A ação revoga o acesso imediatamente, mantém o histórico por 30 dias e o job diário remove a empresa, os usuários e os dados vinculados após esse prazo. Essa ação não cancela assinaturas no Stripe.
+
 ## 17. Regras importantes de seguranca e negocio
 
 ### Isolamento por empresa
@@ -376,7 +353,7 @@ Toda operacao financeira deve usar a empresa da sessao autenticada. O usuario co
 
 ### Assinatura
 
-Status usados no MVP:
+Status usados pelo sistema:
 
 - `trialing`: periodo gratuito ativo;
 - `active`: assinatura paga ativa;
@@ -384,7 +361,7 @@ Status usados no MVP:
 - `canceled`: cancelamento manual;
 - `blocked`: bloqueio administrativo.
 
-Nao existe status `expired` no MVP.
+O status expired nao e utilizado pelo sistema.
 
 ### Dinheiro
 
@@ -403,32 +380,30 @@ Use este roteiro em apresentacoes comerciais ou validacoes com usuarios iniciais
 1. Apresente o problema: planilhas dispersas, pouca visibilidade e dificuldade de acompanhar vencimentos.
 2. Mostre o cadastro self-service e explique o trial de 30 dias.
 3. Conclua o onboarding com nome da empresa e saldo inicial.
-4. Cadastre tres categorias simples: Vendas, Aluguel e Fornecedores.
+4. Cadastre categorias simples e, se ajudar, uma subcategoria para detalhar despesas.
 5. Crie uma entrada liquidada.
 6. Crie uma saida pendente com vencimento proximo.
 7. Abra o dashboard e mostre o impacto nos indicadores.
-8. Abra A pagar e destaque a conta pendente.
-9. Abra A receber e mostre a visao de entradas previstas.
+8. Em Lancamentos, use o filtro rapido A pagar para destacar despesas pendentes.
+9. Use o filtro rapido A receber para destacar entradas pendentes.
 10. Importe uma planilha pequena de exemplo.
 11. Exporte os lancamentos em CSV.
 12. Simule o bloqueio por assinatura vencida e explique que o login permanece disponivel.
 13. Mostre a renovacao manual pelo `platform_admin`.
 
-Mensagem central da demonstracao: o produto organiza a rotina financeira essencial sem exigir implantacao pesada.
+Mensagem central da demonstracao: o Gestivo combina organizacao financeira e evolucao da gestao de relacionamento comercial sem exigir a implantacao de um ERP completo.
 
-## 19. Criterios de sucesso do MVP
+## 19. Principios de sucesso do produto
 
-O MVP sera considerado bem-sucedido se clientes iniciais conseguirem:
+A evolucao do Gestivo deve ajudar empresas a:
 
-- criar conta sem suporte tecnico;
-- entender o painel inicial em poucos minutos;
-- cadastrar categorias e lancamentos sem treinamento longo;
-- acompanhar contas a pagar e receber;
-- importar uma planilha simples com seguranca;
-- exportar seus dados em CSV;
-- escolher um plano e concluir a renovacao mensal sem suporte manual;
-- perceber mais clareza do caixa em comparacao com a planilha anterior;
-- renovar acesso manualmente com apoio do operador da plataforma.
+- organizar lancamentos, categorias, contas a pagar e contas a receber;
+- entender melhor seu caixa e suas obrigacoes financeiras;
+- manter dados financeiros isolados e confiaveis;
+- organizar as relacoes com clientes e outras contrapartes conforme os fluxos de CRM forem implementados;
+- usar uma plataforma que una gestao financeira e relacionamento comercial sem a complexidade de um ERP completo.
+
+Os fluxos e indicadores especificos de CRM serao documentados conforme forem priorizados.
 
 ## 20. Status atual do produto
 
@@ -449,7 +424,8 @@ O projeto ja possui base funcional com:
 - dashboard;
 - importacao CSV/XLSX;
 - exportacao CSV;
-- area administrativa inicial.
+- area administrativa inicial;
+- Contrapartes, como base para a evolucao de CRM.
 
 Pontos que ainda merecem revisao antes de uso comercial amplo:
 
@@ -519,6 +495,14 @@ Aplicar migrations:
 ```bash
 docker compose exec backend alembic upgrade head
 ```
+
+Processar a rotina operacional local de vencimento e exclusões agendadas:
+
+```bash
+docker compose exec backend python -m app.scripts.expire_subscriptions
+```
+
+Em produção, o cron diário da Vercel chama `/internal/cron/expire-subscriptions` e remove os perfis cuja retenção de 30 dias terminou.
 
 Criar `platform_admin`:
 
@@ -605,7 +589,7 @@ Directory. Rodar a CLI dentro de `frontend` faz a Vercel procurar
 
 ## 24. Documentos de referencia
 
-- `PROJECT_CONTEXT.md`: fonte de verdade do produto, escopo do MVP, regras de negocio e ordem geral de implementacao.
+- `PROJECT_CONTEXT.md`: fonte de verdade da direcao do produto, dos dominios financeiro e CRM, das regras de negocio e dos principios de implementacao.
 - `AGENTS.md`: instrucoes obrigatorias para agentes de IA e colaboradores automatizados.
 
 Antes de qualquer mudanca relevante, consulte esses documentos para preservar foco, seguranca, isolamento por empresa e precisao monetaria.
