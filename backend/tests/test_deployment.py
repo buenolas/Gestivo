@@ -118,13 +118,22 @@ def test_cron_endpoint_expires_subscriptions_when_authorized(
         "expire_overdue_subscriptions",
         lambda db: 4,
     )
+    monkeypatch.setattr(
+        main_module,
+        "purge_due_company_deletions",
+        lambda db: 2,
+    )
 
     response = main_module.expire_subscriptions_cron(
         authorization=f"Bearer {'c' * 32}",
         db=object(),
     )
 
-    assert response == {"status": "ok", "updated_count": 4}
+    assert response == {
+        "status": "ok",
+        "updated_count": 4,
+        "purged_count": 2,
+    }
 
 
 def test_cors_headers_are_included_on_unhandled_errors() -> None:
