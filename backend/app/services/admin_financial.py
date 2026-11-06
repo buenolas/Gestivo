@@ -19,6 +19,8 @@ from app.models.manual_payment import PaymentStatus
 from app.models.plan import Plan
 from app.models.usage_event import UsageEvent
 from app.models.usage_event import UsageEventType
+from app.models.user import User
+from app.models.user import UserRole
 from app.schemas.admin_financial import AdminFinancialBreakdown
 from app.schemas.admin_financial import AdminFinancialDashboardResponse
 from app.schemas.admin_financial import AdminFinancialMetrics
@@ -173,7 +175,10 @@ def _load_companies(db: Session) -> list[Company]:
         db.scalars(
             select(Company)
             .options(selectinload(Company.current_plan))
-            .where(Company.is_platform_company.is_(False))
+            .where(
+                Company.is_platform_company.is_(False),
+                ~Company.users.any(User.role == UserRole.platform_admin),
+            )
             .order_by(Company.name.asc())
         ).all()
     )

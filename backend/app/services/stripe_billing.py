@@ -20,7 +20,9 @@ from app.models.plan import BillingCycle
 from app.models.plan import Plan
 from app.models.stripe_webhook_event import StripeWebhookEvent
 from app.models.user import User
+from app.models.usage_event import UsageEventType
 from app.services.subscription import refresh_subscription_status
+from app.services.usage_event import record_usage_event
 
 STRIPE_API_VERSION = "2026-09-30.endive"
 STRIPE_RISK_EVENT_TYPES = {
@@ -488,12 +490,28 @@ def _apply_subscription_snapshot(
     if _is_stale_event(company, event_created):
         return
 
+    previous_stripe_status = company.stripe_subscription_status
     _copy_external_ids(company, customer_id, subscription_id)
     stripe_status = "canceled" if event_type == "customer.subscription.deleted" else str(
         _value(subscription, "status", "")
     )
     company.stripe_subscription_status = stripe_status[:32]
     company.stripe_subscription_event_created_at = event_created
+
+    if stripe_status == "canceled" and previous_stripe_status != "canceled":
+        record_usage_event(
+            db,
+            company_id=company.id,
+            user_id=None,
+            event_type=UsageEventType.subscription_canceled,
+        )
+    elif stripe_status == "active" and previous_stripe_status == "canceled":
+        record_usage_event(
+            db,
+            company_id=company.id,
+            user_id=None,
+            event_type=UsageEventType.subscription_reactivated,
+        )
 
     if company.subscription_status == SubscriptionStatus.blocked:
         return

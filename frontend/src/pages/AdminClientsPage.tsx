@@ -6,15 +6,15 @@ import {
   Eye,
   Filter,
   LockOpen,
-  RefreshCw,
   Search,
-  ShieldAlert,
+  Trash2,
 } from "lucide-react";
 import { apiFetch } from "../api";
 import { dateText, money } from "../format";
 import type {
   AdminChartPoint,
   AdminClientDashboard,
+  AdminClientDeletion,
   AdminClientDetail,
   AdminClientList,
   AdminClientListItem,
@@ -53,7 +53,6 @@ export function AdminClientsPage() {
   const [filterKey, setFilterKey] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [renewForm, setRenewForm] = useState({ plan_id: "", paid_at: "", notes: "" });
-  const [planChangeId, setPlanChangeId] = useState("");
 
   const dashboard = useQuery({
     queryKey: ["admin-clients-dashboard"],
@@ -95,6 +94,12 @@ export function AdminClientsPage() {
     onSuccess: invalidateAdminClients,
   });
 
+  const deletion = useMutation({
+    mutationFn: (companyId: string) =>
+      apiFetch<AdminClientDeletion>(`/admin/clients/${companyId}`, { method: "DELETE" }),
+    onSuccess: invalidateAdminClients,
+  });
+
   const renew = useMutation({
     mutationFn: () => {
       if (!selectedCompanyId) throw new Error("Selecione uma empresa.");
@@ -113,17 +118,6 @@ export function AdminClientsPage() {
     },
   });
 
-  const changePlan = useMutation({
-    mutationFn: () => {
-      if (!selectedCompanyId || !planChangeId) throw new Error("Selecione empresa e plano.");
-      return apiFetch(`/admin/clients/${selectedCompanyId}/plan`, {
-        method: "PATCH",
-        body: JSON.stringify({ plan_id: planChangeId }),
-      });
-    },
-    onSuccess: invalidateAdminClients,
-  });
-
   function submitFilters(event: FormEvent) {
     event.preventDefault();
     setPage(1);
@@ -132,6 +126,17 @@ export function AdminClientsPage() {
   function confirmAction(company: AdminClientListItem, kind: string, label: string) {
     if (!window.confirm(`${label} ${company.company_name}?`)) return;
     action.mutate({ companyId: company.company_id, kind });
+  }
+
+  function confirmDeletion(company: AdminClientListItem) {
+    if (company.deletion_requested_at) return;
+    const message = [
+      `Excluir o perfil de ${company.company_name}?`,
+      "O acesso será bloqueado agora.",
+      "O histórico ficará retido por 30 dias e depois será removido automaticamente.",
+      "Esta ação não cancela cobranças no Stripe. Use apenas para contas de teste.",
+    ].join("\n\n");
+    if (window.confirm(message)) deletion.mutate(company.company_id);
   }
 
   const selectedCompany = useMemo(
@@ -144,7 +149,7 @@ export function AdminClientsPage() {
       <div>
         <h2 className="section-title">Dashboard admin de clientes</h2>
         <p className="section-subtitle">
-          Saúde da base, assinaturas, risco, uso da plataforma e ações administrativas.
+          O Stripe sincroniza planos e cancelamentos. O bloqueio manual suspende o acesso financeiro no Gestivo.
         </p>
       </div>
 
@@ -229,6 +234,7 @@ export function AdminClientsPage() {
           {list.isFetching && <span className="text-sm text-muted">Atualizando...</span>}
         </div>
         {list.isError && <div className="alert-error">{list.error.message}</div>}
+        {deletion.isError && <div className="alert-error">{deletion.error.message}</div>}
         {list.data?.items.length === 0 && <div className="screen-state mt-4">Nenhum cliente encontrado.</div>}
         <div className="table-wrap">
           <table>
@@ -258,7 +264,20 @@ export function AdminClientsPage() {
                     <div>{client.admin_name ?? "-"}</div>
                     <div className="text-xs text-muted">{client.admin_email ?? "-"}</div>
                   </td>
-                  <td><StatusBadge status={client.subscription_status} /></td>
+                  <td>
+                    {client.deletion_due_at ? (
+                      <span className="rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
+                        Exclusão agendada
+                      </span>
+                    ) : (
+                      <StatusBadge status={client.subscription_status} />
+                    )}
+                    {client.deletion_due_at && (
+                      <p className="mt-1 text-xs text-rose-700">
+                        Dados removidos em {dateText(client.deletion_due_at)}
+                      </p>
+                    )}
+                  </td>
                   <td>
                     <div>{client.plan_name ?? "-"}</div>
                     <div className="text-xs text-muted">{client.plan_price ?money(client.plan_price) : ""}</div>
@@ -274,21 +293,36 @@ export function AdminClientsPage() {
                   <td>{client.usage_status}</td>
                   <td>
                     <div className="flex flex-wrap gap-2">
-                      <button className="icon-btn" title="Visualizar detalhes" onClick={() => setSelectedCompanyId(client.company_id)}>
+                      <button className="icon-btn" type="button" title="Visualizar detalhes" aria-label={`Visualizar detalhes de ${client.company_name}`} onClick={() => setSelectedCompanyId(client.company_id)}>
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button className="icon-btn" title="Bloquear" onClick={() => confirmAction(client, "block", "Bloquear")}>
-                        <Ban className="h-4 w-4" />
-                      </button>
-                      <button className="icon-btn" title="Desbloquear" onClick={() => confirmAction(client, "unblock", "Desbloquear")}>
-                        <LockOpen className="h-4 w-4" />
-                      </button>
-                      <button className="icon-btn" title="Cancelar" onClick={() => confirmAction(client, "cancel", "Cancelar")}>
-                        <ShieldAlert className="h-4 w-4" />
-                      </button>
-                      <button className="icon-btn" title="Reativar" onClick={() => confirmAction(client, "reactivate", "Reativar")}>
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
+                      {!client.deletion_requested_at && ["active", "trialing", "blocked"].includes(client.subscription_status) && (
+                        <button
+                          className="btn-secondary whitespace-nowrap px-2 py-1 text-xs"
+                          type="button"
+                          disabled={action.isPending || deletion.isPending}
+                          onClick={() => confirmAction(
+                            client,
+                            client.subscription_status === "blocked" ? "unblock" : "block",
+                            client.subscription_status === "blocked" ? "Liberar acesso financeiro" : "Bloquear acesso financeiro",
+                          )}
+                        >
+                          {client.subscription_status === "blocked" ? <LockOpen className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                          {client.subscription_status === "blocked" ? "Liberar acesso" : "Bloquear acesso"}
+                        </button>
+                      )}
+                      {!client.deletion_requested_at && (
+                        <button
+                          className="icon-btn text-rose-700"
+                          type="button"
+                          title="Excluir perfil de teste"
+                          aria-label={`Excluir o perfil de teste ${client.company_name}`}
+                          disabled={deletion.isPending}
+                          onClick={() => confirmDeletion(client)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -323,47 +357,48 @@ export function AdminClientsPage() {
             {detail.data && (
               <>
                 <div className="grid gap-3 md:grid-cols-4">
-                  <Detail label="Status" value={statusLabels[detail.data.subscription_status]} />
+                  <Detail
+                    label="Status"
+                    value={detail.data.deletion_due_at
+                      ? `Exclusão prevista em ${dateText(detail.data.deletion_due_at)}`
+                      : statusLabels[detail.data.subscription_status]}
+                  />
                   <Detail label="Plano" value={detail.data.plan_name ?? "-"} />
                   <Detail label="Vencimento" value={dateText(detail.data.subscription_valid_until)} />
                   <Detail label="Última importação" value={dateText(detail.data.last_import_at)} />
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <form className="panel grid gap-3" onSubmit={(event) => { event.preventDefault(); renew.mutate(); }}>
-                    <h3 className="panel-title">Renovar assinatura</h3>
-                    <label className="field" htmlFor="detail-renew-plan">
-                      Plano
-                      <select id="detail-renew-plan" required value={renewForm.plan_id} onChange={(event) => setRenewForm({ ...renewForm, plan_id: event.target.value })}>
-                        <option value="">Selecione</option>
-                        {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id} disabled={!plan.is_active}>{plan.name} - {money(plan.price)}</option>)}
-                      </select>
-                    </label>
-                    <label className="field" htmlFor="detail-renew-date">
-                      Data do pagamento
-                      <input id="detail-renew-date" type="date" value={renewForm.paid_at} onChange={(event) => setRenewForm({ ...renewForm, paid_at: event.target.value })} />
-                    </label>
-                    <label className="field" htmlFor="detail-renew-notes">
-                      Observações
-                      <input id="detail-renew-notes" value={renewForm.notes} onChange={(event) => setRenewForm({ ...renewForm, notes: event.target.value })} />
-                    </label>
-                    {renew.error && <div className="alert-error">{renew.error.message}</div>}
-                    <button className="btn-primary" disabled={renew.isPending}><CheckCircle2 className="h-4 w-4" />Renovar</button>
-                  </form>
-
-                  <form className="panel grid gap-3" onSubmit={(event) => { event.preventDefault(); if (window.confirm("Alterar plano da empresa?")) changePlan.mutate(); }}>
-                    <h3 className="panel-title">Alterar plano</h3>
-                    <label className="field" htmlFor="detail-plan-change">
-                      Novo plano
-                      <select id="detail-plan-change" required value={planChangeId} onChange={(event) => setPlanChangeId(event.target.value)}>
-                        <option value="">Selecione</option>
-                        {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id} disabled={!plan.is_active}>{plan.name} - {money(plan.price)}</option>)}
-                      </select>
-                    </label>
-                    {changePlan.error && <div className="alert-error">{changePlan.error.message}</div>}
-                    <button className="btn-secondary" disabled={changePlan.isPending}>Alterar plano</button>
-                  </form>
-                </div>
+                {detail.data.deletion_due_at ? (
+                  <div className="panel space-y-1">
+                    <h3 className="panel-title">Exclusão programada</h3>
+                    <p className="text-sm text-muted">
+                      O acesso já foi revogado. O histórico será removido em {dateText(detail.data.deletion_due_at)}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    <form className="panel grid gap-3" onSubmit={(event) => { event.preventDefault(); renew.mutate(); }}>
+                      <h3 className="panel-title">Renovar assinatura</h3>
+                      <label className="field" htmlFor="detail-renew-plan">
+                        Plano
+                        <select id="detail-renew-plan" required value={renewForm.plan_id} onChange={(event) => setRenewForm({ ...renewForm, plan_id: event.target.value })}>
+                          <option value="">Selecione</option>
+                          {(plans.data ?? []).map((plan) => <option key={plan.id} value={plan.id} disabled={!plan.is_active}>{plan.name} - {money(plan.price)}</option>)}
+                        </select>
+                      </label>
+                      <label className="field" htmlFor="detail-renew-date">
+                        Data do pagamento
+                        <input id="detail-renew-date" type="date" value={renewForm.paid_at} onChange={(event) => setRenewForm({ ...renewForm, paid_at: event.target.value })} />
+                      </label>
+                      <label className="field" htmlFor="detail-renew-notes">
+                        Observações
+                        <input id="detail-renew-notes" value={renewForm.notes} onChange={(event) => setRenewForm({ ...renewForm, notes: event.target.value })} />
+                      </label>
+                      {renew.error && <div className="alert-error">{renew.error.message}</div>}
+                      <button className="btn-primary" disabled={renew.isPending}><CheckCircle2 className="h-4 w-4" />Renovar</button>
+                    </form>
+                  </div>
+                )}
 
                 <div className="grid gap-4 lg:grid-cols-3">
                   <History title="Usuários" rows={detail.data.users} />

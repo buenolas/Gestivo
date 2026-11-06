@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.contact import Contact
+from app.models.contact import ContactType
 from app.models.user import User
 from app.schemas.contact import ContactCreate
 from app.schemas.contact import ContactUpdate
@@ -40,7 +41,7 @@ def create_contact(
     contact = Contact(
         company_id=user.company_id,
         name=contact_in.name.strip(),
-        type=contact_in.type,
+        type=ContactType.both,
         is_active=contact_in.is_active,
     )
     db.add(contact)
@@ -56,8 +57,6 @@ def update_contact(
 ) -> Contact:
     if contact_in.name is not None:
         contact.name = contact_in.name.strip()
-    if contact_in.type is not None:
-        contact.type = contact_in.type
     if contact_in.is_active is not None:
         contact.is_active = contact_in.is_active
 

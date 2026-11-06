@@ -17,6 +17,7 @@ from app.schemas.financial_category import FinancialCategoryResponse
 from app.schemas.financial_category import FinancialCategoryUpdate
 from app.services.financial_category import create_financial_category
 from app.services.financial_category import deactivate_financial_category
+from app.services.financial_category import FinancialCategoryValidationError
 from app.services.financial_category import financial_category_name_exists
 from app.services.financial_category import get_financial_category
 from app.services.financial_category import list_financial_categories
@@ -46,7 +47,7 @@ def _get_user_category_or_404(
 def _raise_duplicate_name() -> None:
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
-        detail="Já existe uma categoria financeira com esse nome",
+        detail="Já existe uma categoria com esse nome",
     )
 
 
@@ -68,10 +69,17 @@ def create_category(
     current_user: User = Depends(require_valid_subscription),
     db: Session = Depends(get_db),
 ) -> FinancialCategory:
-    if financial_category_name_exists(db, current_user, category_in.name):
+    if financial_category_name_exists(
+        db,
+        current_user,
+        category_in.name,
+    ):
         _raise_duplicate_name()
 
-    return create_financial_category(db, current_user, category_in)
+    try:
+        return create_financial_category(db, current_user, category_in)
+    except FinancialCategoryValidationError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.get("/{category_id}", response_model=FinancialCategoryResponse)
@@ -99,7 +107,10 @@ def update_category(
     ):
         _raise_duplicate_name()
 
-    return update_financial_category(db, category, category_in)
+    try:
+        return update_financial_category(db, category, category_in)
+    except FinancialCategoryValidationError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.delete("/{category_id}", response_model=FinancialCategoryResponse)

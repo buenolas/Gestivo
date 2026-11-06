@@ -101,7 +101,7 @@ def _get_or_create_salary_category(db: Session, user: User) -> FinancialCategory
         select(FinancialCategory).where(
             FinancialCategory.company_id == user.company_id,
             FinancialCategory.name == SALARY_CATEGORY_NAME,
-            FinancialCategory.type == FinancialCategoryType.expense,
+            FinancialCategory.parent_id.is_(None),
             FinancialCategory.is_active.is_(True),
         )
     )
@@ -111,7 +111,7 @@ def _get_or_create_salary_category(db: Session, user: User) -> FinancialCategory
     category = FinancialCategory(
         company_id=user.company_id,
         name=SALARY_CATEGORY_NAME,
-        type=FinancialCategoryType.expense,
+        type=FinancialCategoryType.both,
         is_active=True,
     )
     db.add(category)

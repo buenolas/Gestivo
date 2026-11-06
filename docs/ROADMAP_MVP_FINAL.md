@@ -1,4 +1,7 @@
-# Roadmap do MVP Final
+# Roadmap historico do MVP inicial
+
+> Arquivo historico da fase anterior, baseado na auditoria de 2026-05-27. O Gestivo superou o enquadramento de MVP e CRM agora faz parte da direcao do produto. As listas de funcionalidades fora do MVP e decisoes pendentes registram o contexto daquela fase e nao definem o escopo atual. Para decisoes vigentes, consulte PROJECT_CONTEXT.md e AGENTS.md.
+
 
 Documento criado na Sessao 1: Auditoria, Alinhamento e Atualizacao do Contexto.
 

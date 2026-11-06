@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
+from app.models.financial_category import FinancialCategory
 from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
@@ -53,7 +54,7 @@ def get_financial_dashboard(
                 FinancialTransaction.status != FinancialTransactionStatus.canceled,
                 FinancialTransaction.deleted_at.is_(None),
             ).options(
-                selectinload(FinancialTransaction.category),
+                selectinload(FinancialTransaction.category).selectinload(FinancialCategory.parent),
                 selectinload(FinancialTransaction.contact),
             )
         )
@@ -130,7 +131,7 @@ def get_financial_dashboard(
                 settled_date,
                 {"income": ZERO, "expense": ZERO, "count": 0},
             )
-            category_name = _related_name(transaction.category) or "Sem categoria"
+            category_name = _category_label(transaction.category) or "Sem categoria"
             category_summary = category_totals.setdefault(
                 (transaction.type, category_name),
                 {"total": ZERO, "count": 0},
@@ -496,7 +497,7 @@ def _build_due_alert(
         due_date=transaction.due_date,
         days_until_due=days_until_due,
         contact_name=_related_name(transaction.contact),
-        category_name=_related_name(transaction.category),
+        category_name=_category_label(transaction.category),
     )
 
 
@@ -504,3 +505,11 @@ def _related_name(value) -> str | None:
     if value is None:
         return None
     return getattr(value, "name", None)
+
+
+def _category_label(category) -> str | None:
+    if category is None:
+        return None
+    if category.parent is None:
+        return category.name
+    return f"{category.parent.name} › {category.name}"

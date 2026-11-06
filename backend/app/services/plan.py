@@ -41,7 +41,7 @@ FIXED_PLANS = (
         "billing_cycle": BillingCycle.monthly,
         "duration_months": 1,
         "price": Decimal("10.90"),
-        "description": "Lançamentos, contas a pagar e a receber, visão geral, categorias e contatos.",
+        "description": "Lançamentos, contas a pagar e a receber, visão geral, categorias e contrapartes.",
         "feature_codes": list(BASIC_FEATURE_CODES),
         "ai_daily_limit": 0,
     },

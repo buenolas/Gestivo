@@ -8,10 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.contact import Contact
-from app.models.contact import ContactType
 from app.models.employee import Employee
 from app.models.financial_category import FinancialCategory
-from app.models.financial_category import FinancialCategoryType
 from app.models.financial_transaction import FinancialTransaction
 from app.models.financial_transaction import FinancialTransactionPaymentMethod
 from app.models.financial_transaction import FinancialTransactionStatus
@@ -55,7 +53,17 @@ def list_financial_transactions(
     if status is not None:
         query = query.where(FinancialTransaction.status == status)
     if category_id is not None:
-        query = query.where(FinancialTransaction.category_id == category_id)
+        query = query.where(
+            or_(
+                FinancialTransaction.category_id == category_id,
+                FinancialTransaction.category_id.in_(
+                    select(FinancialCategory.id).where(
+                        FinancialCategory.company_id == user.company_id,
+                        FinancialCategory.parent_id == category_id,
+                    )
+                ),
+            )
+        )
     if contact_id is not None:
         query = query.where(FinancialTransaction.contact_id == contact_id)
     if employee_id is not None:
@@ -107,7 +115,6 @@ def create_financial_transaction(
     _validate_transaction_links(
         db=db,
         user=user,
-        transaction_type=transaction_in.type,
         category_id=transaction_in.category_id,
         contact_id=transaction_in.contact_id,
         employee_id=transaction_in.employee_id,
@@ -155,7 +162,6 @@ def update_financial_transaction(
     if transaction.status == FinancialTransactionStatus.canceled:
         raise FinancialTransactionValidationError("Lançamentos cancelados não podem ser editados")
 
-    next_type = transaction_in.type if transaction_in.type is not None else transaction.type
     next_category_id = (
         transaction_in.category_id
         if "category_id" in transaction_in.model_fields_set
@@ -174,7 +180,6 @@ def update_financial_transaction(
     _validate_transaction_links(
         db=db,
         user=user,
-        transaction_type=next_type,
         category_id=next_category_id,
         contact_id=next_contact_id,
         employee_id=next_employee_id,
@@ -272,7 +277,6 @@ def soft_delete_financial_transaction(
 def _validate_transaction_links(
     db: Session,
     user: User,
-    transaction_type: FinancialTransactionType,
     category_id: uuid.UUID | None,
     contact_id: uuid.UUID | None,
     employee_id: uuid.UUID | None,
@@ -289,10 +293,6 @@ def _validate_transaction_links(
             raise FinancialTransactionValidationError(
                 "Categoria não encontrada para a empresa autenticada"
             )
-        if not _is_category_type_compatible(category.type, transaction_type):
-            raise FinancialTransactionValidationError(
-                "O tipo da categoria não é compatível com o tipo do lançamento"
-            )
 
     if contact_id is not None:
         contact = db.scalar(
@@ -304,11 +304,7 @@ def _validate_transaction_links(
         )
         if contact is None:
             raise FinancialTransactionValidationError(
-                "Contato não encontrado para a empresa autenticada"
-            )
-        if not _is_contact_type_compatible(contact.type, transaction_type):
-            raise FinancialTransactionValidationError(
-                "O tipo do contato não é compatível com o tipo do lançamento"
+                "Contraparte não encontrada para a empresa autenticada"
             )
 
     if employee_id is not None:
@@ -322,24 +318,6 @@ def _validate_transaction_links(
             raise FinancialTransactionValidationError(
                 "Funcionario nao encontrado para a empresa autenticada"
             )
-
-
-def _is_category_type_compatible(
-    category_type: FinancialCategoryType,
-    transaction_type: FinancialTransactionType,
-) -> bool:
-    return category_type == FinancialCategoryType.both or category_type.value == transaction_type.value
-
-
-def _is_contact_type_compatible(
-    contact_type: ContactType,
-    transaction_type: FinancialTransactionType,
-) -> bool:
-    if contact_type == ContactType.both:
-        return True
-    if transaction_type == FinancialTransactionType.income:
-        return contact_type == ContactType.customer
-    return contact_type == ContactType.supplier
 
 
 def _strip_optional_text(value: str | None) -> str | None:

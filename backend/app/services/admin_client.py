@@ -32,6 +32,7 @@ from app.schemas.admin_client import AdminClientListItem
 from app.schemas.admin_client import AdminClientListResponse
 from app.schemas.admin_client import AdminMetricCard
 from app.schemas.subscription import ManualRenewalCreate
+from app.services.company_deletion import DELETION_RETENTION_DAYS
 from app.services.subscription import create_manual_renewal
 from app.services.subscription import get_access_until
 from app.services.subscription import refresh_subscription_status
@@ -199,7 +200,8 @@ def get_admin_client_detail(db: Session, company_id: UUID) -> AdminClientDetailR
 
 
 def renew_admin_client(db: Session, admin_user: User, company_id: UUID, renewal_in) -> ManualPayment:
-    _get_customer_company(db, company_id)
+    company = _get_customer_company(db, company_id)
+    _ensure_not_deleting(company)
     return create_manual_renewal(
         db,
         admin_user,
@@ -215,6 +217,7 @@ def renew_admin_client(db: Session, admin_user: User, company_id: UUID, renewal_
 
 def block_admin_client(db: Session, admin_user: User, company_id: UUID) -> AdminClientActionResponse:
     company = _get_customer_company(db, company_id)
+    _ensure_not_deleting(company)
     lost_mrr = _company_monthly_revenue(company)
     company.subscription_status = SubscriptionStatus.blocked
     company.blocked_at = now_utc()
@@ -232,13 +235,9 @@ def block_admin_client(db: Session, admin_user: User, company_id: UUID) -> Admin
 
 def unblock_admin_client(db: Session, admin_user: User, company_id: UUID) -> AdminClientActionResponse:
     company = _get_customer_company(db, company_id)
+    _ensure_not_deleting(company)
     company.blocked_at = None
-    access_until = get_access_until(company)
-    company.subscription_status = (
-        SubscriptionStatus.active
-        if access_until is not None and access_until >= now_utc()
-        else SubscriptionStatus.pending_payment
-    )
+    company.subscription_status = _status_after_manual_block(company)
     db.add(company)
     record_usage_event(db, company_id=company.id, user_id=admin_user.id, event_type=UsageEventType.subscription_unblocked)
     db.commit()
@@ -247,6 +246,7 @@ def unblock_admin_client(db: Session, admin_user: User, company_id: UUID) -> Adm
 
 def cancel_admin_client(db: Session, admin_user: User, company_id: UUID) -> AdminClientActionResponse:
     company = _get_customer_company(db, company_id)
+    _ensure_not_deleting(company)
     lost_mrr = _company_monthly_revenue(company)
     company.subscription_status = SubscriptionStatus.canceled
     company.canceled_at = now_utc()
@@ -264,14 +264,10 @@ def cancel_admin_client(db: Session, admin_user: User, company_id: UUID) -> Admi
 
 def reactivate_admin_client(db: Session, admin_user: User, company_id: UUID) -> AdminClientActionResponse:
     company = _get_customer_company(db, company_id)
+    _ensure_not_deleting(company)
     company.canceled_at = None
     company.blocked_at = None
-    access_until = get_access_until(company)
-    company.subscription_status = (
-        SubscriptionStatus.active
-        if access_until is not None and access_until >= now_utc()
-        else SubscriptionStatus.pending_payment
-    )
+    company.subscription_status = _status_after_manual_block(company)
     db.add(company)
     record_usage_event(db, company_id=company.id, user_id=admin_user.id, event_type=UsageEventType.subscription_reactivated)
     db.commit()
@@ -284,7 +280,9 @@ def change_admin_client_plan(
     company_id: UUID,
     plan_id: UUID,
 ) -> AdminClientActionResponse:
+    """Legacy service kept for existing internal callers; no admin API route exposes it."""
     company = _get_customer_company(db, company_id)
+    _ensure_not_deleting(company)
     plan = db.get(Plan, plan_id)
     if plan is None or not plan.is_active:
         raise AdminClientValidationError("Plano nao encontrado ou inativo.")
@@ -356,6 +354,12 @@ def _client_rows(db: Session, companies: list[Company]) -> list[AdminClientListI
                 imports_count=import_counts.get(company.id, 0),
                 usage_status=_usage_status(last_activity.get(company.id)),
                 is_at_risk=_is_at_risk(company, last_login.get(company.id), tx_counts.get(company.id, 0)),
+                deletion_requested_at=company.deletion_requested_at,
+                deletion_due_at=(
+                    company.deletion_requested_at + timedelta(days=DELETION_RETENTION_DAYS)
+                    if company.deletion_requested_at is not None
+                    else None
+                ),
             )
         )
     return rows
@@ -365,7 +369,10 @@ def _all_customer_companies(db: Session) -> list[Company]:
     return db.scalars(
         select(Company)
         .options(selectinload(Company.current_plan))
-        .where(Company.is_platform_company.is_(False))
+        .where(
+            Company.is_platform_company.is_(False),
+            ~Company.users.any(User.role == UserRole.platform_admin),
+        )
         .order_by(Company.created_at.desc())
     ).all()
 
@@ -588,6 +595,37 @@ def _as_utc(value: datetime) -> datetime:
 
 def _action_response(company: Company, message: str) -> AdminClientActionResponse:
     return AdminClientActionResponse(company_id=company.id, status=company.subscription_status, message=message)
+
+
+def _status_after_manual_block(company: Company) -> SubscriptionStatus:
+    now = now_utc()
+    stripe_status = company.stripe_subscription_status
+    if stripe_status == "canceled" or company.canceled_at is not None:
+        return SubscriptionStatus.canceled
+    if stripe_status == "active":
+        return (
+            SubscriptionStatus.active
+            if company.subscription_valid_until is not None and company.subscription_valid_until >= now
+            else SubscriptionStatus.pending_payment
+        )
+    if stripe_status == "trialing":
+        return (
+            SubscriptionStatus.trialing
+            if company.trial_ends_at >= now
+            else SubscriptionStatus.pending_payment
+        )
+    if stripe_status is not None:
+        return SubscriptionStatus.pending_payment
+    if company.subscription_valid_until is not None and company.subscription_valid_until >= now:
+        return SubscriptionStatus.active
+    if company.trial_ends_at >= now:
+        return SubscriptionStatus.trialing
+    return SubscriptionStatus.pending_payment
+
+
+def _ensure_not_deleting(company: Company) -> None:
+    if company.deletion_requested_at is not None:
+        raise AdminClientValidationError("A exclusão deste perfil já está agendada.")
 
 
 def _company_monthly_revenue(company: Company) -> Decimal:

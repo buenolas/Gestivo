@@ -201,7 +201,7 @@ def _validate_links(
             )
         )
         if contact is None:
-            raise CashFlowValidationError("Cliente/fornecedor nao encontrado")
+            raise CashFlowValidationError("Contraparte nao encontrada")
 
     if employee_id is not None:
         employee = db.scalar(

@@ -33,6 +33,7 @@ from app.api.subscriptions import router as subscription_router
 from app.api.stripe_billing import router as stripe_billing_router
 from app.core.config import settings
 from app.db.session import get_db
+from app.services.company_deletion import purge_due_company_deletions
 from app.services.subscription import expire_overdue_subscriptions
 
 fastapi_app = FastAPI(title=settings.app_name, debug=settings.app_debug)
@@ -83,7 +84,12 @@ def expire_subscriptions_cron(
         )
 
     updated_count = expire_overdue_subscriptions(db)
-    return {"status": "ok", "updated_count": updated_count}
+    purged_count = purge_due_company_deletions(db)
+    return {
+        "status": "ok",
+        "updated_count": updated_count,
+        "purged_count": purged_count,
+    }
 
 
 app = CORSMiddleware(

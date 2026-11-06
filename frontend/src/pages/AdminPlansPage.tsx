@@ -26,7 +26,7 @@ const featureLabels: Record<string, string> = {
   imports: "Importação de planilhas",
   employees: "Funcionários",
   users: "Usuários da empresa",
-  contacts: "Contatos",
+  contacts: "Contrapartes",
 };
 
 function aiLimitText(limit: number | null) {

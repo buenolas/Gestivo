@@ -1,326 +1,133 @@
-# Project Context - Gestivo
-
-## 1. Visao Geral
-
-Gestivo e um sistema de gestao financeira empresarial para pequenas e medias empresas que ainda controlam o financeiro por planilhas, anotacoes manuais ou processos pouco padronizados.
-
-O produto nao deve comecar como ERP completo nem como CRM. O nucleo inicial e controle financeiro simples, confiavel e orientado a fluxo de caixa.
-
-## 2. Problema Resolvido
-
-Muitas empresas pequenas nao conseguem enxergar com clareza:
-
-- quanto entrou;
-- quanto saiu;
-- quais contas estao vencendo;
-- quais recebimentos estao atrasados;
-- qual e o saldo atual;
-- se o caixa pode ficar negativo;
-- quais despesas pesam mais no resultado.
-
-O sistema deve transformar dados financeiros desorganizados em uma visao clara, segura e mais automatizada do dinheiro da empresa.
-
-## 3. Publico-Alvo
-
-O publico inicial sao pequenas empresas, prestadores de servico e negocios locais que ja possuem algum controle financeiro, mas ainda dependem de planilhas ou controle manual.
-
-Perfis esperados:
-
-- pequenas lojas;
-- clinicas;
-- escritorios;
-- prestadores de servico;
-- restaurantes ou lanchonetes em fase inicial;
-- negocios familiares;
-- empresas que usam Excel ou Google Sheets para controlar entradas e saidas.
-
-O MVP deve evitar nichos que exijam complexidade fiscal, estoque avancado ou emissao de nota fiscal.
-
-## 4. Escopo do MVP
-
-O MVP final deve estar pronto para deploy e uso real por clientes iniciais. Isso significa que
-o objetivo nao e apenas demonstrar telas em ambiente local, mas entregar um fluxo minimo
-operacional, com cadastro, trial, bloqueio, renovacao, dados isolados por empresa,
-dashboard, importacao, exportacao e documentacao de operacao.
-
-O MVP deve permitir que uma empresa:
-
-- crie uma conta self-service;
-- crie automaticamente sua empresa;
-- receba trial gratuito de 30 dias;
-- acesse funcionalidades financeiras enquanto a assinatura estiver valida;
-- cadastre categorias financeiras;
-- cadastre lancamentos financeiros;
-- controle entradas e saidas;
-- veja contas a pagar e contas a receber como visoes filtradas dos lancamentos;
-- veja dashboard simples do mes atual;
-- veja saldo atual com base em saldo inicial e lancamentos liquidados;
-- importe planilhas CSV/XLSX de ate 5 MB;
-- exporte lancamentos em CSV;
-- seja bloqueada nas rotas financeiras quando o trial ou assinatura vencer;
-- escolha entre quatro planos mensais e pague pelo Stripe Checkout hospedado;
-- tenha a assinatura liberada apenas apos confirmacao por webhook assinado do Stripe;
-- consulte faturas e atualize o meio de pagamento no portal hospedado do Stripe;
-- possa receber renovacao manual excepcional por um `platform_admin`.
-
-Para ser considerado pronto para clientes, o MVP tambem deve ter:
-
-- configuracao clara para ambiente local e deploy;
-- variaveis de ambiente documentadas;
-- migrations executaveis em ambiente limpo;
-- criacao segura de `platform_admin`;
-- validacao basica de fluxos criticos;
-- mensagens de erro compreensiveis;
-- interface revisada para uso por usuarios nao tecnicos;
-- README e documentacao operacional atualizados;
-- ausencia de segredos reais versionados.
-
-## 5. Funcionalidades Fora do MVP
-
-Nao implementar no MVP:
-
-- ERP completo;
-- CRM;
-- modulo de contatos/clientes/fornecedores;
-- emissao de nota fiscal;
-- integracao bancaria;
-- conciliacao bancaria;
-- outros gateways de pagamento;
-- Mercado Pago;
-- Pix automatizado;
-- boleto;
-- cartao de credito;
-- webhook de pagamento;
-- folha de pagamento;
-- estoque avancado;
-- integracao com contabilidade;
-- aplicativo mobile nativo;
-- IA;
-- WhatsApp automatico;
-- e-mail automatico;
-- recorrencia avancada;
-- permissoes complexas;
-- relatorios avancados;
-- exportacao PDF;
-- exportacao Excel formatada.
-
-Qualquer expansao de escopo precisa de autorizacao explicita.
-
-Excecao autorizada em 2026-10-15: Stripe Billing/Checkout e Customer Portal para cobranca recorrente mensal dos quatro planos do Gestivo. O escopo fica limitado a Checkout hospedado, webhooks de assinatura e fatura, e portal hospedado; outros gateways, pagamentos avulsos ou automacoes de comunicacao continuam fora do MVP.
-
-## 6. Diferencial: Importacao de Planilhas
-
-O principal diferencial estrategico do MVP e ajudar empresas que ja possuem dados financeiros em planilhas a migrar para um sistema organizado.
-
-Importacao no MVP:
-
-- aceitar CSV e XLSX;
-- limitar arquivos a 5 MB;
-- seguir o fluxo: upload, preview, mapeamento, validacao, confirmacao e criacao dos lancamentos;
-- criar apenas financial_transactions;
-- nao criar contatos;
-- nao criar categorias automaticamente;
-- vincular categoria apenas se ela ja existir para a empresa;
-- mapear cliente, fornecedor ou contato da planilha para `counterparty_name`;
-- validar valores monetarios com Decimal;
-- respeitar sempre o `company_id` da empresa autenticada.
-
-Nao incluir IA, conciliacao, categorizacao automatica ou deteccao avancada de duplicidade no MVP.
-
-## 7. Stack Tecnica Definida
-
-Backend:
-
-- Python 3.12;
-- FastAPI;
-- Pydantic v2;
-- SQLAlchemy 2.x;
-- Alembic;
-- bcrypt para hash de senha;
-- JWT para autenticacao.
-
-Frontend:
-
-- React;
-- Vite;
-- TypeScript;
-- Tailwind CSS;
-- TanStack Query;
-- React Hook Form;
-- Zod;
-- TanStack Table;
-- Recharts.
-
-Banco de dados:
-
-- PostgreSQL;
-- banco unico no MVP;
-- isolamento logico por `company_id`.
-
-Ambiente local:
-
-- Docker Compose;
-- servicos `backend`, `frontend` e `postgres`;
-- backend conecta ao banco usando hostname interno `postgres`, nunca `localhost`.
-
-Exemplo conceitual:
-
-```text
-DATABASE_URL=postgresql+psycopg://app_user:<senha_local>@postgres:5432/app_db
-```
-
-Ambiente de deploy:
-
-- o backend deve rodar com `APP_ENV=production` ou equivalente;
-- `APP_DEBUG` deve ser falso em producao;
-- `JWT_SECRET_KEY`, `DATABASE_URL`, CORS e credenciais do banco devem vir de variaveis de ambiente;
-- o banco PostgreSQL de producao deve ser persistente e ter backup fora do container da aplicacao;
-- migrations Alembic devem ser parte do procedimento operacional de deploy;
-- o frontend deve ser buildado e apontar para a URL publica do backend via `VITE_API_URL`;
-- o deploy inicial nao deve introduzir gateway de pagamento ou integracoes externas.
-
-## 7.1 Estado Atual do Projeto
-
-Estado observado na auditoria de 2026-05-27:
-
-- backend FastAPI implementado;
-- frontend React/Vite implementado;
-- PostgreSQL via Docker Compose configurado;
-- autenticacao JWT implementada;
-- cadastro self-service cria empresa e usuario `company_admin`;
-- trial de 30 dias, Stripe Billing mensal e renovacao manual excepcional por `platform_admin`;
-- categorias financeiras implementadas;
-- lancamentos financeiros implementados;
-- contas a pagar e receber implementadas como visoes de lancamentos;
-- dashboard inicial implementado;
-- importacao CSV/XLSX implementada com parser proprio;
-- area admin inicial de assinaturas implementada;
-- testes automatizados existem principalmente para assinatura.
-
-Divergencias conhecidas entre documentacao e implementacao:
-
-- existe modulo de contatos no codigo, embora contatos/CRM estejam fora do MVP documentado;
-- `financial_transactions` usa `contact_id`, mas o escopo aprovado recomenda `counterparty_name`;
-- `companies.opening_balance` e `opening_balance_date` ainda nao existem;
-- saldo atual ainda nao considera saldo inicial;
-- `deleted_at` ainda nao existe em lancamentos financeiros;
-- exportacao CSV ainda nao esta implementada;
-- job diario real de expiracao de assinatura ainda nao esta isolado como rotina operacional;
-- importacao XLSX usa parser proprio, nao Pandas/OpenPyXL;
-- algumas strings da interface aparecem com problemas de encoding;
-- frontend ainda nao usa todas as bibliotecas planejadas originalmente, como React Hook Form, Zod, TanStack Table e Recharts;
-- roles usam `user` no codigo, enquanto a modelagem planejada mencionava `company_member`;
-- README e configuracoes ainda precisam ser amadurecidos para deploy de cliente.
-
-## 8. Regras Criticas de Negocio
-
-Multiempresa:
-
-- todo dado financeiro deve estar vinculado a `company_id`;
-- usuario comum nunca envia `company_id` como fonte de verdade;
-- backend obtem `company_id` a partir do usuario autenticado;
-- toda listagem, detalhe, edicao, exclusao, relatorio, importacao e exportacao deve filtrar por `company_id`;
-- endpoints de `platform_admin` sao a unica excecao controlada;
-- testes devem garantir que uma empresa nao acessa dados de outra.
-
-Assinatura:
-
-- cadastro e self-service;
-- primeiro usuario da empresa vira `company_admin`;
-- cadastro publico nunca cria `platform_admin`;
-- empresa nasce com trial gratuito de 30 dias;
-- status de assinatura: `trialing`, `active`, `pending_payment`, `canceled`, `blocked`;
-- nao usar status `expired` no MVP;
-- trial vencido vira `pending_payment`;
-- assinatura ativa vencida vira `pending_payment`;
-- usuario com assinatura vencida pode fazer login;
-- rotas financeiras devem ser bloqueadas quando a assinatura nao estiver valida;
-- `auth/me` e `subscription/status` continuam acessiveis mesmo com assinatura vencida.
-
-Renovacao manual:
-
-- feita por `platform_admin`;
-- sempre cria registro em `manual_payments`;
-- se a assinatura ainda estiver ativa, soma 30 dias ao vencimento atual;
-- se a assinatura estiver vencida, conta 30 dias a partir da data de pagamento ou confirmacao;
-- a integracao recorrente do Stripe e a excecao explicitamente autorizada para cobranca no MVP;
-- nao adicionar outros gateways ou formas de pagamento automatizadas sem nova autorizacao.
-
-Datas financeiras:
-
-- `competence_date`: relatorios gerenciais;
-- `due_date`: contas a pagar, contas a receber e fluxo previsto;
-- `settled_at`: fluxo realizado e saldo atual;
-- `created_at`: auditoria tecnica.
-
-## 9. Cuidados Com Dados Financeiros
-
-Valores monetarios:
-
-- nunca usar `float` para dinheiro;
-- usar `Decimal` no backend, schemas, services, importacao e calculos;
-- usar `NUMERIC(14,2)` ou `DECIMAL(14,2)` no PostgreSQL;
-- preferir trafegar valores monetarios como string no JSON.
-
-Campos monetarios principais:
-
-- `companies.opening_balance`;
-- `plans.price`;
-- `manual_payments.amount`;
-- `financial_transactions.amount`.
-
-Saldo atual:
-
-```text
-opening_balance + entradas liquidadas - saidas liquidadas
-```
-
-Considerar apenas:
-
-```text
-status = settled
-settled_at >= opening_balance_date
-deleted_at IS NULL
-```
-
-Exclusao:
-
-- evitar exclusao fisica de lancamentos financeiros;
-- preferir soft delete com `deleted_at` ou status `canceled`;
-- relatorios, saldo, listagens e exportacoes devem ignorar registros com `deleted_at` preenchido.
-
-Auditoria minima:
-
-- tabelas principais devem ter `created_at` e `updated_at`;
-- entidades financeiras devem ter `created_by` e `updated_by`;
-- logs tecnicos devem registrar eventos importantes sem expor senha, tokens ou dados sensiveis desnecessarios.
-
-## 10. Ordem Geral de Implementacao
-
-1. Criar estrutura base do repositorio.
-2. Configurar backend FastAPI.
-3. Configurar PostgreSQL no Docker Compose.
-4. Configurar Alembic.
-5. Criar tipos, base model e enums compartilhados.
-6. Criar models iniciais.
-7. Criar migration inicial.
-8. Implementar seguranca base.
-9. Implementar cadastro self-service.
-10. Implementar login e `auth/me`.
-11. Implementar status e bloqueio de assinatura.
-12. Implementar criacao segura de `platform_admin`.
-13. Implementar admin de assinaturas e pagamento manual.
-14. Implementar job diario de expiracao.
-15. Configurar frontend base.
-16. Criar fluxo frontend de cadastro e login.
-17. Criar tela de status/bloqueio de assinatura.
-18. Implementar categorias financeiras.
-19. Implementar lancamentos financeiros.
-20. Implementar primeiro dashboard funcional.
-21. Validar primeiro fluxo funcional completo.
-22. Implementar contas a pagar e receber.
-23. Implementar importacao de planilhas.
-24. Implementar relatorios.
-25. Implementar exportacao CSV.
-26. Refinar UX.
-27. Executar testes e revisao final.
+# Contexto do Produto - Gestivo
+
+## 1. Visao e fase atual
+
+Gestivo e uma plataforma de gestao empresarial para pequenas e medias empresas. A gestao financeira segue como uma base central, e o produto esta evoluindo para reunir tambem funcionalidades de CRM e relacionamento comercial.
+
+O Gestivo superou o enquadramento de MVP. Sua evolucao deve acompanhar as necessidades do produto e as prioridades do usuario. CRM faz parte da direcao aprovada; a existencia da direcao nao significa que um CRM completo ja esteja implementado.
+
+A area de Contrapartes e o ponto de partida atual para organizar pessoas e empresas relacionadas aos lancamentos. Os fluxos adicionais de CRM serao definidos e implementados progressivamente, conforme forem priorizados.
+
+## 2. Problema que o produto resolve
+
+Pequenas empresas muitas vezes dependem de planilhas, anotacoes manuais e processos dispersos para acompanhar o dinheiro e as relacoes com clientes e outras empresas.
+
+O Gestivo deve ajudar a empresa a:
+
+- entender entradas, saidas, vencimentos, recebimentos e saldo;
+- organizar categorias e lancamentos financeiros;
+- acompanhar relacoes comerciais por meio de funcionalidades de CRM que serao desenvolvidas progressivamente;
+- manter informacoes e rotinas empresariais organizadas em uma plataforma segura e simples de usar.
+
+## 3. Publico-alvo
+
+O produto atende pequenas empresas, prestadores de servico e negocios locais que precisam organizar o financeiro e melhorar a gestao das relacoes comerciais.
+
+Perfis esperados incluem pequenas lojas, clinicas, escritorios, prestadores de servico, restaurantes, negocios familiares e empresas que hoje dependem de planilhas ou controles manuais.
+
+## 4. Escopo e direcao do produto
+
+### Gestao financeira
+
+A plataforma possui fluxos para cadastro de empresa e usuario, autenticacao, assinatura, categorias financeiras, lancamentos, contas a pagar e receber como visoes de lancamentos, dashboard, fluxo de caixa, importacao de planilhas e exportacao de dados.
+
+As regras de acesso por empresa, assinatura e precisao monetaria continuam obrigatorias durante a evolucao do produto.
+
+### CRM e relacionamento comercial
+
+CRM passa a ser uma frente central do Gestivo, junto com gestao financeira. A base atual inclui Contrapartes, apresentadas como uma lista unificada de pessoas e empresas relacionada aos lancamentos.
+
+A evolucao deve permitir que o produto tenha mais recursos de relacionamento comercial, conforme pedidos e prioridades concretas do usuario. Nao restringir futuras funcionalidades de CRM por regras antigas que as classificavam como fora do MVP. Tambem nao presumir etapas, campos, automacoes ou processos especificos de CRM antes de serem definidos.
+
+### Acesso e assinatura
+
+O sistema oferece cadastro self-service, trial de 30 dias, controle de acesso por assinatura, renovacao manual excepcional por platform_admin e integracao Stripe Billing, Checkout, webhooks e Customer Portal.
+
+## 5. Principios e limites de produto
+
+- Manter o produto simples de aprender e adequado a pequenas e medias empresas.
+- Evoluir os fluxos financeiros e de CRM de forma coerente e integrada.
+- Nao transformar o Gestivo em um ERP completo.
+- Nao tratar CRM, Contrapartes ou funcionalidades de relacionamento como areas proibidas.
+- Definir o escopo de cada funcionalidade nova de CRM a partir dos pedidos e prioridades do usuario.
+- Emissao fiscal, integracao e conciliacao bancaria, folha de pagamento, estoque avancado, integracao contabil, outros gateways de pagamento, automacoes de comunicacao, aplicativo mobile nativo e permissoes complexas nao fazem parte da direcao atual e exigem autorizacao especifica.
+- A integracao Stripe para cobranca recorrente da plataforma ja foi autorizada; essa decisao nao autoriza outros gateways ou pagamentos automatizados.
+
+## 6. Importacao de dados financeiros
+
+A importacao financeira aceita CSV e XLSX de ate 5 MB e cria lancamentos financeiros.
+
+- Seguir as etapas de upload, visualizacao previa, mapeamento, validacao e confirmacao.
+- Nao criar categorias automaticamente.
+- Mapear nome de cliente, fornecedor ou contato para a contraparte do lancamento.
+- Validar valores monetarios com Decimal.
+- Obter company_id a partir da empresa do usuario autenticado.
+- Tratar uma futura importacao de dados de CRM como um fluxo separado, com escopo e validacoes definidos quando solicitada.
+
+## 7. Stack tecnica
+
+Backend: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.x e Alembic.
+
+Frontend: React, Vite, TypeScript, Tailwind CSS e TanStack Query.
+
+Banco de dados: PostgreSQL com isolamento logico por company_id.
+
+Ambiente local: Docker Compose com servicos backend, frontend e postgres. O backend conecta ao banco pelo hostname interno postgres.
+
+Ambiente de deploy: usar configuracao segura de ambiente, segredo JWT protegido, CORS restrito, banco persistente e migrations aplicadas no processo de publicacao.
+
+## 7.1 Direcao atualizada em 2026-11-06
+
+A decisao de produto registrada nesta data encerra o enquadramento do Gestivo como MVP e incorpora CRM como uma frente central de evolucao. A implementacao existente deve ser verificada no codigo antes de afirmar que uma funcionalidade esta pronta.
+
+A base atual inclui os fluxos financeiros e de assinatura, categorias com subcategorias, lancamentos, dashboard, importacao e exportacao, administracao da plataforma e Contrapartes. As funcionalidades futuras de CRM ainda devem ser especificadas conforme as prioridades do usuario.
+
+O documento historico docs/ROADMAP_MVP_FINAL.md registra o contexto de uma fase anterior. Ele nao define as restricoes atuais do produto.
+
+## 8. Regras de negocio
+
+### Isolamento por empresa
+
+Todo dado financeiro deve pertencer a company_id. O usuario comum nunca informa company_id como fonte de verdade; o backend obtem esse valor da sessao autenticada. Listagens, detalhes, edicoes, exclusoes, relatorios, importacoes e exportacoes devem respeitar esse isolamento.
+
+Endpoints de platform_admin sao a unica excecao controlada.
+
+### Assinatura e acesso
+
+- O cadastro publico cria uma empresa e seu primeiro usuario como company_admin, nunca como platform_admin.
+- A empresa recebe trial gratuito de 30 dias.
+- Os status de assinatura usados pelo sistema sao trialing, active, pending_payment, canceled e blocked.
+- Nao usar expired como status.
+- Trial vencido ou assinatura vencida passa para pending_payment.
+- Login continua disponivel quando a assinatura vence.
+- Rotas financeiras exigem assinatura valida; auth/me e subscription/status permanecem acessiveis.
+- A integracao Stripe existente controla a cobranca recorrente e a liberacao apos confirmacao valida.
+
+### Renovacao manual
+
+Renovacoes manuais excepcionais sao feitas por platform_admin e registradas em manual_payments. Quando a assinatura esta ativa, os dias sao somados ao vencimento atual; quando esta vencida, contam a partir da data de pagamento ou confirmacao.
+
+### Datas financeiras
+
+- competence_date: relatorios gerenciais;
+- due_date: contas a pagar, contas a receber e fluxo previsto;
+- settled_at: fluxo realizado e saldo atual;
+- created_at: auditoria tecnica.
+
+## 9. Precisao monetaria e historico
+
+- Nunca calcular dinheiro com float.
+- Usar Decimal no backend, schemas, services, importacao e calculos.
+- Usar NUMERIC(14,2) ou DECIMAL(14,2) no PostgreSQL e preferir valores como string no JSON.
+- Todo dado financeiro deve estar vinculado a company_id.
+- O saldo atual considera saldo inicial e entradas liquidadas menos saidas liquidadas, respeitando a data inicial configurada.
+- Evitar exclusao fisica de lancamentos financeiros; preferir cancelamento ou soft delete.
+- Registros excluidos ou cancelados nao devem afetar listagens, relatorios, saldo nem exportacoes.
+
+## 10. Orientacoes para evolucao
+
+- Preservar a seguranca, o isolamento entre empresas e a precisao financeira durante toda evolucao.
+- Manter regras de negocio em services e validar pertencimento a empresa em toda operacao.
+- Implementar funcionalidades financeiras e de CRM a partir das prioridades expressas pelo usuario.
+- Nao inferir que a autorizacao para evoluir CRM inclui ERP, novos gateways, integracoes bancarias ou outras areas fora da direcao atual.
+- Atualizar este documento quando uma decisao mudar a direcao, regras de negocio ou compromissos do produto.

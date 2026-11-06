@@ -2,12 +2,11 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { apiFetch } from "../api";
-import { typeText } from "../format";
 import type { Contact } from "../types";
 
 export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", type: "both" });
+  const [form, setForm] = useState({ name: "" });
   const contacts = useQuery({
     queryKey: ["contacts"],
     queryFn: () => apiFetch<Contact[]>("/contacts"),
@@ -20,7 +19,7 @@ export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
         body: JSON.stringify({ ...form, is_active: true }),
       }),
     onSuccess: async () => {
-      setForm({ name: "", type: "both" });
+      setForm({ name: "" });
       await queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
@@ -38,26 +37,18 @@ export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
   return (
     <section className="grid gap-5 xl:grid-cols-[360px_1fr]">
       <form className="panel space-y-4" onSubmit={onSubmit}>
-        <h2 className="panel-title">Novo contato</h2>
+        <h2 className="panel-title">Nova contraparte</h2>
         <label className="field" htmlFor="contact-name">
           Nome
           <input id="contact-name" required minLength={2} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
         </label>
-        <label className="field" htmlFor="contact-type">
-          Tipo
-          <select id="contact-type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>
-            <option value="customer">Cliente</option>
-            <option value="supplier">Fornecedor</option>
-            <option value="both">Ambos</option>
-          </select>
-        </label>
         {create.error && <div className="alert-error">{create.error.message}</div>}
-        <button className="btn-primary" disabled={create.isPending}>Salvar contato</button>
+        <button className="btn-primary" disabled={create.isPending}>Salvar contraparte</button>
       </form>
 
       <div className="panel">
         <div className="table-header">
-          <h2 className="panel-title">Contatos</h2>
+          <h2 className="panel-title">Contrapartes</h2>
           {contacts.isFetching && <span className="text-sm text-muted">Atualizando...</span>}
         </div>
         {contacts.isError && <div className="alert-error">{contacts.error.message}</div>}
@@ -66,7 +57,6 @@ export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
             <thead>
               <tr>
                 <th>Nome</th>
-                <th>Tipo</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -75,7 +65,6 @@ export function ContactsPage({ canManage = true }: { canManage?: boolean }) {
               {(contacts.data ?? []).map((contact) => (
                 <tr key={contact.id}>
                   <td>{contact.name}</td>
-                  <td>{typeText(contact.type)}</td>
                   <td>{contact.is_active ?"Ativo" : "Inativo"}</td>
                   <td className="text-right">
                     {canManage && contact.is_active && (

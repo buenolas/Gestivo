@@ -208,9 +208,9 @@ export function CashFlowPage({ user }: { user: User }) {
           <input id="cash-date" required type="date" value={form.competence_date} onChange={(event) => setForm({ ...form, competence_date: event.target.value })} />
         </label>
         <label className="field" htmlFor="cash-contact">
-          Cliente/Fornecedor
+          Contraparte
           <select id="cash-contact" value={form.contact_id} onChange={(event) => setForm({ ...form, contact_id: event.target.value })}>
-            <option value="">Sem cliente/fornecedor</option>
+            <option value="">Sem contraparte</option>
             {(contacts.data ?? []).filter((contact) => contact.is_active).map((contact) => (
               <option key={contact.id} value={contact.id}>{contact.name}</option>
             ))}
@@ -253,7 +253,7 @@ export function CashFlowPage({ user }: { user: User }) {
         </div>
         <FilterDisclosure
           activeCount={activeFilterCount}
-          hint="Refine por tipo, cliente ou fornecedor, funcionário, período ou descrição."
+          hint="Refine por tipo, contraparte, funcionário, período ou descrição."
           onClear={() => setFilters({ type: "", contact_id: "", employee_id: "", start_date: "", end_date: "", search: "" })}
         >
           <label className="field" htmlFor="cash-filter-type">
@@ -265,9 +265,9 @@ export function CashFlowPage({ user }: { user: User }) {
             </select>
           </label>
           <label className="field" htmlFor="cash-filter-contact">
-            Cliente/fornecedor
+            Contraparte
             <select id="cash-filter-contact" value={filters.contact_id} onChange={(event) => setFilters({ ...filters, contact_id: event.target.value })}>
-              <option value="">Todos os contatos</option>
+              <option value="">Todas as contrapartes</option>
               {(contacts.data ?? []).map((contact) => (
                 <option key={contact.id} value={contact.id}>{contact.name}</option>
               ))}
@@ -292,7 +292,7 @@ export function CashFlowPage({ user }: { user: User }) {
           </label>
           <label className="field sm:col-span-2" htmlFor="cash-filter-search">
             Buscar movimentações
-            <input id="cash-filter-search" type="search" placeholder="Descrição, cliente ou funcionário" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
+            <input id="cash-filter-search" type="search" placeholder="Descrição, contraparte ou funcionário" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
           </label>
         </FilterDisclosure>
         {cashFlow.isError && <div className="alert-error">{cashFlow.error.message}</div>}
@@ -302,7 +302,7 @@ export function CashFlowPage({ user }: { user: User }) {
               <tr>
                 <th scope="col">Data</th>
                 <th scope="col">Descrição</th>
-                <th scope="col">Cliente/Fornecedor</th>
+                <th scope="col">Contraparte</th>
                 <th scope="col">Funcionário</th>
                 <th scope="col">Tipo</th>
                 <th scope="col" className="text-right">Valor</th>
@@ -314,7 +314,7 @@ export function CashFlowPage({ user }: { user: User }) {
                 <tr key={item.id}>
                   <td data-label="Data">{dateText(item.competence_date)}</td>
                   <td data-label="Descrição" data-primary="true">{item.description}</td>
-                  <td data-label="Cliente/Fornecedor">{item.contact_id ? contactById.get(item.contact_id) ?? "-" : "-"}</td>
+                  <td data-label="Contraparte">{item.contact_id ? contactById.get(item.contact_id) ?? "-" : "-"}</td>
                   <td data-label="Funcionário">{item.employee_id ? employeeById.get(item.employee_id) ?? "-" : "-"}</td>
                   <td data-label="Tipo">{typeText(item.type)}</td>
                   <td data-label="Valor" className="text-right font-semibold">{money(item.amount)}</td>

@@ -1,8 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
   Building2,
   Chrome,
   CircleDollarSign,
@@ -35,7 +33,6 @@ import { ProductOutputsPage } from "./pages/ProductOutputsPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
-import { AccountViewPage } from "./pages/AccountViewPage";
 import { ImportsPage } from "./pages/ImportsPage";
 import { AdminClientsPage } from "./pages/AdminClientsPage";
 import { AdminPlansPage } from "./pages/AdminPlansPage";
@@ -47,6 +44,7 @@ import { FinancialAssistantPage } from "./pages/FinancialAssistantPage";
 import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { SubscriptionCheckout } from "./components/SubscriptionCheckout";
 import { brandAssets } from "./assets/brand";
+import { currencyInputToDecimal, formatCurrencyInput } from "./format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -62,8 +60,6 @@ type PageKey =
   | "employees"
   | "users"
   | "transactions"
-  | "payables"
-  | "receivables"
   | "imports"
   | "plans";
 
@@ -80,13 +76,11 @@ const pages: Array<{
   { key: "cashflow", label: "Fluxo de caixa", description: "Caixa realizado", icon: CircleDollarSign },
   { key: "productOutputs", label: "Saída de produtos", description: "Valores a receber", icon: PackagePlus },
   { key: "transactions", label: "Lançamentos", description: "Entradas e saídas", icon: ReceiptText },
-  { key: "payables", label: "A pagar", description: "Compromissos", icon: ArrowDownCircle },
-  { key: "receivables", label: "A receber", description: "Recebimentos", icon: ArrowUpCircle },
-  { key: "categories", label: "Categorias", description: "Plano financeiro", icon: FolderTree },
+  { key: "categories", label: "Categorias", description: "Categorias e subcategorias", icon: FolderTree },
   { key: "imports", label: "Importação", description: "CSV e XLSX", icon: FileSpreadsheet },
   { key: "employees", label: "Funcionários", description: "Despesas salariais", icon: UsersRound },
   { key: "users", label: "Usuários", description: "Acesso da empresa", icon: UsersRound },
-  { key: "contacts", label: "Contatos", description: "Contrapartes", icon: Building2 },
+  { key: "contacts", label: "Contrapartes", description: "Pessoas e empresas", icon: Building2 },
   { key: "plans", label: "Plano e assinatura", description: "Upgrade e cobrança", icon: CreditCard },
 ];
 
@@ -95,7 +89,7 @@ const sidebarSections: Array<{
   pageKeys: PageKey[];
 }> = [
   { label: "Principal", pageKeys: ["dashboard", "assistant", "cashflow"] },
-  { label: "Financeiro", pageKeys: ["transactions", "payables", "receivables", "categories"] },
+  { label: "Financeiro", pageKeys: ["transactions", "categories"] },
   { label: "Operação", pageKeys: ["productOutputs", "imports"] },
   { label: "Administração", pageKeys: ["employees", "users", "contacts"] },
   { label: "Conta", pageKeys: ["plans"] },
@@ -110,8 +104,6 @@ const financialPages = new Set<PageKey>([
   "employees",
   "users",
   "transactions",
-  "payables",
-  "receivables",
   "imports",
   "contacts",
 ]);
@@ -126,8 +118,6 @@ const pageFeatureCodes: Record<PageKey, string> = {
   employees: "employees",
   users: "users",
   transactions: "transactions",
-  payables: "payables",
-  receivables: "receivables",
   imports: "imports",
   plans: "",
 };
@@ -167,7 +157,8 @@ function trackMetaEvent(eventName: string) {
 }
 
 function pageFromHash(): PageKey {
-  const hash = window.location.hash.replace("#/", "");
+  const hash = window.location.hash.replace("#/", "").split("?", 1)[0];
+  if (hash === "payables" || hash === "receivables") return "transactions";
   return pages.some((page) => page.key === hash) ?(hash as PageKey) : "dashboard";
 }
 
@@ -544,13 +535,13 @@ function GoogleSignInButton({
 
 function OnboardingScreen({ user, onComplete, onLogout }: { user: User; onComplete: () => void; onLogout: () => void }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ company_name: "", user_name: user.name, opening_balance: "0.00" });
+  const [form, setForm] = useState({ company_name: "", user_name: user.name, opening_balance: "0,00" });
 
   const completeOnboarding = useMutation({
     mutationFn: () =>
       apiFetch<Company>("/companies/me/onboarding", {
         method: "POST",
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, opening_balance: currencyInputToDecimal(form.opening_balance) }),
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["company"] });
@@ -585,7 +576,7 @@ function OnboardingScreen({ user, onComplete, onLogout }: { user: User; onComple
           </label>
           <label className="field" htmlFor="onboarding-opening-balance">
             Saldo inicial da empresa
-            <input id="onboarding-opening-balance" required type="number" step="0.01" value={form.opening_balance} onChange={(event) => setForm({ ...form, opening_balance: event.target.value })} />
+            <input id="onboarding-opening-balance" required type="text" inputMode="numeric" value={form.opening_balance} onChange={(event) => setForm({ ...form, opening_balance: formatCurrencyInput(event.target.value) })} />
           </label>
 
           {completeOnboarding.error && <div className="alert-error">{completeOnboarding.error.message}</div>}
@@ -752,8 +743,6 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     employees: <EmployeesPage />,
     users: <CompanyUsersPage />,
     transactions: <TransactionsPage canManageAll={isAdmin} />,
-    payables: <AccountViewPage kind="payables" />,
-    receivables: <AccountViewPage kind="receivables" />,
     imports: <ImportsPage />,
     plans: subscription.data
       ? <SubscriptionPage subscription={subscription.data} canManage={isAdmin} />
