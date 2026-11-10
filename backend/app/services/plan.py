@@ -17,6 +17,8 @@ BASIC_FEATURE_CODES = (
     "receivables",
     "categories",
     "contacts",
+    "inventory",
+    "point_of_sale",
 )
 
 ALL_FEATURE_CODES = (
@@ -32,6 +34,8 @@ ALL_FEATURE_CODES = (
     "employees",
     "users",
     "contacts",
+    "inventory",
+    "point_of_sale",
 )
 
 FIXED_PLANS = (
@@ -41,7 +45,7 @@ FIXED_PLANS = (
         "billing_cycle": BillingCycle.monthly,
         "duration_months": 1,
         "price": Decimal("10.90"),
-        "description": "Lançamentos, contas a pagar e a receber, visão geral, categorias e contrapartes.",
+        "description": "Lançamentos, contas a pagar e a receber, visão geral, categorias, contrapartes, estoque e PDV.",
         "feature_codes": list(BASIC_FEATURE_CODES),
         "ai_daily_limit": 0,
     },

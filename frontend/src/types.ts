@@ -310,6 +310,91 @@ export type Transaction = {
   updated_by: string;
 };
 
+export type InventoryProduct = {
+  id: string;
+  company_id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  sale_price: string;
+  stock_quantity: string;
+  unit: string;
+  is_active: boolean;
+};
+
+export type InventoryMovement = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  product_unit: string;
+  sale_id: string | null;
+  movement_type: "inbound" | "sale" | "adjustment";
+  quantity_change: string;
+  stock_after: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type POSQuoteLine = {
+  product_id: string;
+  product_name: string;
+  sku: string | null;
+  barcode: string | null;
+  quantity: string;
+  unit: string;
+  unit_price: string;
+  line_total: string;
+  stock_quantity: string;
+};
+
+export type POSPricing = {
+  items: POSQuoteLine[];
+  subtotal: string;
+  discount_type: "none" | "percentage" | "amount";
+  discount_value: string;
+  discount_amount: string;
+  total: string;
+};
+
+export type POSSavedQuote = {
+  id: string;
+  contact_id: string | null;
+  customer_name: string;
+  status: "open" | "converted";
+  total: string;
+  notes: string | null;
+  created_at: string;
+  items: POSQuoteLine[];
+};
+
+export type POSSaleItem = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  sku: string | null;
+  barcode: string | null;
+  quantity: string;
+  unit: string;
+  unit_price: string;
+  line_total: string;
+};
+
+export type POSSale = {
+  id: string;
+  financial_transaction_id: string;
+  quote_id: string | null;
+  contact_id: string | null;
+  payment_method: PaymentMethod;
+  subtotal: string;
+  discount_type: "none" | "percentage" | "amount";
+  discount_value: string;
+  discount_amount: string;
+  total: string;
+  notes: string | null;
+  sold_at: string;
+  items: POSSaleItem[];
+};
+
 export type EmployeeStatus = "active" | "inactive" | "ended";
 
 export type Employee = {

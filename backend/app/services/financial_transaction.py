@@ -157,6 +157,7 @@ def update_financial_transaction(
     transaction: FinancialTransaction,
     transaction_in: FinancialTransactionUpdate,
 ) -> FinancialTransaction:
+    _ensure_transaction_source_editable(transaction)
     if transaction.deleted_at is not None:
         raise FinancialTransactionValidationError("Lancamentos excluidos nao podem ser editados")
     if transaction.status == FinancialTransactionStatus.canceled:
@@ -227,6 +228,7 @@ def settle_financial_transaction(
     transaction: FinancialTransaction,
     settle_in: FinancialTransactionSettle,
 ) -> FinancialTransaction:
+    _ensure_transaction_source_editable(transaction)
     if transaction.deleted_at is not None:
         raise FinancialTransactionValidationError("Lancamentos excluidos nao podem ser liquidados")
     if transaction.status == FinancialTransactionStatus.canceled:
@@ -249,6 +251,7 @@ def cancel_financial_transaction(
     user: User,
     transaction: FinancialTransaction,
 ) -> FinancialTransaction:
+    _ensure_transaction_source_editable(transaction)
     if transaction.deleted_at is not None:
         raise FinancialTransactionValidationError("Lancamentos excluidos nao podem ser cancelados")
     transaction.status = FinancialTransactionStatus.canceled
@@ -265,6 +268,7 @@ def soft_delete_financial_transaction(
     user: User,
     transaction: FinancialTransaction,
 ) -> FinancialTransaction:
+    _ensure_transaction_source_editable(transaction)
     if transaction.deleted_at is None:
         transaction.deleted_at = datetime.now(UTC)
         transaction.updated_by = user.id
@@ -272,6 +276,13 @@ def soft_delete_financial_transaction(
         db.commit()
         db.refresh(transaction)
     return transaction
+
+
+def _ensure_transaction_source_editable(transaction: FinancialTransaction) -> None:
+    if transaction.source == "pos":
+        raise FinancialTransactionValidationError(
+            "Vendas do PDV devem ser gerenciadas pelo módulo PDV."
+        )
 
 
 def _validate_transaction_links(

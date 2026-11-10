@@ -12,8 +12,16 @@ from app.models.financial_transaction import FinancialTransactionType
 from app.models.import_batch import ImportBatch
 from app.models.import_batch import ImportBatchFileType
 from app.models.import_batch import ImportBatchStatus
+from app.models.inventory_product import InventoryMovement
+from app.models.inventory_product import InventoryMovementType
+from app.models.inventory_product import InventoryProduct
 from app.models.manual_payment import ManualPayment
 from app.models.manual_payment import PaymentStatus
+from app.models.pos_sale import POSSale
+from app.models.pos_sale import POSSaleItem
+from app.models.pos_sale import POSQuote
+from app.models.pos_sale import POSQuoteItem
+from app.models.pos_sale import POSQuoteStatus
 from app.models.plan import BillingCycle
 from app.models.plan import Plan
 from app.models.stripe_webhook_event import StripeWebhookEvent
@@ -37,8 +45,16 @@ __all__ = [
     "ImportBatch",
     "ImportBatchFileType",
     "ImportBatchStatus",
+    "InventoryMovement",
+    "InventoryMovementType",
+    "InventoryProduct",
     "ManualPayment",
     "PaymentStatus",
+    "POSSale",
+    "POSSaleItem",
+    "POSQuote",
+    "POSQuoteItem",
+    "POSQuoteStatus",
     "BillingCycle",
     "Plan",
     "StripeWebhookEvent",

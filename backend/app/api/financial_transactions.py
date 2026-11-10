@@ -155,7 +155,10 @@ def cancel_transaction(
     db: Session = Depends(get_db),
 ) -> FinancialTransaction:
     transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
-    return cancel_financial_transaction(db, current_user, transaction)
+    try:
+        return cancel_financial_transaction(db, current_user, transaction)
+    except FinancialTransactionValidationError as error:
+        _raise_validation_error(error)
 
 
 @router.delete("/{transaction_id}", response_model=FinancialTransactionResponse)
@@ -165,4 +168,7 @@ def delete_transaction(
     db: Session = Depends(get_db),
 ) -> FinancialTransaction:
     transaction = _get_user_transaction_or_404(db, current_user, transaction_id)
-    return soft_delete_financial_transaction(db, current_user, transaction)
+    try:
+        return soft_delete_financial_transaction(db, current_user, transaction)
+    except FinancialTransactionValidationError as error:
+        _raise_validation_error(error)

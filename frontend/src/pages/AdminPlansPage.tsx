@@ -27,6 +27,8 @@ const featureLabels: Record<string, string> = {
   employees: "Funcionários",
   users: "Usuários da empresa",
   contacts: "Contrapartes",
+  inventory: "Estoque",
+  point_of_sale: "PDV",
 };
 
 function aiLimitText(limit: number | null) {

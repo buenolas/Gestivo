@@ -10,7 +10,13 @@ from app.models.employee import Employee
 from app.models.financial_category import FinancialCategory
 from app.models.financial_transaction import FinancialTransaction
 from app.models.import_batch import ImportBatch
+from app.models.inventory_product import InventoryMovement
+from app.models.inventory_product import InventoryProduct
 from app.models.manual_payment import ManualPayment
+from app.models.pos_sale import POSSale
+from app.models.pos_sale import POSSaleItem
+from app.models.pos_sale import POSQuote
+from app.models.pos_sale import POSQuoteItem
 from app.models.stripe_webhook_event import StripeWebhookEvent
 from app.models.usage_event import UsageEvent
 from app.models.user import User, UserRole
@@ -84,6 +90,19 @@ def purge_due_company_deletions(
     )
 
     for company_id in company_ids:
+        db.execute(delete(InventoryMovement).where(InventoryMovement.company_id == company_id))
+        db.execute(
+            delete(POSSaleItem).where(
+                POSSaleItem.sale_id.in_(select(POSSale.id).where(POSSale.company_id == company_id))
+            )
+        )
+        db.execute(delete(POSSale).where(POSSale.company_id == company_id))
+        db.execute(
+            delete(POSQuoteItem).where(
+                POSQuoteItem.quote_id.in_(select(POSQuote.id).where(POSQuote.company_id == company_id))
+            )
+        )
+        db.execute(delete(POSQuote).where(POSQuote.company_id == company_id))
         db.execute(delete(FinancialTransaction).where(FinancialTransaction.company_id == company_id))
         db.execute(delete(ManualPayment).where(ManualPayment.company_id == company_id))
         db.execute(delete(ImportBatch).where(ImportBatch.company_id == company_id))
@@ -92,6 +111,7 @@ def purge_due_company_deletions(
         db.execute(delete(FinancialCategory).where(FinancialCategory.company_id == company_id))
         db.execute(delete(Contact).where(Contact.company_id == company_id))
         db.execute(delete(Employee).where(Employee.company_id == company_id))
+        db.execute(delete(InventoryProduct).where(InventoryProduct.company_id == company_id))
         db.execute(delete(User).where(User.company_id == company_id))
         db.execute(delete(Company).where(Company.id == company_id))
 

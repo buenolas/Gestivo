@@ -50,7 +50,7 @@ O sistema oferece cadastro self-service, trial de 30 dias, controle de acesso po
 - Nao transformar o Gestivo em um ERP completo.
 - Nao tratar CRM, Contrapartes ou funcionalidades de relacionamento como areas proibidas.
 - Definir o escopo de cada funcionalidade nova de CRM a partir dos pedidos e prioridades do usuario.
-- Emissao fiscal, integracao e conciliacao bancaria, folha de pagamento, estoque avancado, integracao contabil, outros gateways de pagamento, automacoes de comunicacao, aplicativo mobile nativo e permissoes complexas nao fazem parte da direcao atual e exigem autorizacao especifica.
+- Emissao fiscal, integracao e conciliacao bancaria, folha de pagamento, estoque avancado alem do catalogo e controle de disponibilidade integrado ao PDV, integracao contabil, outros gateways de pagamento, automacoes de comunicacao, aplicativo mobile nativo e permissoes complexas nao fazem parte da direcao atual e exigem autorizacao especifica.
 - A integracao Stripe para cobranca recorrente da plataforma ja foi autorizada; essa decisao nao autoriza outros gateways ou pagamentos automatizados.
 
 ## 6. Importacao de dados financeiros
@@ -83,6 +83,14 @@ A decisao de produto registrada nesta data encerra o enquadramento do Gestivo co
 A base atual inclui os fluxos financeiros e de assinatura, categorias com subcategorias, lancamentos, dashboard, importacao e exportacao, administracao da plataforma e Contrapartes. As funcionalidades futuras de CRM ainda devem ser especificadas conforme as prioridades do usuario.
 
 O documento historico docs/ROADMAP_MVP_FINAL.md registra o contexto de uma fase anterior. Ele nao define as restricoes atuais do produto.
+
+## 7.2 Direcao atualizada em 2026-11-10
+
+O usuario autorizou a inclusao de PDV e estoque como modulos integrados da plataforma, junto a gestao financeira e CRM. O PDV registra vendas como entradas liquidadas no financeiro e baixa quantidades do estoque. A disponibilidade deve ser validada e bloqueada no backend em uma transacao atomica; produtos sem saldo suficiente nao podem ser vendidos. As movimentacoes de estoque devem manter historico, e os dados continuam isolados por company_id. PDV e estoque fazem parte dos recursos incluidos nos planos atuais.
+
+### 7.3 Busca, descontos e orcamentos no PDV
+
+O catalogo do PDV e acessado por uma busca por nome, SKU ou codigo de barras, com resultados limitados para manter a tela enxuta. Os codigos de barras sao unicos por empresa. A finalizacao permite desconto percentual ou em valor, calculado com Decimal e registrado na venda e no lancamento financeiro. Orcamentos guardam o nome da pessoa ou empresa e os precos apresentados, nao reservam estoque e podem ser convertidos uma unica vez; a conversao valida novamente o estoque e registra a venda e suas baixas de forma atomica.
 
 ## 8. Regras de negocio
 

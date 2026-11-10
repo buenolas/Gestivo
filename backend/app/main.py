@@ -22,7 +22,9 @@ from app.api.financial_categories import router as financial_categories_router
 from app.api.financial_assistant import router as financial_assistant_router
 from app.api.financial_transactions import router as financial_transactions_router
 from app.api.import_batches import router as import_batches_router
+from app.api.inventory import router as inventory_router
 from app.api.payables import router as payables_router
+from app.api.pos import router as pos_router
 from app.api.plans import public_router as plans_public_router
 from app.api.plans import router as plans_admin_router
 from app.api.product_outputs import router as product_outputs_router
@@ -51,7 +53,9 @@ fastapi_app.include_router(financial_categories_router)
 fastapi_app.include_router(financial_assistant_router)
 fastapi_app.include_router(financial_transactions_router)
 fastapi_app.include_router(import_batches_router)
+fastapi_app.include_router(inventory_router)
 fastapi_app.include_router(payables_router)
+fastapi_app.include_router(pos_router)
 fastapi_app.include_router(plans_admin_router)
 fastapi_app.include_router(plans_public_router)
 fastapi_app.include_router(product_outputs_router)

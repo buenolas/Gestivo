@@ -1,7 +1,9 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
+  Boxes,
+  ChevronDown,
   Chrome,
   CircleDollarSign,
   CreditCard,
@@ -19,6 +21,7 @@ import {
   PackagePlus,
   ShieldCheck,
   ShieldAlert,
+  ShoppingCart,
   Sparkles,
   UsersRound,
   X,
@@ -30,6 +33,8 @@ import { landingDashboard } from "./landingDashboard";
 import { PublicInfoPage } from "./pages/PublicInfoPage";
 import { CashFlowPage } from "./pages/CashFlowPage";
 import { ProductOutputsPage } from "./pages/ProductOutputsPage";
+import { InventoryPage } from "./pages/InventoryPage";
+import { POSPage } from "./pages/POSPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { ContactsPage } from "./pages/ContactsPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
@@ -55,6 +60,8 @@ type PageKey =
   | "assistant"
   | "cashflow"
   | "productOutputs"
+  | "inventory"
+  | "pos"
   | "categories"
   | "contacts"
   | "employees"
@@ -75,6 +82,8 @@ const pages: Array<{
   { key: "assistant", label: "Assistente financeiro", description: "Pergunte sobre seu negócio", icon: Sparkles },
   { key: "cashflow", label: "Fluxo de caixa", description: "Caixa realizado", icon: CircleDollarSign },
   { key: "productOutputs", label: "Saída de produtos", description: "Valores a receber", icon: PackagePlus },
+  { key: "pos", label: "PDV", description: "Vendas no balcão", icon: ShoppingCart },
+  { key: "inventory", label: "Estoque", description: "Produtos e disponibilidade", icon: Boxes },
   { key: "transactions", label: "Lançamentos", description: "Entradas e saídas", icon: ReceiptText },
   { key: "categories", label: "Categorias", description: "Categorias e subcategorias", icon: FolderTree },
   { key: "imports", label: "Importação", description: "CSV e XLSX", icon: FileSpreadsheet },
@@ -90,7 +99,7 @@ const sidebarSections: Array<{
 }> = [
   { label: "Principal", pageKeys: ["dashboard", "assistant", "cashflow"] },
   { label: "Financeiro", pageKeys: ["transactions", "categories"] },
-  { label: "Operação", pageKeys: ["productOutputs", "imports"] },
+  { label: "Operação", pageKeys: ["pos", "inventory", "productOutputs", "imports"] },
   { label: "Administração", pageKeys: ["employees", "users", "contacts"] },
   { label: "Conta", pageKeys: ["plans"] },
 ];
@@ -100,6 +109,8 @@ const financialPages = new Set<PageKey>([
   "assistant",
   "cashflow",
   "productOutputs",
+  "inventory",
+  "pos",
   "categories",
   "employees",
   "users",
@@ -113,6 +124,8 @@ const pageFeatureCodes: Record<PageKey, string> = {
   assistant: "assistant",
   cashflow: "cashflow",
   productOutputs: "product_outputs",
+  inventory: "inventory",
+  pos: "point_of_sale",
   categories: "categories",
   contacts: "contacts",
   employees: "employees",
@@ -707,7 +720,7 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
       const rolePages = isAdmin
         ? pages
         : pages.filter((page) =>
-            ["assistant", "cashflow", "productOutputs", "transactions", "categories", "contacts"].includes(page.key),
+            ["assistant", "cashflow", "productOutputs", "transactions", "categories", "contacts", "inventory", "pos"].includes(page.key),
           );
       const features = subscription.data?.feature_codes;
       return features
@@ -738,6 +751,8 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     assistant: <FinancialAssistantPage />,
     cashflow: <CashFlowPage user={user} />,
     productOutputs: <ProductOutputsPage user={user} />,
+    inventory: <InventoryPage canManage={isAdmin} />,
+    pos: <POSPage />,
     categories: <CategoriesPage canManage={isAdmin} />,
     contacts: <ContactsPage canManage={isAdmin} />,
     employees: <EmployeesPage />,
@@ -860,6 +875,21 @@ function SidebarNavigation({
         .filter((page): page is (typeof pages)[number] => Boolean(page)),
     }))
     .filter((section) => section.pages.length > 0);
+  const sidebarId = useId();
+  const activeSection = sidebarSections.find((section) => section.pageKeys.includes(activePage));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    () => new Set(activeSection ? [activeSection.label] : []),
+  );
+
+  useEffect(() => {
+    const sectionLabel = sidebarSections.find((section) => section.pageKeys.includes(activePage))?.label;
+    if (!sectionLabel) return;
+
+    setExpandedSections((current) => {
+      if (current.has(sectionLabel)) return current;
+      return new Set(current).add(sectionLabel);
+    });
+  }, [activePage]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -867,25 +897,49 @@ function SidebarNavigation({
         <BrandLogo variant="dark" />
       </div>
       <nav className="sidebar-scroll min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
-        {visibleSections.map((section) => (
-          <section key={section.label} className="space-y-1.5">
-            <p className="px-3 text-[0.68rem] font-bold uppercase tracking-wider text-slate-500">{section.label}</p>
-            <div className="space-y-1">
-              {section.pages.map((page) => {
-                const Icon = page.icon;
-                return (
-                  <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block truncate">{page.label}</span>
-                      <span className="block truncate text-xs font-medium opacity-70">{page.description}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+        {visibleSections.map((section) => {
+          const expanded = expandedSections.has(section.label);
+          const sectionId = `${sidebarId}-${section.pageKeys[0]}`;
+
+          return (
+            <section key={section.label} className="space-y-1.5">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-[0.68rem] font-bold uppercase tracking-wider text-slate-500 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                aria-expanded={expanded}
+                aria-controls={sectionId}
+                onClick={() =>
+                  setExpandedSections((current) => {
+                    const next = new Set(current);
+                    if (next.has(section.label)) next.delete(section.label);
+                    else next.add(section.label);
+                    return next;
+                  })
+                }
+              >
+                <span>{section.label}</span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? "rotate-0" : "-rotate-90"}`}
+                />
+              </button>
+              <div id={sectionId} className="space-y-1" hidden={!expanded}>
+                {section.pages.map((page) => {
+                  const Icon = page.icon;
+                  return (
+                    <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block truncate">{page.label}</span>
+                        <span className="block truncate text-xs font-medium opacity-70">{page.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </nav>
       <div className="shrink-0 pt-4">
         <SidebarContactInfo />
