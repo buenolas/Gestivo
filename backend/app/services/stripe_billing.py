@@ -46,9 +46,10 @@ def create_checkout_session(db: Session, company: Company, user: User, plan_slug
     refresh_subscription_status(db, company)
     if company.subscription_status == SubscriptionStatus.blocked:
         raise StripeBillingConflict("Esta conta foi bloqueada pelo administrador da plataforma.")
-    if company.subscription_status in {SubscriptionStatus.active, SubscriptionStatus.trialing}:
-        raise StripeBillingConflict("A assinatura ainda está válida.")
+    if company.subscription_status == SubscriptionStatus.active:
+        raise StripeBillingConflict("A assinatura já está ativa.")
     if company.subscription_status not in {
+        SubscriptionStatus.trialing,
         SubscriptionStatus.pending_payment,
         SubscriptionStatus.canceled,
     }:

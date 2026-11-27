@@ -44,14 +44,14 @@ export function SubscriptionPage({ subscription, canManage }: Props) {
           </Badge>
           <p className="mt-3 text-sm leading-6 text-muted">
             {subscription.status === "trialing"
-              ? `Seu teste gratuito está ativo${subscription.access_until ? ` até ${formatDate(subscription.access_until)}` : ""}. Você poderá escolher um plano quando ele terminar.`
+              ? `Seu teste gratuito está ativo${subscription.access_until ? ` até ${formatDate(subscription.access_until)}` : ""}. Você pode continuar no teste ou assinar um plano agora. Ao concluir a contratação no Stripe, o ciclo mensal começa nessa data; o tempo restante do teste não é somado.`
               : subscription.status === "blocked"
                 ? "A assinatura foi bloqueada pela administração da plataforma. Entre em contato com o suporte."
                 : "Escolha um plano mensal para contratar ou reativar sua assinatura pelo Checkout seguro do Stripe."}
           </p>
         </div>
-        {subscription.status !== "blocked" && subscription.status !== "trialing" && (
-          <SubscriptionCheckout canManage={canManage} />
+        {subscription.status !== "blocked" && (
+          <SubscriptionCheckout canManage={canManage} trialActive={subscription.status === "trialing"} />
         )}
         {!canManage && (
           <p className="rounded-md border border-line bg-panel p-3 text-sm text-muted">

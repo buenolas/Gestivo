@@ -84,6 +84,14 @@ A base atual inclui os fluxos financeiros e de assinatura, categorias com subcat
 
 O documento historico docs/ROADMAP_MVP_FINAL.md registra o contexto de uma fase anterior. Ele nao define as restricoes atuais do produto.
 
+## 7.2 Visibilidade de recursos por plano (2026-11-27)
+
+Durante um trial valido ou uma assinatura ativa, a navegacao mostra as areas disponiveis ao perfil da pessoa, inclusive os recursos que o plano atual nao inclui. Esses itens exibem um cadeado. Ao seleciona-los, a pessoa ve a tela real desfocada ao fundo e uma explicacao com o primeiro plano que libera o recurso. A previa nao libera acoes nem substitui as validacoes de acesso da API.
+
+## 7.3 Contratacao durante o trial (2026-11-27)
+
+A escolha de plano e independente do fim do trial: o administrador da empresa pode contratar qualquer plano mensal enquanto o teste estiver ativo. Depois da confirmacao do Checkout Stripe, o plano contratado passa a valer e a primeira cobranca inicia o periodo mensal naquela data; o tempo restante do trial nao e acrescentado ao vencimento pago. Se a contratacao manual excepcional for registrada durante o trial, o periodo pago tambem comeca na data do pagamento.
+
 ## 8. Regras de negocio
 
 ### Isolamento por empresa

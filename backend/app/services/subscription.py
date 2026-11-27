@@ -195,7 +195,9 @@ def create_manual_renewal(
     current_access_until = get_access_until(company)
     period_start = (
         current_access_until
-        if current_access_until is not None and current_access_until >= paid_at
+        if company.subscription_status == SubscriptionStatus.active
+        and current_access_until is not None
+        and current_access_until >= paid_at
         else paid_at
     )
     period_end = (

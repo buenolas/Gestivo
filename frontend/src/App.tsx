@@ -9,6 +9,7 @@ import {
   FolderTree,
   KeyRound,
   LayoutDashboard,
+  LockKeyhole,
   LogOut,
   Mail,
   MailCheck,
@@ -24,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch, clearToken, getToken, setToken } from "./api";
-import type { Company, Subscription, User } from "./types";
+import type { Company, Plan, Subscription, User } from "./types";
 import { DashboardPage } from "./pages/DashboardPage";
 import { landingDashboard } from "./landingDashboard";
 import { PublicInfoPage } from "./pages/PublicInfoPage";
@@ -49,6 +50,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type PageKey =
   | "dashboard"
@@ -681,6 +689,10 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     refetchInterval: (query) =>
       checkoutReturn === "success" && !query.state.data?.is_valid && !checkoutPollExpired ? 3000 : false,
   });
+  const planCatalog = useQuery({
+    queryKey: ["public-plans"],
+    queryFn: () => apiFetch<Plan[]>("/plans"),
+  });
   const company = useQuery({ queryKey: ["company"], queryFn: () => apiFetch<Company>("/companies/me") });
   const billingPortal = useMutation({
     mutationFn: () =>
@@ -703,19 +715,27 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     return () => window.clearTimeout(timeout);
   }, [checkoutReturn, subscription.data?.is_valid]);
   const visiblePages = useMemo(
-    () => {
-      const rolePages = isAdmin
-        ? pages
-        : pages.filter((page) =>
-            ["assistant", "cashflow", "productOutputs", "transactions", "categories", "contacts"].includes(page.key),
-          );
-      const features = subscription.data?.feature_codes;
-      return features
-        ? rolePages.filter((page) => page.key === "plans" || features.includes(pageFeatureCodes[page.key]))
-        : rolePages;
-    },
-    [isAdmin, subscription.data?.feature_codes],
+    () => isAdmin
+      ? pages
+      : pages.filter((page) =>
+          ["assistant", "cashflow", "productOutputs", "transactions", "categories", "contacts"].includes(page.key),
+        ),
+    [isAdmin],
   );
+  const lockedPages = useMemo(() => {
+    const locked = new Map<PageKey, string | null>();
+    if (!subscription.data?.is_valid) return locked;
+
+    const availableFeatures = new Set(subscription.data.feature_codes);
+    for (const page of visiblePages) {
+      const featureCode = pageFeatureCodes[page.key];
+      if (!featureCode || availableFeatures.has(featureCode)) continue;
+      const requiredPlan = planCatalog.data?.find((plan) => plan.feature_codes.includes(featureCode));
+      locked.set(page.key, requiredPlan?.name ?? null);
+    }
+    return locked;
+  }, [planCatalog.data, subscription.data, visiblePages]);
+  const [lastAccessiblePage, setLastAccessiblePage] = useState<PageKey>("dashboard");
 
   useEffect(() => {
     const syncPage = () => {
@@ -726,11 +746,12 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
         return;
       }
       setActivePage(nextPage);
+      if (subscription.data && !lockedPages.has(nextPage)) setLastAccessiblePage(nextPage);
     };
     syncPage();
     window.addEventListener("hashchange", syncPage);
     return () => window.removeEventListener("hashchange", syncPage);
-  }, [visiblePages]);
+  }, [lockedPages, subscription.data, visiblePages]);
 
   const activeMeta = useMemo(() => pages.find((page) => page.key === activePage) ?? pages[0], [activePage]);
   const content = {
@@ -749,6 +770,8 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
       : <div className="screen-state">Verificando assinatura...</div>,
   }[activePage];
   const isFinancialPage = financialPages.has(activePage);
+  const activePageLocked = lockedPages.has(activePage);
+  const requiredPlanName = lockedPages.get(activePage);
   const shouldBlockFinancialPage = isFinancialPage && subscription.data !== undefined && !subscription.data.is_valid;
   const shellContent = shouldBlockFinancialPage
     ? <SubscriptionBlocked subscription={subscription.data!} canManage={isAdmin} />
@@ -758,9 +781,28 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
     window.location.hash = `/${page}`;
     setActivePage(page);
     setMenuOpen(false);
+    if (subscription.data && !lockedPages.has(page)) setLastAccessiblePage(page);
   }
 
-  const sidebar = <SidebarNavigation pages={visiblePages} activePage={activePage} navigate={navigate} />;
+  function closeLockedPagePreview() {
+    const returnPage = visiblePages.find(
+      (page) => page.key === lastAccessiblePage && !lockedPages.has(page.key),
+    )?.key;
+    const fallbackPage = returnPage
+      ?? visiblePages.find((page) => !lockedPages.has(page.key))?.key
+      ?? visiblePages[0]?.key
+      ?? "dashboard";
+    navigate(fallbackPage);
+  }
+
+  const sidebar = (
+    <SidebarNavigation
+      pages={visiblePages}
+      activePage={activePage}
+      lockedPages={lockedPages}
+      navigate={navigate}
+    />
+  );
 
   return (
     <div className="min-h-screen bg-panel text-ink">
@@ -839,6 +881,47 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
               : shellContent}
         </main>
       </div>
+      <Dialog
+        open={activePageLocked}
+        onOpenChange={(open) => {
+          if (!open && activePageLocked) closeLockedPagePreview();
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <div className="mb-4 flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <LockKeyhole aria-hidden="true" className="h-5 w-5" />
+            </span>
+            <DialogHeader className="pr-7">
+              <p className="text-xs font-bold uppercase tracking-wide text-accent">Recurso bloqueado</p>
+              <DialogTitle className="text-xl font-bold text-ink">{activeMeta.label}</DialogTitle>
+              <DialogDescription className="text-sm leading-6 text-muted">
+                {requiredPlanName
+                  ? <>Disponível a partir do plano <strong className="font-semibold text-ink">{requiredPlanName}</strong>.</>
+                  : "Consulte os planos para ver qual inclui este recurso."}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <p className="mb-5 rounded-md border border-line bg-panel p-3 text-sm leading-6 text-muted">
+            {subscription.data?.status === "trialing"
+              ? `Durante o teste gratuito, você tem acesso aos recursos do plano ${subscription.data.plan_name ?? "atual"}.`
+              : `Seu plano atual é ${subscription.data?.plan_name ?? "atual"}.`}
+          </p>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="secondary" onClick={closeLockedPagePreview}>Voltar</Button>
+            {isAdmin && (
+              <Button variant="premium" onClick={() => navigate("plans")}>
+                Ver plano e assinatura
+              </Button>
+            )}
+          </div>
+          {!isAdmin && (
+            <p className="mt-3 text-xs leading-5 text-muted">
+              Peça ao administrador da empresa para alterar o plano.
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -846,10 +929,12 @@ function CompanyShell({ user, onLogout }: { user: User; onLogout: () => void }) 
 function SidebarNavigation({
   pages: navPages,
   activePage,
+  lockedPages,
   navigate,
 }: {
   pages: typeof pages;
   activePage: PageKey;
+  lockedPages: Map<PageKey, string | null>;
   navigate: (page: PageKey) => void;
 }) {
   const visibleSections = sidebarSections
@@ -873,13 +958,21 @@ function SidebarNavigation({
             <div className="space-y-1">
               {section.pages.map((page) => {
                 const Icon = page.icon;
+                const isLocked = lockedPages.has(page.key);
+                const requiredPlanName = lockedPages.get(page.key);
                 return (
-                  <button key={page.key} className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`} onClick={() => navigate(page.key)}>
+                  <button
+                    key={page.key}
+                    aria-label={`${page.label}. ${page.description}${isLocked ? `. Bloqueado${requiredPlanName ? `. Disponível a partir do plano ${requiredPlanName}` : ""}` : ""}`}
+                    className={`nav-item ${activePage === page.key ?"nav-item-active" : ""}`}
+                    onClick={() => navigate(page.key)}
+                  >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">
                       <span className="block truncate">{page.label}</span>
                       <span className="block truncate text-xs font-medium opacity-70">{page.description}</span>
                     </span>
+                    {isLocked && <LockKeyhole aria-hidden="true" className="ml-auto h-4 w-4 shrink-0 text-highlight" />}
                   </button>
                 );
               })}
@@ -897,12 +990,12 @@ function SidebarNavigation({
 function SidebarContactInfo() {
   return (
     <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
-      <p className="font-semibold text-white">Precisa de ajuda?</p>
-      <p className="mt-1 text-xs leading-5 text-slate-300">Para liberar ou renovar o acesso, entre em contato.</p>
+      <p className="font-semibold text-white">Suporte e dúvidas</p>
+      <p className="mt-1 text-xs leading-5 text-slate-300">Fale com nossa equipe pelo WhatsApp ou e-mail.</p>
       <div className="mt-3 space-y-2">
-        <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="https://wa.me/5562996960340" rel="noreferrer" target="_blank">
+        <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="https://wa.me/556231901862" rel="noreferrer" target="_blank">
           <MessageCircle className="h-4 w-4" />
-          (62) 99696-0340
+          +55 62 3190-1862
         </a>
         <a className="flex items-center gap-2 rounded-md px-2 py-1.5 font-medium text-highlight transition hover:bg-white/10" href="mailto:gestivo@bubassoftware.com.br">
           <Mail className="h-4 w-4 shrink-0" />
