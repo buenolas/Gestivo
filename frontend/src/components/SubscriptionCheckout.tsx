@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 
 type Props = {
   canManage: boolean;
+  trialActive?: boolean;
 };
 
-export function SubscriptionCheckout({ canManage }: Props) {
+export function SubscriptionCheckout({ canManage, trialActive = false }: Props) {
   const plans = useQuery({
     queryKey: ["public-plans"],
     queryFn: () => apiFetch<Plan[]>("/plans"),
@@ -24,9 +25,13 @@ export function SubscriptionCheckout({ canManage }: Props) {
   return (
     <section className="mt-5 space-y-4">
       <div>
-        <h3 className="text-lg font-bold text-ink">Escolha seu plano mensal</h3>
+        <h3 className="text-lg font-bold text-ink">
+          {trialActive ? "Assine um plano antes do fim do teste" : "Escolha seu plano mensal"}
+        </h3>
         <p className="mt-1 text-sm leading-6 text-muted">
-          Pagamento e renovação recorrentes são processados no Checkout seguro do Stripe.
+          {trialActive
+            ? "A cobrança mensal e o ciclo de renovação começam na data da contratação. O tempo restante do teste não é somado; os recursos do plano são liberados após a confirmação do Stripe."
+            : "Pagamento e renovação recorrentes são processados no Checkout seguro do Stripe."}
         </p>
       </div>
 
@@ -56,7 +61,11 @@ export function SubscriptionCheckout({ canManage }: Props) {
                 disabled={!canManage || checkout.isPending}
                 onClick={() => checkout.mutate(plan.slug)}
               >
-                {checkout.isPending ? "Abrindo Checkout..." : `Assinar ${plan.name}`}
+                {checkout.isPending
+                  ? "Abrindo Checkout..."
+                  : trialActive
+                    ? `Assinar ${plan.name} agora`
+                    : `Assinar ${plan.name}`}
               </Button>
             </article>
           ))}
