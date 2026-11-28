@@ -11,12 +11,11 @@ ENV_FILES = (
 
 def get_migration_database_url() -> str:
     env_values = _load_env_values()
+    # Keep production migrations on the same database as the application.
+    # Vercel provider-specific URLs can remain configured after a database move.
     url = (
-        env_values.get("MIGRATION_DATABASE_URL")
-        or env_values.get("DATABASE_URL_UNPOOLED")
-        or env_values.get("POSTGRES_URL_NON_POOLING")
-        or env_values.get("DATABASE_URL")
-        or env_values.get("POSTGRES_URL")
+        env_values.get("DATABASE_URL")
+        or env_values.get("MIGRATION_DATABASE_URL")
     )
     if not url:
         raise RuntimeError(
