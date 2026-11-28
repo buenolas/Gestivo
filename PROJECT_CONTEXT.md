@@ -139,3 +139,7 @@ Renovacoes manuais excepcionais sao feitas por platform_admin e registradas em m
 - Implementar funcionalidades financeiras e de CRM a partir das prioridades expressas pelo usuario.
 - Nao inferir que a autorizacao para evoluir CRM inclui ERP, novos gateways, integracoes bancarias ou outras areas fora da direcao atual.
 - Atualizar este documento quando uma decisao mudar a direcao, regras de negocio ou compromissos do produto.
+
+### 10.1 Migracoes de producao para o VPS (2026-11-28)
+
+Em producao, as migracoes priorizam `DATABASE_URL` para usar o mesmo PostgreSQL da aplicacao. `MIGRATION_DATABASE_URL` fica como fallback se a URL principal estiver ausente. URLs especificas de provedores anteriores, como `DATABASE_URL_UNPOOLED` e `POSTGRES_URL_NON_POOLING`, nao sobrepoem `DATABASE_URL`.
